@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use alloc::boxed::Box;
 
 struct Node<T> {

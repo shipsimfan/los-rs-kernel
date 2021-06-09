@@ -40,8 +40,7 @@ extern "C" {
     fn get_rflags() -> usize;
 }
 
-#[allow(dead_code)]
-pub fn create_process(entry: ThreadFunc, session: Option<&mut SessionBox>) {
+pub fn create_process(entry: ThreadFunc, session: Option<&SessionBox>) {
     match session {
         None => {
             let mut daemon = DAEMON.lock();
@@ -58,8 +57,7 @@ pub fn create_process(entry: ThreadFunc, session: Option<&mut SessionBox>) {
     }
 }
 
-#[allow(dead_code)]
-pub fn create_process_with_context(
+pub fn _create_process_with_context(
     entry: ThreadFunc,
     context: usize,
     session: Option<&mut SessionBox>,
@@ -80,7 +78,6 @@ pub fn create_process_with_context(
     }
 }
 
-#[allow(dead_code)]
 pub fn create_thread(entry: ThreadFunc) {
     let current_process = get_current_thread().lock().get_process();
 
@@ -89,8 +86,7 @@ pub fn create_thread(entry: ThreadFunc) {
         .create_thread(&current_process, entry as usize, 0);
 }
 
-#[allow(dead_code)]
-pub fn create_thread_with_context(entry: ThreadFuncContext, context: usize) {
+pub fn _create_thread_with_context(entry: ThreadFuncContext, context: usize) {
     let current_process = get_current_thread().lock().get_process();
 
     current_process
@@ -109,14 +105,12 @@ pub fn queue_thread(thread: ThreadBox) {
     }
 }
 
-#[allow(dead_code)]
 pub fn queue_and_yield() {
     queue_thread(get_current_thread());
 
     yield_thread();
 }
 
-#[allow(dead_code)]
 pub fn get_current_thread() -> ThreadBox {
     get_current_thread_option().unwrap()
 }

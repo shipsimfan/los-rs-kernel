@@ -7,7 +7,7 @@ pub struct Process {
     next_id: TID,
     threads: Vec<WeakThreadBox>,
     address_space: crate::memory::AddressSpace,
-    session: Option<SessionBox>,
+    _session: Option<SessionBox>,
 }
 
 pub type PID = usize;
@@ -19,7 +19,7 @@ impl Process {
             next_id: 0,
             threads: Vec::new(),
             address_space: crate::memory::AddressSpace::new(),
-            session: match session {
+            _session: match session {
                 None => None,
                 Some(sb) => Some(sb.clone()),
             },
@@ -47,13 +47,7 @@ impl Process {
         self.address_space.set_as_current()
     }
 
-    #[allow(dead_code)]
-    pub fn get_session(&self) -> Option<SessionBox> {
-        self.session.clone()
-    }
-
-    #[allow(dead_code)]
-    pub fn kill(&mut self) {
+    pub fn _kill(&mut self) {
         for t in &self.threads {
             match t.upgrade() {
                 None => {}

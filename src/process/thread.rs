@@ -97,10 +97,6 @@ impl Thread {
     pub fn is_killed(&self) -> bool {
         self.kill_flag
     }
-
-    pub fn tid(&self) -> TID {
-        self.id
-    }
 }
 
 impl Drop for Thread {
@@ -134,8 +130,7 @@ impl Stack {
         unsafe { *(self.pointer as *mut usize) = value };
     }
 
-    #[allow(dead_code)]
-    pub fn pop(&mut self) -> usize {
+    pub fn _pop(&mut self) -> usize {
         let ret = unsafe { *(self.pointer as *const usize) };
         self.pointer += core::mem::size_of::<usize>();
         ret

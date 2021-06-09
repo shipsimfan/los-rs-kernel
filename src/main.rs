@@ -50,7 +50,7 @@ pub extern "C" fn kmain(
     let first_session = session::create_console_session();
     logln!("\x1B2A2]OK\x1B]!");
     log!("Creating startup process . . . ");
-    (*first_session.lock()).create_process(startup_thread as usize, 0, Some(&first_session));
+    process::create_process(startup_thread, Some(&first_session));
     drop(first_session);
     logln!("\x1B2A2]OK\x1B]!");
     process::yield_thread();
@@ -67,7 +67,7 @@ fn thread_2() {
     }
 }
 
-fn startup_thread(_context: usize) {
+fn startup_thread() {
     logln!("Loading device drivers . . . ");
 
     device::drivers::hpet::initialize();

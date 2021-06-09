@@ -1,6 +1,5 @@
 use crate::memory::{PhysicalAddress, VirtualAddress};
 
-#[allow(dead_code)]
 #[repr(packed(1))]
 pub struct GraphicsMode {
     pub horizontal_resolution: u32,

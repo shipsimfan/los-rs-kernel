@@ -6,12 +6,12 @@ struct GlobalDescriptorTable(pub [Entry; 7]);
 
 #[repr(packed(1))]
 struct Entry {
-    pub limit_low: u16,
-    pub base_low: u16,
-    pub base_mid: u8,
-    pub access: u8,
-    pub flags_limit_high: u8,
-    pub base_high: u8,
+    _limit_low: u16,
+    _base_low: u16,
+    _base_mid: u8,
+    _access: u8,
+    _flags_limit_high: u8,
+    _base_high: u8,
 }
 
 #[repr(packed(1))]
@@ -70,24 +70,24 @@ pub fn initialize() {
     let tss_ptr = &tss_lock as *const _ as usize;
 
     gdt.0[5] = super::gdt::Entry {
-        limit_low: 104,
-        base_low: (tss_ptr & 0xFFFF) as u16,
-        base_mid: ((tss_ptr >> 16) & 0xFF) as u8,
-        access: super::gdt::GDT_ACCESS_ACCESSED
+        _limit_low: 104,
+        _base_low: (tss_ptr & 0xFFFF) as u16,
+        _base_mid: ((tss_ptr >> 16) & 0xFF) as u8,
+        _access: super::gdt::GDT_ACCESS_ACCESSED
             | super::gdt::GDT_ACCESS_EXECUTABLE
             | super::gdt::GDT_ACCESS_DPL_3
             | super::gdt::GDT_ACCESS_PRESENT,
-        flags_limit_high: super::gdt::GDT_FLAGS_GRANULARITY,
-        base_high: ((tss_ptr >> 24) & 0xFF) as u8,
+        _flags_limit_high: super::gdt::GDT_FLAGS_GRANULARITY,
+        _base_high: ((tss_ptr >> 24) & 0xFF) as u8,
     };
 
     gdt.0[6] = super::gdt::Entry {
-        limit_low: ((tss_ptr >> 32) & 0xFFFF) as u16,
-        base_low: ((tss_ptr >> 48) & 0xFFFF) as u16,
-        base_mid: 0,
-        access: 0,
-        flags_limit_high: 0,
-        base_high: 0,
+        _limit_low: ((tss_ptr >> 32) & 0xFFFF) as u16,
+        _base_low: ((tss_ptr >> 48) & 0xFFFF) as u16,
+        _base_mid: 0,
+        _access: 0,
+        _flags_limit_high: 0,
+        _base_high: 0,
     };
 
     // Prepare the GDTR
@@ -149,23 +149,23 @@ impl Entry {
         }
 
         Entry {
-            limit_low: 0xFFFF,
-            base_low: 0,
-            base_mid: 0,
-            access: access,
-            flags_limit_high: flags | 0x0F,
-            base_high: 0,
+            _limit_low: 0xFFFF,
+            _base_low: 0,
+            _base_mid: 0,
+            _access: access,
+            _flags_limit_high: flags | 0x0F,
+            _base_high: 0,
         }
     }
 
     pub const fn null() -> Self {
         Entry {
-            limit_low: 0,
-            base_low: 0,
-            base_mid: 0,
-            access: 0,
-            flags_limit_high: 0,
-            base_high: 0,
+            _limit_low: 0,
+            _base_low: 0,
+            _base_mid: 0,
+            _access: 0,
+            _flags_limit_high: 0,
+            _base_high: 0,
         }
     }
 }

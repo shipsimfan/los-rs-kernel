@@ -19,12 +19,10 @@ pub fn register_device(path: &str, device: DeviceBox) -> error::Result {
     DEVICE_TREE.lock().register_device(path, device)
 }
 
-#[allow(dead_code)]
-pub fn remove_device(path: &str) {
-    DEVICE_TREE.lock().remove_device(path)
+pub fn _remove_device(path: &str) {
+    DEVICE_TREE.lock()._remove_device(path)
 }
 
-#[allow(dead_code)]
 pub fn get_device(path: &str) -> Result<DeviceBox, error::Status> {
     DEVICE_TREE.lock().get_device(path)
 }
@@ -33,32 +31,27 @@ pub fn outb(port: u16, data: u8) {
     unsafe { asm!("out dx, al", in("dx") port, in("al") data) };
 }
 
-#[allow(dead_code)]
-pub fn outw(port: u16, data: u16) {
+pub fn _outw(port: u16, data: u16) {
     unsafe { asm!("out dx, ax", in("dx") port, in("ax") data) };
 }
 
-#[allow(dead_code)]
-pub fn outd(port: u16, data: u32) {
+pub fn _outd(port: u16, data: u32) {
     unsafe { asm!("out dx, eax", in("dx") port, in("eax") data) };
 }
 
-#[allow(dead_code)]
-pub fn inb(port: u16) -> u8 {
+pub fn _inb(port: u16) -> u8 {
     let ret;
     unsafe { asm!("in al, dx", in("dx") port, out("al") ret) };
     ret
 }
 
-#[allow(dead_code)]
-pub fn inw(port: u16) -> u16 {
+pub fn _inw(port: u16) -> u16 {
     let ret;
     unsafe { asm!("in ax, dx", in("dx") port, out("ax") ret) };
     ret
 }
 
-#[allow(dead_code)]
-pub fn ind(port: u16) -> u32 {
+pub fn _ind(port: u16) -> u32 {
     let ret;
     unsafe { asm!("in eax, dx", in("dx") port, out("eax") ret) };
     ret

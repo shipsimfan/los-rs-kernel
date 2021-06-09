@@ -4,7 +4,6 @@ use alloc::{sync::Arc, vec::Vec};
 pub mod color;
 mod console;
 mod control;
-mod desktop;
 
 pub struct Session {
     _id: SID,
@@ -15,7 +14,6 @@ pub struct Session {
 
 pub enum SessionType {
     Console(console::Console),
-    Desktop(desktop::Desktop),
 }
 
 pub type SessionBox = Arc<Mutex<Session>>;
@@ -25,11 +23,6 @@ static SESSIONS: Mutex<control::SessionControl> = Mutex::new(control::SessionCon
 
 pub fn create_console_session() -> SessionBox {
     (*SESSIONS.lock()).create_session(SessionType::Console(console::Console::new()))
-}
-
-#[allow(dead_code)]
-pub fn create_desktop_session() -> SessionBox {
-    (*SESSIONS.lock()).create_session(SessionType::Desktop(desktop::Desktop::new()))
 }
 
 impl Session {

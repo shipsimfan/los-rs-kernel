@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::process::{self, Thread, ThreadQueue};
 use core::{
     cell::UnsafeCell,
@@ -44,7 +42,6 @@ impl<T> Mutex<T> {
     }
 
     #[inline(always)]
-    #[allow(dead_code)]
     pub fn lock(&self) -> MutexGuard<T> {
         match process::get_current_thread_option() {
             None => {}
@@ -80,7 +77,6 @@ impl<T> Mutex<T> {
     }
 
     #[inline(always)]
-    #[allow(dead_code)]
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
         match process::get_current_thread_option() {
             None => None,
@@ -115,7 +111,7 @@ impl<T> Mutex<T> {
     }
 
     #[inline(always)]
-    pub fn is_locked(&self) -> bool {
+    pub fn _is_locked(&self) -> bool {
         let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
         unsafe { asm!("cli") };
         let ret = self.lock.load(Ordering::Relaxed) != null_mut();
@@ -166,6 +162,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
 unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
 unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
 
+#[allow(dead_code)]
 impl<T> Spinlock<T> {
     #[inline(always)]
     pub const fn new(data: T) -> Self {
@@ -194,7 +191,6 @@ impl<T> Spinlock<T> {
     }
 
     #[inline(always)]
-    #[allow(dead_code)]
     pub fn try_lock(&self) -> Option<SpinlockGuard<T>> {
         if self
             .lock

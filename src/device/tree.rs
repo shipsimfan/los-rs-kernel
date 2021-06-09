@@ -80,7 +80,7 @@ impl Tree {
         }
     }
 
-    pub fn remove_device(&mut self, path: &str) {
+    pub fn _remove_device(&mut self, path: &str) {
         match parse_path(path) {
             Err(_) => {}
             Ok((path_parts, name)) => {

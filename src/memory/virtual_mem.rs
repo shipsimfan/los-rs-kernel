@@ -27,7 +27,7 @@ struct PageIndex {
     pub pdpt_index: usize,
     pub page_directory_index: usize,
     pub page_table_index: usize,
-    pub offset: usize,
+    pub _offset: usize,
 }
 
 type PML4 = Table<PDPT>;
@@ -309,7 +309,7 @@ impl PageIndex {
         let correct = address & 0x0000FFFFFFFFFFFF;
 
         PageIndex {
-            offset: (correct & 0xFFF) as usize,
+            _offset: (correct & 0xFFF) as usize,
             page_table_index: ((correct.wrapping_shr(12)) & 0x1FF) as usize,
             page_directory_index: ((correct.wrapping_shr(21)) & 0x1FF) as usize,
             pdpt_index: ((correct.wrapping_shr(30)) & 0x1FF) as usize,
