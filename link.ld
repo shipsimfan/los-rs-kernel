@@ -49,6 +49,12 @@ SECTIONS {
 
     . = ALIGN(4096);
 
+    .got : AT(ADDR(.got) - __KERNEL_VMA) {
+        *(.got*)
+    }
+
+    . = ALIGN(4096);
+
     __KERNEL_TOP = .;
     
     /DISCARD/ : {
