@@ -34,6 +34,10 @@ _start:
     ; Disable interrupts
     cli
 
+    mov rdi, rcx
+    mov rsi, rdx
+    mov rdx, r8
+
     ; Copy page structures from UEFI
     mov rbx, cr3
     mov r8, pml4

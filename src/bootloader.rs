@@ -1,6 +1,6 @@
 use crate::memory::{PhysicalAddress, VirtualAddress};
 
-#[repr(packed(1))]
+#[repr(C)]
 pub struct GraphicsMode {
     pub horizontal_resolution: u32,
     pub vertical_resolution: u32,
@@ -13,7 +13,7 @@ pub struct GraphicsMode {
     pub framebuffer_size: usize,
 }
 
-#[repr(packed(1))]
+#[repr(C)]
 pub struct MemoryMap {
     pub size: usize,
     pub key: usize,
