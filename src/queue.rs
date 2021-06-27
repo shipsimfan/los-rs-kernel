@@ -67,6 +67,10 @@ impl<T: PartialEq> Queue<T> {
         }
     }
 
+    pub fn is_front(&self) -> bool {
+        self.head.is_some()
+    }
+
     pub fn len(&self) -> usize {
         self.length
     }

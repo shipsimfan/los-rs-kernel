@@ -13,6 +13,13 @@ impl ThreadControl {
         }
     }
 
+    pub fn get_current_thread(&self) -> Option<&'static Thread> {
+        match self.current_thread {
+            Some(thread) => Some(unsafe { &*thread }),
+            None => None,
+        }
+    }
+
     pub fn get_current_thread_mut(&self) -> Option<&'static mut Thread> {
         match self.current_thread {
             Some(thread) => Some(unsafe { &mut *thread }),
@@ -26,6 +33,10 @@ impl ThreadControl {
 
     pub fn get_next_thread(&mut self) -> Option<&mut Thread> {
         self.running_queue.pop_mut()
+    }
+
+    pub fn is_next_thread(&self) -> bool {
+        self.running_queue.is_front()
     }
 
     pub fn queue_execution(&mut self, thread: &mut Thread) {

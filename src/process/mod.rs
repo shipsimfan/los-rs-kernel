@@ -121,8 +121,20 @@ pub fn exit_thread() {
     yield_thread();
 }
 
+pub fn get_current_thread_option() -> Option<&'static Thread> {
+    unsafe {
+        let return_interrupts = get_rflags() & (1 << 9) == 0;
+        asm!("cli");
+        let ret = THREAD_CONTROL.get_current_thread();
+        if return_interrupts {
+            asm!("sti");
+        }
+        ret
+    }
+}
+
 pub fn get_current_thread_mut() -> &'static mut Thread {
-    get_current_thread_mut_option().expect("No current thread when on required!")
+    get_current_thread_mut_option().expect("No current thread when one required!")
 }
 
 pub fn get_current_thread_mut_option() -> Option<&'static mut Thread> {
@@ -135,4 +147,19 @@ pub fn get_current_thread_mut_option() -> Option<&'static mut Thread> {
         }
         ret
     }
+}
+
+pub fn preempt() {
+    unsafe {
+        if !THREAD_CONTROL.is_next_thread() {
+            return;
+        }
+
+        if get_current_thread_option().is_none() {
+            return;
+        }
+    }
+
+    crate::interrupts::irq::end_interrupt();
+    queue_and_yield();
 }

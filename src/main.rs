@@ -61,56 +61,14 @@ pub extern "C" fn kmain(
     loop {}
 }
 
-fn proc_2_thread_2() {
-    let mut i = 0;
-    while i < 6 {
-        logln!("Proc 2 - Thread 2: {}", i);
-
-        process::queue_and_yield();
-
-        i += 1;
-    }
-}
-
-fn proc_2_thread_1() {
-    process::create_thread(proc_2_thread_2);
-
-    let mut i = 0;
-    while i < 6 {
-        logln!("Proc 2 - Thread 1: {}", i);
-
-        process::queue_and_yield();
-
-        i += 1;
-    }
-}
-
-fn thread_2() {
-    let mut i = 0;
-    while i < 6 {
-        logln!("Thread 2: {}", i);
-
-        process::queue_and_yield();
-
-        i += 1;
-    }
-}
-
 fn startup_thread() {
     logln!("Loading device drivers . . . ");
 
     device::drivers::hpet::initialize();
 
-    process::create_process(proc_2_thread_1);
-    process::create_thread(thread_2);
-
-    let mut i = 0;
-    while i < 6 {
-        logln!("Thread 1: {}", i);
-
-        process::queue_and_yield();
-
-        i += 1;
+    // Must keep one thread alive, then the system may(most likely) crash
+    loop {
+        unsafe { asm!("hlt") }
     }
 }
 

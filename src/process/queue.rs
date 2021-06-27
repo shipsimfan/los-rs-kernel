@@ -30,6 +30,10 @@ impl ThreadQueue {
         }
     }
 
+    pub fn is_front(&self) -> bool {
+        self.0.is_front()
+    }
+
     // Called from thread on dropping
     pub fn remove(&mut self, thread: &mut Thread) {
         self.0.remove(thread);
