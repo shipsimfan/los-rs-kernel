@@ -23,8 +23,8 @@ pub fn millisecond_tick() {
     unsafe {
         SYSTEM_TIME += 1;
 
-        if SYSTEM_TIME % 10 == 0 {
+        /*if SYSTEM_TIME % 10 == 0 {
             crate::process::preempt();
-        }
+        }*/
     }
 }

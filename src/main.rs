@@ -7,6 +7,7 @@
 #![feature(panic_info_message)]
 #![feature(ptr_internals)]
 #![feature(allocator_api)]
+#![feature(const_fn_trait_bound)]
 
 mod bootloader;
 mod device;
@@ -14,6 +15,7 @@ mod error;
 mod interrupts;
 mod locks;
 mod logger;
+mod map;
 mod memory;
 mod process;
 mod queue;
@@ -50,18 +52,45 @@ pub extern "C" fn kmain(
     let first_session = session::create_console_session();
     logln!("\x1B2A2]OK\x1B]!");
     log!("Creating startup process . . . ");
-    process::create_process(startup_thread, Some(&first_session));
-    drop(first_session);
+    first_session
+        .lock()
+        .create_process(startup_thread as usize, 0);
     logln!("\x1B2A2]OK\x1B]!");
     process::yield_thread();
 
     loop {}
 }
 
+fn proc_2_thread_2() {
+    let mut i = 0;
+    while i < 6 {
+        logln!("Proc 2 - Thread 2: {}", i);
+
+        process::queue_and_yield();
+
+        i += 1;
+    }
+}
+
+fn proc_2_thread_1() {
+    process::create_thread(proc_2_thread_2);
+
+    let mut i = 0;
+    while i < 6 {
+        logln!("Proc 2 - Thread 1: {}", i);
+
+        process::queue_and_yield();
+
+        i += 1;
+    }
+}
+
 fn thread_2() {
     let mut i = 0;
-    while i < 12 {
+    while i < 6 {
         logln!("Thread 2: {}", i);
+
+        process::queue_and_yield();
 
         i += 1;
     }
@@ -72,11 +101,14 @@ fn startup_thread() {
 
     device::drivers::hpet::initialize();
 
+    process::create_process(proc_2_thread_1);
     process::create_thread(thread_2);
 
     let mut i = 0;
-    while i < 12 {
+    while i < 6 {
         logln!("Thread 1: {}", i);
+
+        process::queue_and_yield();
 
         i += 1;
     }

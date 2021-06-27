@@ -34,7 +34,7 @@ type PML4 = Table<PDPT>;
 type PDPT = Table<PageDirectory>;
 type PageDirectory = Table<PageTable>;
 type PageTable = Table<Page>;
-type Page = usize;
+type Page = [u8; PAGE_SIZE];
 
 const PAGE_FLAG_PRESENT: usize = 1 << 0;
 const PAGE_FLAG_WRITABLE: usize = 1 << 1;
@@ -289,6 +289,8 @@ impl<T: PhysicalDrop> PhysicalDrop for Table<T> {
                 unsafe {
                     (*entry).physical_drop();
                 }
+
+                self.clear_entry(i);
             }
 
             i += 1;
@@ -300,7 +302,12 @@ impl<T: PhysicalDrop> PhysicalDrop for Table<T> {
 
 impl PhysicalDrop for Page {
     fn physical_drop(&mut self) {
-        physical::free(self as *const _ as usize - KERNEL_VMA);
+        let addr = self as *const _ as usize - KERNEL_VMA;
+        for i in self {
+            *i = 0;
+        }
+
+        physical::free(addr);
     }
 }
 

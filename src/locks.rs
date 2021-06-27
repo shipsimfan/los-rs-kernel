@@ -43,7 +43,7 @@ impl<T> Mutex<T> {
 
     #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T> {
-        match process::get_current_thread_option() {
+        match process::get_current_thread_mut_option() {
             None => {}
             Some(current_thread) => {
                 let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
@@ -52,7 +52,7 @@ impl<T> Mutex<T> {
                     .lock
                     .compare_exchange(
                         null_mut(),
-                        current_thread.data.get(),
+                        current_thread,
                         Ordering::Acquire,
                         Ordering::Relaxed,
                     )
@@ -78,7 +78,7 @@ impl<T> Mutex<T> {
 
     #[inline(always)]
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        match process::get_current_thread_option() {
+        match process::get_current_thread_mut_option() {
             None => None,
             Some(current_thread) => {
                 let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
@@ -87,7 +87,7 @@ impl<T> Mutex<T> {
                     .lock
                     .compare_exchange(
                         null_mut(),
-                        current_thread.data.get(),
+                        current_thread,
                         Ordering::Acquire,
                         Ordering::Relaxed,
                     )
@@ -111,7 +111,7 @@ impl<T> Mutex<T> {
     }
 
     #[inline(always)]
-    pub fn _is_locked(&self) -> bool {
+    pub fn is_locked(&self) -> bool {
         let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
         unsafe { asm!("cli") };
         let ret = self.lock.load(Ordering::Relaxed) != null_mut();
@@ -143,10 +143,12 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
         unsafe { asm!("cli") };
         let mutex = unsafe { &mut *(self.lock as *const _ as *mut Mutex<T>) };
 
-        match mutex.queue.pop() {
+        match mutex.queue.pop_mut() {
             None => mutex.lock.store(null_mut(), Ordering::Relaxed),
             Some(next_thread) => {
-                mutex.lock.store(next_thread.data.get(), Ordering::Relaxed);
+                mutex
+                    .lock
+                    .store(next_thread as *const _ as *mut _, Ordering::Relaxed);
                 process::queue_thread(next_thread);
             }
         }

@@ -1,72 +1,75 @@
-use super::{Lock, ProcessBox, Thread, WeakThreadBox, TID};
-use crate::{logln, session::SessionBox};
-use alloc::{sync::Arc, vec::Vec};
+use super::Thread;
+use crate::{
+    logln,
+    map::{Map, Mappable, INVALID_ID},
+    memory::AddressSpace,
+    session::Session,
+};
 
 pub struct Process {
-    id: PID,
-    next_id: TID,
-    threads: Vec<WeakThreadBox>,
-    address_space: crate::memory::AddressSpace,
-    _session: Option<SessionBox>,
+    id: usize,
+    threads: Map<Thread>,
+    address_space: AddressSpace,
+    session: Option<*mut Session>,
 }
 
-pub type PID = usize;
-
 impl Process {
-    pub fn new(id: PID, session: Option<&SessionBox>) -> Self {
+    pub fn new(session: Option<&mut Session>) -> Self {
         Process {
-            id: id,
-            next_id: 0,
-            threads: Vec::new(),
-            address_space: crate::memory::AddressSpace::new(),
-            _session: match session {
+            id: INVALID_ID,
+            threads: Map::new(),
+            address_space: AddressSpace::new(),
+            session: match session {
+                Some(session) => Some(session),
                 None => None,
-                Some(sb) => Some(sb.clone()),
             },
         }
     }
 
-    pub fn create_thread(&mut self, self_box: &ProcessBox, entry: usize, context: usize) {
-        // Create the thread
-        let new_thread = Arc::new(Lock::new(Thread::new(
-            self.next_id,
-            self_box,
-            entry,
-            context,
-        )));
-        self.threads.push(Arc::downgrade(&new_thread));
-        self.next_id += 1;
-        super::queue_thread(new_thread);
+    pub fn create_thread(&mut self, entry: usize, context: usize) -> usize {
+        let thread = Thread::new(self, entry, context);
+        let tid = self.threads.insert(thread);
+        super::queue_thread(self.threads.get_mut(tid).unwrap());
+        tid
     }
 
-    pub fn remove_dead_threads(&mut self) {
-        self.threads.retain(|x| x.upgrade().is_some());
+    pub fn remove_thread(&mut self, id: usize) -> bool {
+        self.threads.remove(id);
+        self.threads.count() == 0
     }
 
     pub fn set_address_space_as_current(&self) {
         self.address_space.set_as_current()
     }
 
-    pub fn _kill(&mut self) {
-        for t in &self.threads {
-            match t.upgrade() {
-                None => {}
-                Some(thread) => thread.lock().kill(),
-            }
+    pub fn get_session_mut(&mut self) -> Option<&mut Session> {
+        match self.session {
+            Some(session) => Some(unsafe { &mut *session }),
+            None => None,
         }
+    }
+}
+
+impl Mappable for Process {
+    fn id(&self) -> usize {
+        self.id
+    }
+
+    fn set_id(&mut self, id: usize) {
+        self.id = id
     }
 }
 
 impl Drop for Process {
     fn drop(&mut self) {
-        self.remove_dead_threads();
-
-        if self.threads.len() > 0 {
+        if self.threads.count() > 0 {
             panic!("Dropping process while it still has threads!");
         }
 
         self.address_space.free();
 
-        logln!("Dropping process {}", self.id);
+        logln!("Dropping process!");
     }
 }
+
+unsafe impl Send for Process {}

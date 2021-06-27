@@ -44,12 +44,17 @@ float_load:
     fxrstor [rdi]
     ret
 
+EXTERN switch_thread
+
 GLOBAL perform_yield
 perform_yield:
     PushAllRegisters
 
     mov [rdi], rsp
     mov rsp, [rsi]
+
+    mov rdi, rdx
+    call switch_thread
 
     PopAllRegisters
 

@@ -1,5 +1,5 @@
-use crate::{locks::Mutex, process};
-use alloc::{sync::Arc, vec::Vec};
+use crate::{locks::Mutex, map::Map, process::Process};
+use alloc::sync::Arc;
 
 pub mod color;
 mod console;
@@ -8,8 +8,7 @@ mod control;
 pub struct Session {
     _id: SID,
     _sub: SessionType,
-    next_id: process::PID,
-    processes: Vec<process::WeakProcessBox>,
+    processes: Map<Process>,
 }
 
 pub enum SessionType {
@@ -30,17 +29,21 @@ impl Session {
         Session {
             _id: id,
             _sub: sub,
-            next_id: 0,
-            processes: Vec::new(),
+            processes: Map::new(),
         }
     }
 
-    pub fn create_process(&mut self, entry: usize, context: usize, session: Option<&SessionBox>) {
-        let new_process = Arc::new(Mutex::new(process::Process::new(self.next_id, session)));
-        new_process
-            .lock()
-            .create_thread(&new_process, entry, context);
-        self.processes.push(Arc::downgrade(&new_process));
-        self.next_id += 1;
+    pub fn create_process(&mut self, entry: usize, context: usize) -> usize {
+        let new_process = Process::new(Some(self));
+        let pid = self.processes.insert(new_process);
+        self.processes
+            .get_mut(pid)
+            .unwrap()
+            .create_thread(entry, context);
+        pid
+    }
+
+    pub fn remove_process(&mut self, id: usize) {
+        self.processes.remove(id);
     }
 }

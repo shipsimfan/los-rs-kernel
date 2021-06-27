@@ -1,125 +1,149 @@
-use super::{exit_thread, ProcessBox, ThreadFuncContext};
-use crate::logln;
-use alloc::vec::Vec;
-use core::mem::size_of;
+use core::{ffi::c_void, ptr::null_mut};
 
-#[repr(C, align(16))]
-struct usizeA16(usize);
+use super::{exit_thread, Process, ThreadFuncContext, ThreadQueue};
+use crate::{
+    logln,
+    map::{Mappable, INVALID_ID},
+};
 
 struct Stack {
-    _stack: Vec<usizeA16>,
+    stack: *mut u8,
     top: usize,
     pointer: usize,
 }
 
 pub struct Thread {
-    id: TID,
+    id: usize,
     kernel_stack: Stack,
-    floating_point_storage: Vec<usizeA16>,
-    process: ProcessBox,
-    kill_flag: bool,
+    floating_point_storage: *mut u8,
+    process: *mut Process,
+    queue: Option<*mut ThreadQueue>,
 }
 
-pub type TID = usize;
+const KERNEL_STACK_SIZE: usize = 32 * 1024;
+const FLOATING_POINT_STORAGE_SIZE: usize = 512;
 
-pub const KERNEL_STACK_SIZE: usize = 32 * 1024;
-pub const FLOATING_POINT_STORAGE_SIZE: usize = 512;
-pub const KERNEL_STACK_SIZE_USIZE: usize = KERNEL_STACK_SIZE / size_of::<usizeA16>();
-pub const FLOATING_POINT_STORAGE_SIZE_USIZE: usize =
-    FLOATING_POINT_STORAGE_SIZE / size_of::<usizeA16>();
+const FLOATING_POINT_STORAGE_LAYOUT: alloc::alloc::Layout =
+    unsafe { alloc::alloc::Layout::from_size_align_unchecked(FLOATING_POINT_STORAGE_SIZE, 16) };
+const KERNEL_STACK_LAYOUT: alloc::alloc::Layout =
+    unsafe { alloc::alloc::Layout::from_size_align_unchecked(KERNEL_STACK_SIZE, 16) };
 
 extern "C" {
-    fn float_save(floating_point_storage: *const usizeA16);
-    fn float_load(floating_point_storage: *const usizeA16);
+    fn float_save(floating_point_storage: *mut u8);
+    fn float_load(floating_point_storage: *mut u8);
 }
 
-#[allow(improper_ctypes_definitions)]
-extern "C" fn thread_enter_kernel(entry: ThreadFuncContext, context: usize) {
+extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
+    let entry: ThreadFuncContext = unsafe { core::mem::transmute(entry) };
     entry(context);
     exit_thread();
 }
 
 impl Thread {
-    pub fn new(id: TID, process: &ProcessBox, entry: usize, context: usize) -> Self {
-        let mut thread = Thread {
-            id: id,
-            kernel_stack: Stack::new(),
-            floating_point_storage: Vec::with_capacity(FLOATING_POINT_STORAGE_SIZE_USIZE),
-            process: process.clone(),
-            kill_flag: false,
-        };
+    pub fn new(process: &mut Process, entry: usize, context: usize) -> Self {
+        let mut kernel_stack = Stack::new();
+        kernel_stack.push(thread_enter_kernel as usize); // ret address
+        kernel_stack.push(0); // push rax
+        kernel_stack.push(0); // push rbx
+        kernel_stack.push(0); // push rcx
+        kernel_stack.push(0); // push rdx
+        kernel_stack.push(context); // push rsi
+        kernel_stack.push(entry); // push rdi
+        kernel_stack.push(0); // push rbp
+        kernel_stack.push(0); // push r8
+        kernel_stack.push(0); // push r9
+        kernel_stack.push(0); // push r10
+        kernel_stack.push(0); // push r11
+        kernel_stack.push(0); // push r12
+        kernel_stack.push(0); // push r13
+        kernel_stack.push(0); // push r14
+        kernel_stack.push(0); // push r15
 
-        // Prepare the stack
-        thread.kernel_stack.push(thread_enter_kernel as usize); // ret address
-        thread.kernel_stack.push(0); // push rax
-        thread.kernel_stack.push(0); // push rbx
-        thread.kernel_stack.push(0); // push rcx
-        thread.kernel_stack.push(0); // push rdx
-        thread.kernel_stack.push(context); // push rsi
-        thread.kernel_stack.push(entry); // push rdi
-        thread.kernel_stack.push(0); // push rbp
-        thread.kernel_stack.push(0); // push r8
-        thread.kernel_stack.push(0); // push r9
-        thread.kernel_stack.push(0); // push r10
-        thread.kernel_stack.push(0); // push r11
-        thread.kernel_stack.push(0); // push r12
-        thread.kernel_stack.push(0); // push r13
-        thread.kernel_stack.push(0); // push r14
-        thread.kernel_stack.push(0); // push r15
+        let fps = unsafe { alloc::alloc::alloc_zeroed(FLOATING_POINT_STORAGE_LAYOUT) };
 
-        thread
+        Thread {
+            id: INVALID_ID,
+            kernel_stack: kernel_stack,
+            floating_point_storage: fps,
+            process: process,
+            queue: None,
+        }
     }
 
     pub fn save_float(&self) {
-        unsafe { float_save(self.floating_point_storage.as_ptr()) };
+        unsafe { float_save(self.floating_point_storage) };
     }
 
     pub fn load_float(&self) {
-        unsafe { float_load(self.floating_point_storage.as_ptr()) };
+        unsafe { float_load(self.floating_point_storage) };
     }
 
     pub fn set_interrupt_stack(&self) {
         crate::interrupts::set_interrupt_stack(self.kernel_stack.top);
     }
 
+    pub fn set_queue(&mut self, queue: &mut ThreadQueue) {
+        self.queue = Some(queue);
+    }
+
+    pub fn clear_queue(&mut self) {
+        self.queue = None;
+    }
+
+    pub fn in_queue(&mut self) -> bool {
+        self.queue.is_some()
+    }
+
     pub fn get_stack_pointer_location(&self) -> *mut usize {
         (&self.kernel_stack.pointer) as *const _ as *mut _
     }
 
-    pub fn get_process(&self) -> ProcessBox {
-        self.process.clone()
+    pub fn get_process(&self) -> &'static Process {
+        unsafe { &*self.process }
     }
 
-    pub fn kill(&mut self) {
-        self.kill_flag = true;
+    pub fn get_process_mut(&mut self) -> &'static mut Process {
+        unsafe { &mut *self.process }
     }
 
-    pub fn is_killed(&self) -> bool {
-        self.kill_flag
+    pub fn compare_process(&self, other: &Thread) -> bool {
+        self.process == other.process
+    }
+}
+
+impl Mappable for Thread {
+    fn id(&self) -> usize {
+        self.id
+    }
+
+    fn set_id(&mut self, id: usize) {
+        self.id = id
     }
 }
 
 impl Drop for Thread {
     fn drop(&mut self) {
-        logln!("Dropping thread {}", self.id);
+        match self.queue {
+            Some(queue) => unsafe { (*queue).remove(self) },
+            None => {}
+        }
+
+        unsafe {
+            alloc::alloc::dealloc(self.floating_point_storage, FLOATING_POINT_STORAGE_LAYOUT)
+        };
+
+        logln!("Dropping Thread");
     }
 }
 
 impl Stack {
     pub fn new() -> Self {
-        let mut stack = Vec::<usizeA16>::with_capacity(KERNEL_STACK_SIZE_USIZE);
-
-        // Zero and page the kernel stack
-        let mut i = 0;
-        while i < KERNEL_STACK_SIZE {
-            stack.push(usizeA16(0));
-            i += 1;
-        }
+        let stack = unsafe { alloc::alloc::alloc_zeroed(KERNEL_STACK_LAYOUT) };
 
         // Set the kernel stack pointer appropriately
-        let top = stack.as_ptr() as usize + KERNEL_STACK_SIZE;
+        let top = stack as usize + KERNEL_STACK_SIZE;
         Stack {
-            _stack: stack,
+            stack: stack,
             top: top,
             pointer: top,
         }
@@ -129,10 +153,10 @@ impl Stack {
         self.pointer -= core::mem::size_of::<usize>();
         unsafe { *(self.pointer as *mut usize) = value };
     }
+}
 
-    pub fn _pop(&mut self) -> usize {
-        let ret = unsafe { *(self.pointer as *const usize) };
-        self.pointer += core::mem::size_of::<usize>();
-        ret
+impl Drop for Stack {
+    fn drop(&mut self) {
+        unsafe { alloc::alloc::dealloc(self.stack, KERNEL_STACK_LAYOUT) };
     }
 }
