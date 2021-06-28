@@ -84,6 +84,7 @@ impl UEFIConsole {
                     self.cx = 0;
                     self.cy += 1;
                 }
+                '\r' => self.cx = 0,
                 '\x08' => {
                     // backspace
                     if self.cx > 0 {
