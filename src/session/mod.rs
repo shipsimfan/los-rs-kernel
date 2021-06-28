@@ -43,6 +43,10 @@ impl Session {
         pid
     }
 
+    pub fn get_process_mut(&mut self, pid: usize) -> Option<&mut Process> {
+        self.processes.get_mut(pid)
+    }
+
     pub fn remove_process(&mut self, id: usize) {
         self.processes.remove(id);
     }

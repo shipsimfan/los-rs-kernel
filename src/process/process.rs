@@ -1,4 +1,4 @@
-use super::Thread;
+use super::{Thread, ThreadQueue};
 use crate::{
     logln,
     map::{Map, Mappable, INVALID_ID},
@@ -11,6 +11,7 @@ pub struct Process {
     threads: Map<Thread>,
     address_space: AddressSpace,
     session: Option<*mut Session>,
+    exit_queue: ThreadQueue,
 }
 
 impl Process {
@@ -23,6 +24,7 @@ impl Process {
                 Some(session) => Some(session),
                 None => None,
             },
+            exit_queue: ThreadQueue::new(),
         }
     }
 
@@ -31,6 +33,10 @@ impl Process {
         let tid = self.threads.insert(thread);
         super::queue_thread(self.threads.get_mut(tid).unwrap());
         tid
+    }
+
+    pub fn get_thread_mut(&mut self, tid: usize) -> Option<&mut Thread> {
+        self.threads.get_mut(tid)
     }
 
     pub fn remove_thread(&mut self, id: usize) -> bool {
@@ -46,6 +52,21 @@ impl Process {
         match self.session {
             Some(session) => Some(unsafe { &mut *session }),
             None => None,
+        }
+    }
+
+    pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
+        self.exit_queue.push(thread);
+    }
+
+    pub fn pre_exit(&mut self, exit_status: usize) {
+        if self.threads.count() != 1 {
+            return;
+        }
+
+        while let Some(thread) = self.exit_queue.pop_mut() {
+            thread.set_queue_data(exit_status);
+            super::queue_thread(thread);
         }
     }
 }

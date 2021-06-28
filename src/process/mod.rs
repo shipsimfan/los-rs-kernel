@@ -10,8 +10,8 @@ pub type Process = process::Process;
 
 pub type ThreadQueue = queue::ThreadQueue;
 
-pub type ThreadFunc = fn();
-pub type ThreadFuncContext = fn(context: usize);
+pub type ThreadFunc = fn() -> usize;
+pub type ThreadFuncContext = fn(context: usize) -> usize;
 
 static mut THREAD_CONTROL: control::ThreadControl = control::ThreadControl::new();
 
@@ -117,7 +117,40 @@ pub fn yield_thread() {
     }
 }
 
-pub fn exit_thread() {
+pub fn wait_thread(tid: usize) -> usize {
+    let current_thread = get_current_thread_mut();
+    match current_thread.get_process_mut().get_thread_mut(tid) {
+        None => return usize::MAX,
+        Some(thread) => thread.insert_into_exit_queue(current_thread),
+    }
+
+    yield_thread();
+
+    current_thread.get_queue_data()
+}
+
+pub fn wait_process(pid: usize) -> usize {
+    let current_thread = get_current_thread_mut();
+    match current_thread.get_process_mut().get_session_mut() {
+        None => panic!("Waiting on a daemon!"),
+        Some(session) => match session.get_process_mut(pid) {
+            None => return usize::MAX,
+            Some(process) => process.insert_into_exit_queue(current_thread),
+        },
+    }
+
+    yield_thread();
+
+    current_thread.get_queue_data()
+}
+
+pub fn exit_thread(exit_status: usize) {
+    let current_thread = get_current_thread_mut();
+
+    current_thread.pre_exit(exit_status);
+    current_thread.get_process_mut().pre_exit(exit_status);
+
+    current_thread.clear_queue();
     yield_thread();
 }
 

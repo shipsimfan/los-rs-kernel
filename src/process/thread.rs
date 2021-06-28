@@ -1,4 +1,4 @@
-use core::{ffi::c_void, ptr::null_mut};
+use core::ffi::c_void;
 
 use super::{exit_thread, Process, ThreadFuncContext, ThreadQueue};
 use crate::{
@@ -18,6 +18,8 @@ pub struct Thread {
     floating_point_storage: *mut u8,
     process: *mut Process,
     queue: Option<*mut ThreadQueue>,
+    queue_data: usize,
+    exit_queue: ThreadQueue,
 }
 
 const KERNEL_STACK_SIZE: usize = 32 * 1024;
@@ -35,8 +37,8 @@ extern "C" {
 
 extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
     let entry: ThreadFuncContext = unsafe { core::mem::transmute(entry) };
-    entry(context);
-    exit_thread();
+    let status = entry(context);
+    exit_thread(status);
 }
 
 impl Thread {
@@ -67,6 +69,8 @@ impl Thread {
             floating_point_storage: fps,
             process: process,
             queue: None,
+            queue_data: 0,
+            exit_queue: ThreadQueue::new(),
         }
     }
 
@@ -108,6 +112,25 @@ impl Thread {
 
     pub fn compare_process(&self, other: &Thread) -> bool {
         self.process == other.process
+    }
+
+    pub fn set_queue_data(&mut self, new_data: usize) {
+        self.queue_data = new_data;
+    }
+
+    pub fn get_queue_data(&self) -> usize {
+        self.queue_data
+    }
+
+    pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
+        self.exit_queue.push(thread);
+    }
+
+    pub fn pre_exit(&mut self, exit_status: usize) {
+        while let Some(thread) = self.exit_queue.pop_mut() {
+            thread.set_queue_data(exit_status);
+            super::queue_thread(thread);
+        }
     }
 }
 
