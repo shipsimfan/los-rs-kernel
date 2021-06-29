@@ -111,11 +111,11 @@ impl Device for HPET {
         Err(error::Status::NotSupported)
     }
 
-    fn read_register(&self, _: usize) -> Result<usize, error::Status> {
+    fn read_register(&mut self, _: usize) -> Result<usize, error::Status> {
         Err(error::Status::NotSupported)
     }
 
-    fn write_register(&self, _: usize, _: usize) -> error::Result {
+    fn write_register(&mut self, _: usize, _: usize) -> error::Result {
         Err(error::Status::NotSupported)
     }
 

@@ -28,3 +28,15 @@ pub fn millisecond_tick() {
         }
     }
 }
+
+#[inline(always)]
+pub fn current_time_millis() -> usize {
+    unsafe { SYSTEM_TIME }
+}
+
+pub fn sleep(duration: usize) {
+    let start = current_time_millis();
+    let end = start + duration;
+
+    while current_time_millis() < end {}
+}

@@ -66,14 +66,9 @@ fn startup_thread() -> usize {
 
     device::drivers::hpet::initialize();
     device::drivers::pci::initialize();
+    device::drivers::ide::initialize();
 
     logln!("Starting shell . . . ");
-
-    let mut i = 0;
-    while i < 60 {
-        logln!("Scroll Test: {}", i);
-        i += 1;
-    }
 
     // Must keep one thread alive, otherwise the system may(most likely) crash
     loop {

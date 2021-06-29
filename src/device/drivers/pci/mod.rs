@@ -8,7 +8,7 @@ const ADDRESS_PORT: u16 = 0xCF8;
 const DATA_PORT: u16 = 0xCFC;
 
 #[repr(u8)]
-enum Register {
+pub enum Register {
     VendorID = 0x00,
     DeviceID = 0x02,
     Command = 0x04,
@@ -258,7 +258,7 @@ impl crate::device::Device for PCIDevice {
         Err(crate::error::Status::NotSupported)
     }
 
-    fn read_register(&self, address: usize) -> Result<usize, crate::error::Status> {
+    fn read_register(&mut self, address: usize) -> Result<usize, crate::error::Status> {
         let register = ((address & 0xFF) as u8).try_into()?;
         match register {
             Register::Class
@@ -288,7 +288,7 @@ impl crate::device::Device for PCIDevice {
         }
     }
 
-    fn write_register(&self, address: usize, value: usize) -> crate::error::Result {
+    fn write_register(&mut self, address: usize, value: usize) -> crate::error::Result {
         let register = ((address & 0xFF) as u8).try_into()?;
         match register {
             Register::Class
@@ -346,11 +346,11 @@ impl crate::device::Device for PCIBus {
         Err(crate::error::Status::NotSupported)
     }
 
-    fn read_register(&self, _: usize) -> Result<usize, crate::error::Status> {
+    fn read_register(&mut self, _: usize) -> Result<usize, crate::error::Status> {
         Err(crate::error::Status::NotSupported)
     }
 
-    fn write_register(&self, _: usize, _: usize) -> crate::error::Result {
+    fn write_register(&mut self, _: usize, _: usize) -> crate::error::Result {
         Err(crate::error::Status::NotSupported)
     }
 

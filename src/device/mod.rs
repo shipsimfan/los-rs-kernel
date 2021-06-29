@@ -9,8 +9,8 @@ pub trait Device: Send {
     fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result;
     fn write(&mut self, address: usize, buffer: &[u8]) -> error::Result;
 
-    fn read_register(&self, address: usize) -> Result<usize, error::Status>;
-    fn write_register(&self, address: usize, value: usize) -> error::Result;
+    fn read_register(&mut self, address: usize) -> Result<usize, error::Status>;
+    fn write_register(&mut self, address: usize, value: usize) -> error::Result;
 
     fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result;
 }
@@ -23,7 +23,7 @@ pub fn register_device(path: &str, device: DeviceBox) -> error::Result {
     DEVICE_TREE.lock().register_device(path, device)
 }
 
-pub fn _remove_device(path: &str) {
+pub fn remove_device(path: &str) {
     DEVICE_TREE.lock()._remove_device(path)
 }
 
@@ -43,7 +43,7 @@ pub fn outd(port: u16, data: u32) {
     unsafe { asm!("out dx, eax", in("dx") port, in("eax") data) };
 }
 
-pub fn _inb(port: u16) -> u8 {
+pub fn inb(port: u16) -> u8 {
     let ret;
     unsafe { asm!("in al, dx", in("dx") port, out("al") ret) };
     ret
