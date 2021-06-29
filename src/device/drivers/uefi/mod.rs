@@ -215,11 +215,19 @@ impl Device for UEFIConsole {
         Ok(())
     }
 
-    fn read(&self, _address: usize, _buffer: &[u8]) -> error::Result {
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _code: usize, _argument: usize) -> error::Result {
+    fn read_register(&self, _: usize) -> Result<usize, error::Status> {
+        Err(error::Status::NotSupported)
+    }
+
+    fn write_register(&self, _: usize, _: usize) -> error::Result {
+        Err(error::Status::NotSupported)
+    }
+
+    fn ioctrl(&mut self, _: usize, _: usize) -> error::Result {
         Err(error::Status::NotSupported)
     }
 }

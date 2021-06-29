@@ -61,22 +61,13 @@ pub extern "C" fn kmain(
     loop {}
 }
 
-fn proc2() -> usize {
-    logln!("Second thread");
-    0xBADC0DE
-}
-
 fn startup_thread() -> usize {
     logln!("Loading device drivers . . . ");
 
     device::drivers::hpet::initialize();
+    device::drivers::pci::initialize();
 
-    logln!("Creating second thread  . . . ");
-
-    let tid = process::create_thread(proc2);
-    let status = process::wait_thread(tid);
-
-    logln!("Status return: {:#X}", status);
+    logln!("Starting shell . . . ");
 
     // Must keep one thread alive, then the system may(most likely) crash
     loop {

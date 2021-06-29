@@ -103,11 +103,19 @@ fn irq_handler(_context: usize) {
 }
 
 impl Device for HPET {
-    fn read(&self, _: usize, _: &[u8]) -> error::Result {
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
         Err(error::Status::NotSupported)
     }
 
     fn write(&mut self, _: usize, _: &[u8]) -> error::Result {
+        Err(error::Status::NotSupported)
+    }
+
+    fn read_register(&self, _: usize) -> Result<usize, error::Status> {
+        Err(error::Status::NotSupported)
+    }
+
+    fn write_register(&self, _: usize, _: usize) -> error::Result {
         Err(error::Status::NotSupported)
     }
 

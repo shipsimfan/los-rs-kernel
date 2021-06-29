@@ -6,8 +6,12 @@ pub mod drivers;
 mod tree;
 
 pub trait Device: Send {
-    fn read(&self, address: usize, buffer: &[u8]) -> error::Result;
+    fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result;
     fn write(&mut self, address: usize, buffer: &[u8]) -> error::Result;
+
+    fn read_register(&self, address: usize) -> Result<usize, error::Status>;
+    fn write_register(&self, address: usize, value: usize) -> error::Result;
+
     fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result;
 }
 
@@ -35,7 +39,7 @@ pub fn _outw(port: u16, data: u16) {
     unsafe { asm!("out dx, ax", in("dx") port, in("ax") data) };
 }
 
-pub fn _outd(port: u16, data: u32) {
+pub fn outd(port: u16, data: u32) {
     unsafe { asm!("out dx, eax", in("dx") port, in("eax") data) };
 }
 
@@ -51,7 +55,7 @@ pub fn _inw(port: u16) -> u16 {
     ret
 }
 
-pub fn _ind(port: u16) -> u32 {
+pub fn ind(port: u16) -> u32 {
     let ret;
     unsafe { asm!("in eax, dx", in("dx") port, out("eax") ret) };
     ret
