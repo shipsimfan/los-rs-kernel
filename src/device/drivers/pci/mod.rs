@@ -2,7 +2,7 @@ use core::convert::{TryFrom, TryInto};
 
 use alloc::{boxed::Box, sync::Arc};
 
-use crate::{locks::Mutex, logln};
+use crate::{locks::Mutex, log, logln};
 
 const ADDRESS_PORT: u16 = 0xCF8;
 const DATA_PORT: u16 = 0xCFC;
@@ -133,8 +133,6 @@ fn check_pci_function(bus: u8, device: u8, function: u8) {
     let class = read_config_b(bus, device, function, Register::Class);
     let sub_class = read_config_b(bus, device, function, Register::SubClass);
 
-    logln!("Registering pci device {:#X} - {:#X}", class, sub_class);
-
     let path = alloc::format!("/pci/{:X}_{:X}", class, sub_class);
     match crate::device::register_device(&path, new_device) {
         Ok(()) => {}
@@ -181,6 +179,8 @@ fn check_pci_bus(bus: u8) {
 }
 
 pub fn initialize() {
+    log!("Initializing PCI . . . ");
+
     match crate::device::register_device("/pci", Arc::new(Mutex::new(Box::new(PCIBus {})))) {
         Ok(()) => {}
         Err(error) => {
@@ -204,6 +204,8 @@ pub fn initialize() {
             function += 1;
         }
     }
+
+    logln!("\x1B2A2]OK\x1B]!");
 }
 
 impl TryFrom<u8> for Register {

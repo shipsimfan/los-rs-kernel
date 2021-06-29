@@ -192,10 +192,11 @@ impl UEFIConsole {
             if self.cx >= self.width {
                 self.cy += 1;
                 self.cx = 0;
+            }
 
-                if self.cy >= self.height {
-                    self.cy = 0;
-                }
+            if self.cy >= self.height {
+                self.framebuffer.scroll_up(16);
+                self.cy -= 1;
             }
         }
     }
