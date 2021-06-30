@@ -24,6 +24,7 @@ pub fn millisecond_tick() {
         SYSTEM_TIME += 1;
 
         if SYSTEM_TIME % 10 == 0 {
+            crate::interrupts::irq::end_interrupt();
             crate::process::preempt();
         }
     }

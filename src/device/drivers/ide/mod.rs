@@ -146,6 +146,8 @@ impl IDEController {
         ide.write_register(ata_reg(ATA_REG_CONTROL, false), 2)?;
 
         // Enumerate devices
+        ide.ioctrl(0, 0)?; // Primary
+        ide.ioctrl(0, 1)?; // Secondary
 
         Ok(())
     }
