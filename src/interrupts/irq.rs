@@ -209,13 +209,13 @@ pub fn initialize() {
 
 #[no_mangle]
 extern "C" fn common_irq_handler(irq: usize) {
+    end_irq(irq as u8);
+    end_interrupt();
+
     match unsafe { IRQ_HANDLERS[irq] } {
         None => {}
         Some(handler) => (handler.handler)(handler.context),
     }
-
-    end_irq(irq as u8);
-    end_interrupt();
 }
 
 pub fn install_irq_handler(irq: u8, handler: Handler, context: usize) -> bool {
@@ -235,7 +235,7 @@ pub fn install_irq_handler(irq: u8, handler: Handler, context: usize) -> bool {
     }
 }
 
-pub fn end_irq(irq: u8) {
+fn end_irq(irq: u8) {
     if irq > 15 {
         return;
     }
@@ -247,6 +247,6 @@ pub fn end_irq(irq: u8) {
     outb(MASTER_PIC_COMMAND, 0x20);
 }
 
-pub fn end_interrupt() {
+fn end_interrupt() {
     unsafe { *LOCAL_APIC.offset(LAPIC_EOI) = 0 };
 }

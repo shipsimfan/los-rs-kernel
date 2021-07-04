@@ -2,6 +2,7 @@ use crate::{
     device::{self, DeviceBox},
     error::{self, Status},
     locks::Mutex,
+    logln,
 };
 
 static SYSTEM_TIMER: Mutex<Option<DeviceBox>> = Mutex::new(None);
@@ -23,8 +24,11 @@ pub fn millisecond_tick() {
     unsafe {
         SYSTEM_TIME += 1;
 
+        if SYSTEM_TIME % 1000 == 0 {
+            logln!("System Time: {}s", SYSTEM_TIME / 1000);
+        }
+
         if SYSTEM_TIME % 10 == 0 {
-            crate::interrupts::irq::end_interrupt();
             crate::process::preempt();
         }
     }
@@ -39,5 +43,7 @@ pub fn sleep(duration: usize) {
     let start = current_time_millis();
     let end = start + duration;
 
-    while current_time_millis() < end {}
+    while current_time_millis() < end {
+        unsafe { asm!("sti;hlt") };
+    }
 }

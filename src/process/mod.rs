@@ -195,6 +195,5 @@ pub fn preempt() {
         }
     }
 
-    crate::interrupts::irq::end_interrupt();
     queue_and_yield();
 }

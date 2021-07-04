@@ -98,7 +98,6 @@ pub fn initialize() {
 }
 
 fn irq_handler(_context: usize) {
-    crate::interrupts::irq::end_irq(TIMER_IRQ);
     crate::time::millisecond_tick();
 }
 
