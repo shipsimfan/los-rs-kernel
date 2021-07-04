@@ -65,7 +65,7 @@ pub fn initialize() {
         Err(status) => return logln!("\nError while getting IDE controller: {}", status),
     };
     let mut controller = ide_controller_lock.lock();
-    match controller.ioctrl(0, 0) {
+    match controller.ioctrl(controller::IOCTRL_ENUMERATE, 0) {
         Ok(_) => logln!("\x1B2A2]OK\x1B]!"),
         Err(status) => logln!("\x1BA22]Error\x1B]: {}!", status),
     }

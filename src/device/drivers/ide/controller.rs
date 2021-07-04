@@ -15,12 +15,16 @@ struct ChannelRegisters {
 
 pub struct IDEController {
     channels: [ChannelRegisters; 2],
-    irq: bool,
 }
 
+pub const IOCTRL_ENUMERATE: usize = 0;
+pub const IOCTRL_POLL: usize = 1;
+pub const IOCTRL_ADVANCED_POLL: usize = 2;
+pub const IOCTRL_SET_CHANNEL_INTERRUPT: usize = 3;
+pub const IOCTRL_CLEAR_CHANNEL_INTERRUPT: usize = 4;
+
 fn irq_handler(context: usize) {
-    let controller = unsafe { &mut *(context as *mut IDEController) };
-    controller.irq = true;
+    let _controller = unsafe { &mut *(context as *mut IDEController) };
 }
 
 impl IDEController {
@@ -40,7 +44,6 @@ impl IDEController {
                     n_ien: 2,
                 },
             ],
-            irq: false,
         }
     }
 
@@ -150,19 +153,9 @@ impl IDEController {
                 }
 
                 if drive_type == DRIVE_TYPE_ATA {
-                    ATA::create(
-                        self,
-                        channel.clone(),
-                        drive,
-                        signature,
-                        capabilities,
-                        command_sets,
-                        size,
-                        model,
-                    )?;
+                    ATA::create(channel.clone(), drive, capabilities, size, model)?;
                 } else {
                     ATAPI::create(
-                        self,
                         channel.clone(),
                         drive,
                         signature,
@@ -205,12 +198,7 @@ impl IDEController {
         }
     }
 
-    fn read_buffer(
-        &mut self,
-        channel: Channel,
-        register: u16,
-        buffer: &mut [u32],
-    ) -> error::Result {
+    fn read_buffer(&self, channel: Channel, register: u16, buffer: &mut [u32]) -> error::Result {
         let channel = channel as usize;
 
         if register > 0x07 && register < 0x0C {
@@ -248,8 +236,18 @@ impl IDEController {
 }
 
 impl Device for IDEController {
-    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
-        Err(error::Status::NotSupported)
+    fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result {
+        let register: u16 = (address & 0xFF) as u16;
+        let channel = Channel::from(address.wrapping_shr(8) & 1);
+
+        let buffer = unsafe {
+            core::slice::from_raw_parts_mut(
+                buffer.as_mut_ptr() as *mut u32,
+                buffer.len() / core::mem::size_of::<u32>(),
+            )
+        };
+
+        self.read_buffer(channel, register, buffer)
     }
 
     fn write(&mut self, _: usize, _: &[u8]) -> error::Result {
@@ -328,9 +326,25 @@ impl Device for IDEController {
 
     fn ioctrl(&mut self, code: usize, argument: usize) -> Result<usize, error::Status> {
         match code {
-            0 => self.enumerate_drives(),
-            1 => self.polling((argument & 1) as u8, false),
-            2 => self.polling((argument & 1) as u8, true),
+            IOCTRL_ENUMERATE => self.enumerate_drives(),
+            IOCTRL_POLL => self.polling((argument & 1) as u8, false),
+            IOCTRL_ADVANCED_POLL => self.polling((argument & 1) as u8, true),
+            IOCTRL_SET_CHANNEL_INTERRUPT => {
+                if argument >= 2 {
+                    Err(error::Status::InvalidArgument)
+                } else {
+                    self.channels[argument].n_ien = 0;
+                    Ok(0)
+                }
+            }
+            IOCTRL_CLEAR_CHANNEL_INTERRUPT => {
+                if argument >= 2 {
+                    Err(error::Status::InvalidArgument)
+                } else {
+                    self.channels[argument].n_ien = 2;
+                    Ok(0)
+                }
+            }
             _ => Err(error::Status::NotSupported),
         }
     }

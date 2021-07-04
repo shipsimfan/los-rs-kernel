@@ -26,7 +26,7 @@ pub const ERROR_NO_ADDRESS_MARK: usize = 0x01; // ATA_ER_AMNF
 
 // ATA Commands
 pub const COMMAND_READ_PIO: usize = 0x20; // ATA_CMD_READ_PIO
-pub const COMMAND_READ_PID_EXT: usize = 0x24; // ATA_CMD_READ_PIO_EXT
+pub const COMMAND_READ_PIO_EXT: usize = 0x24; // ATA_CMD_READ_PIO_EXT
 pub const COMMAND_READ_DMA: usize = 0xC8; // ATA_CMD_READ_DMA
 pub const COMMAND_READ_DMA_EXT: usize = 0x25; // ATA_CMD_READ_DMA_EXT
 pub const COMMAND_WRITE_PIO: usize = 0x30; // ATA_CMD_WRITE_PIO
@@ -85,12 +85,15 @@ pub const DIRECTION_WRITE: usize = 0x01;
 
 // Channels
 #[derive(Debug, Clone)]
+#[repr(usize)]
 pub enum Channel {
     Primary,
     Secondary,
 }
 
 // Drives
+#[derive(Debug, Clone)]
+#[repr(usize)]
 pub enum Drive {
     Master,
     Slave,

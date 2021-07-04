@@ -2,7 +2,6 @@ use crate::{
     device::{self, DeviceBox},
     error::{self, Status},
     locks::Mutex,
-    logln,
 };
 
 static SYSTEM_TIMER: Mutex<Option<DeviceBox>> = Mutex::new(None);
@@ -24,9 +23,11 @@ pub fn millisecond_tick() {
     unsafe {
         SYSTEM_TIME += 1;
 
+        /*
+        // Testing Code - displays a message once a second
         if SYSTEM_TIME % 1000 == 0 {
             logln!("System Time: {}s", SYSTEM_TIME / 1000);
-        }
+        }*/
 
         if SYSTEM_TIME % 10 == 0 {
             crate::process::preempt();

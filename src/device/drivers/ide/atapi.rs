@@ -1,9 +1,8 @@
-use super::{constants::*, controller::IDEController};
+use super::constants::*;
 use crate::{
     device::{self, Device},
     error,
     locks::Mutex,
-    logln,
 };
 use alloc::{boxed::Box, format, string::String, sync::Arc};
 
@@ -19,7 +18,6 @@ pub struct ATAPI {
 
 impl ATAPI {
     pub fn create(
-        controller: &mut IDEController,
         channel: Channel,
         drive: Drive,
         signature: u16,

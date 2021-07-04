@@ -6,6 +6,7 @@ pub enum Status {
     InvalidArgument,
     AlreadyExists,
     NotSupported,
+    DeviceError,
 }
 
 pub type Result = core::result::Result<(), Status>;
@@ -17,6 +18,7 @@ impl fmt::Display for Status {
             Status::InvalidArgument => "Invalid argument",
             Status::AlreadyExists => "Already exists",
             Status::NotSupported => "Not supported",
+            Status::DeviceError => "Device error",
         })
     }
 }
