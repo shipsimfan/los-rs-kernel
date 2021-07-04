@@ -66,7 +66,7 @@ pub fn initialize() {
     };
     let mut controller = ide_controller_lock.lock();
     match controller.ioctrl(0, 0) {
-        Ok(()) => logln!("\x1B2A2]OK\x1B]!"),
+        Ok(_) => logln!("\x1B2A2]OK\x1B]!"),
         Err(status) => logln!("\x1BA22]Error\x1B]: {}!", status),
     }
 }

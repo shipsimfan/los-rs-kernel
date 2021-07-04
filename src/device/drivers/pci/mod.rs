@@ -332,7 +332,7 @@ impl crate::device::Device for PCIDevice {
         }
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> crate::error::Result {
+    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, crate::error::Status> {
         Err(crate::error::Status::NotSupported)
     }
 }
@@ -354,7 +354,7 @@ impl crate::device::Device for PCIBus {
         Err(crate::error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> crate::error::Result {
+    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, crate::error::Status> {
         Err(crate::error::Status::NotSupported)
     }
 }

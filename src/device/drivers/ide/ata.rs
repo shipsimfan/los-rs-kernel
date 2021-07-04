@@ -28,8 +28,6 @@ impl ATA {
         size: usize,
         model: String,
     ) -> error::Result {
-        logln!("Registering ATA drive ({} bytes): {}", size, model);
-
         let path = format!("/ide/{}_{}", channel, drive);
 
         device::register_device(
@@ -64,7 +62,7 @@ impl Device for ATA {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> error::Result {
+    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, error::Status> {
         Err(error::Status::NotSupported)
     }
 }

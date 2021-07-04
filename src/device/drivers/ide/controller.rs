@@ -44,7 +44,7 @@ impl IDEController {
         }
     }
 
-    fn enumerate_drives(&mut self) -> error::Result {
+    fn enumerate_drives(&mut self) -> Result<usize, error::Status> {
         // Install IRQ handlers
         crate::interrupts::irq::install_irq_handler(
             14,
@@ -175,10 +175,10 @@ impl IDEController {
             }
         }
 
-        Ok(())
+        Ok(0)
     }
 
-    fn polling(&mut self, channel: u8, advanced_check: bool) -> Result<u8, error::Status> {
+    fn polling(&mut self, channel: u8, advanced_check: bool) -> Result<usize, error::Status> {
         let channel = (channel as usize) << 8;
 
         let mut i = 0;
@@ -248,7 +248,7 @@ impl IDEController {
 }
 
 impl Device for IDEController {
-    fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result {
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
         Err(error::Status::NotSupported)
     }
 
@@ -326,9 +326,11 @@ impl Device for IDEController {
         Ok(())
     }
 
-    fn ioctrl(&mut self, code: usize, _: usize) -> error::Result {
+    fn ioctrl(&mut self, code: usize, argument: usize) -> Result<usize, error::Status> {
         match code {
             0 => self.enumerate_drives(),
+            1 => self.polling((argument & 1) as u8, false),
+            2 => self.polling((argument & 1) as u8, true),
             _ => Err(error::Status::NotSupported),
         }
     }

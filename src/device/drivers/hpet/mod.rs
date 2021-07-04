@@ -118,7 +118,7 @@ impl Device for HPET {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> error::Result {
+    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, error::Status> {
         Err(error::Status::NotSupported)
     }
 }

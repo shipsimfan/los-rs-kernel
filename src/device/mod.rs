@@ -12,7 +12,7 @@ pub trait Device: Send {
     fn read_register(&mut self, address: usize) -> Result<usize, error::Status>;
     fn write_register(&mut self, address: usize, value: usize) -> error::Result;
 
-    fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result;
+    fn ioctrl(&mut self, code: usize, argument: usize) -> Result<usize, error::Status>;
 }
 
 pub type DeviceBox = Arc<Mutex<Box<dyn Device>>>;
