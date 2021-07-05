@@ -16,11 +16,48 @@ const HASH_SIZE: usize = 32;
 pub const INVALID_ID: usize = usize::MAX;
 
 impl<T: Mappable> Map<T> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
+        Map::with_starting_index(0)
+    }
+
+    pub const fn with_starting_index(starting_index: usize) -> Self {
         Map {
-            data: Default::default(),
+            data: [
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ],
             count: 0,
-            next_id: 0,
+            next_id: starting_index,
         }
     }
 

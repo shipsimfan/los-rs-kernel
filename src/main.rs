@@ -12,6 +12,7 @@
 mod bootloader;
 mod device;
 mod error;
+mod filesystem;
 mod interrupts;
 mod locks;
 mod logger;
@@ -62,6 +63,10 @@ pub extern "C" fn kmain(
 }
 
 fn startup_thread() -> usize {
+    log!("Loading filesystem drivers . . .");
+    filesystem::register_filesystem_driver(filesystem::drivers::fat32::detect_fat32_filesystem);
+    logln!("\x1B2A2]OK\x1B]!");
+
     logln!("Loading device drivers . . . ");
 
     device::drivers::hpet::initialize();

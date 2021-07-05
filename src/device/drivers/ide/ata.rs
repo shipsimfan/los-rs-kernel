@@ -1,7 +1,7 @@
 use super::{constants::*, controller};
 use crate::{
     device::{self, Device, DeviceBox},
-    error,
+    error, filesystem,
     locks::Mutex,
     logln, time,
 };
@@ -34,7 +34,7 @@ impl ATA {
         let controller = device::get_device(super::IDE_PATH)?;
 
         let path = format!("/ide/{}", model.trim());
-        let _size = size * SECTOR_SIZE;
+        let size = size * SECTOR_SIZE;
 
         device::register_device(
             &path,
@@ -46,7 +46,10 @@ impl ATA {
             }))),
         )?;
 
-        Ok(())
+        match filesystem::register_drive(&path, size) {
+            Err(status) => Ok(logln!("Error while registering drive: {}", status)),
+            Ok(()) => Ok(()),
+        }
     }
 }
 
