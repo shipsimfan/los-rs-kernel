@@ -43,6 +43,11 @@ pub struct FilesystemStarter {
     root_directory: Box<dyn Directory>,
 }
 
+pub struct FileDescriptor {
+    file: FileBox,
+    current_offset: usize,
+}
+
 struct DirectoryContainer {
     parent: Option<DirectoryBox>, // None for root directories
     directory: Box<dyn Directory>,
@@ -58,7 +63,7 @@ struct FileContainer {
 struct Filesystem {
     number: usize,
     _volume_name: String,
-    root_directory: DirectoryContainer,
+    root_directory: DirectoryBox,
 }
 
 static FILESYSTEM_DRIVERS: Mutex<Vec<DetectFilesystemFunction>> = Mutex::new(Vec::new());
@@ -88,6 +93,33 @@ pub fn register_drive(drive_path: &str) -> error::Result {
     detect_filesystem(drive_lock, 0, size)
 }
 
+pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
+    // Parse filepath
+    let (fs_number, path, filename) = parse_filepath(filepath)?;
+
+    // Open filesystem
+    let mut filesystems = FILESYSTEMS.lock();
+    let filesystem = match filesystems.get_mut(fs_number) {
+        Some(filesystem) => filesystem,
+        None => return Err(error::Status::NotFound),
+    };
+
+    // Iterate path
+    let mut current_directory = filesystem.root_directory.clone();
+    for dir_name in path {
+        let mut directory = current_directory.lock();
+        let new_directory = directory.open_directory(dir_name, &current_directory)?;
+        drop(directory);
+        current_directory = new_directory;
+    }
+
+    // Open file
+    logln!("Opening file {}", filename);
+
+    // Create file descriptor
+    Err(error::Status::NotSupported)
+}
+
 fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result {
     let drivers = FILESYSTEM_DRIVERS.lock();
 
@@ -105,20 +137,48 @@ fn register_filesystem(filesystem: Filesystem) {
     FILESYSTEMS.lock().insert(filesystem);
 }
 
+fn parse_filepath(filepath: &str) -> Result<(usize, Vec<&str>, &str), error::Status> {
+    let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
+
+    // Parse drive number
+    let drive_number = match iter.next() {
+        Some(str) => {
+            if str.ends_with(':') {
+                match usize::from_str_radix(&str[..str.len() - 1], 10) {
+                    Ok(value) => value,
+                    Err(_) => return Err(error::Status::InvalidArgument),
+                }
+            } else {
+                return Err(error::Status::InvalidArgument);
+            }
+        }
+        None => return Err(error::Status::InvalidArgument),
+    };
+
+    // Get filename
+    let filename = match iter.next_back() {
+        Some(value) => value,
+        None => return Err(error::Status::InvalidArgument),
+    };
+
+    // Get path
+    let path = iter.collect();
+
+    Ok((drive_number, path, filename))
+}
+
 impl DirectoryContainer {
     pub fn new(
         directory: Box<dyn Directory>,
         parent_directory: Option<DirectoryBox>,
     ) -> Result<Self, error::Status> {
         let sub_file_names = directory.get_sub_files()?;
-        logln!("Sub file names: {:?}", sub_file_names);
         let mut sub_files = Vec::with_capacity(sub_file_names.len());
         for sub_file_name in sub_file_names {
             sub_files.push((sub_file_name, None));
         }
 
         let sub_directory_names = directory.get_sub_directories()?;
-        logln!("Sub directory names: {:?}", sub_directory_names);
         let mut sub_directories = Vec::with_capacity(sub_directory_names.len());
         for sub_directory_name in sub_directory_names {
             sub_directories.push((sub_directory_name, None));
@@ -131,13 +191,43 @@ impl DirectoryContainer {
             sub_directories: sub_directories,
         })
     }
+
+    pub fn open_directory(
+        &mut self,
+        name: &str,
+        self_box: &DirectoryBox,
+    ) -> Result<DirectoryBox, error::Status> {
+        for (sub_name, sub_dir) in &mut self.sub_directories {
+            if sub_name != name {
+                continue;
+            }
+
+            match sub_dir {
+                Some(sub_dir) => return Ok(sub_dir.clone()),
+                None => {
+                    let new_directory = self.directory.open_directory(name)?;
+                    let new_directory = Arc::new(Mutex::new(DirectoryContainer::new(
+                        new_directory,
+                        Some(self_box.clone()),
+                    )?));
+                    *sub_dir = Some(new_directory.clone());
+                    return Ok(new_directory);
+                }
+            }
+        }
+
+        Err(error::Status::NotFound)
+    }
 }
 
 impl Filesystem {
     pub fn new(filesystem_starter: FilesystemStarter) -> Result<Self, error::Status> {
         Ok(Filesystem {
             number: INVALID_ID,
-            root_directory: DirectoryContainer::new(filesystem_starter.root_directory, None)?,
+            root_directory: Arc::new(Mutex::new(DirectoryContainer::new(
+                filesystem_starter.root_directory,
+                None,
+            )?)),
             _volume_name: filesystem_starter.volume_name,
         })
     }

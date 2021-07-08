@@ -2,6 +2,7 @@ use super::{fat::FATBox, SECTOR_SIZE};
 use crate::{
     error,
     filesystem::{self, File},
+    logln,
 };
 use alloc::{
     boxed::Box,
@@ -126,6 +127,70 @@ impl Directory {
 
         Ok(names)
     }
+
+    fn open(&self, name: &str) -> Result<DirectoryEntry, error::Status> {
+        // Lock the FAT
+        let fat = self.fat.lock();
+
+        // Get cluster chain
+        let cluster_chain = fat.get_cluster_chain(self.first_cluster)?;
+
+        // Read each cluster
+        let mut buffer =
+            [DirectoryEntry::default(); SECTOR_SIZE / core::mem::size_of::<DirectoryEntry>()];
+        let u8_buffer =
+            unsafe { core::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, SECTOR_SIZE) };
+        'main_loop: for cluster in cluster_chain {
+            fat.read_cluster(cluster, u8_buffer)?;
+
+            for mut entry in buffer {
+                // Look for end of entries
+                if entry.filename[0] == 0 {
+                    break 'main_loop;
+                }
+
+                // Look for blank entries
+                if entry.filename[0] == 0xE5 {
+                    continue;
+                }
+
+                // Correct first byte if required
+                if entry.filename[0] == 0x05 {
+                    entry.filename[0] = 0xE5;
+                }
+
+                // Ignore long file names
+                // TODO: parse long file names
+                if entry.attributes & ATTRIBUTE_LONG_FILE_NAME == ATTRIBUTE_LONG_FILE_NAME {
+                    continue;
+                }
+
+                let filename = if entry.attributes & ATTRIBUTE_DIRECTORY != 0 {
+                    String::from_utf8_lossy(&entry.filename).trim().to_string()
+                } else {
+                    let mut filename = String::from_utf8_lossy(&entry.filename[..8])
+                        .trim()
+                        .to_string();
+                    if entry.filename[8] == ' ' as u8
+                        && entry.filename[9] == ' ' as u8
+                        && entry.filename[10] == ' ' as u8
+                    {
+                        filename
+                    } else {
+                        filename.push('.');
+                        filename.push_str(String::from_utf8_lossy(&entry.filename[8..]).trim());
+                        filename
+                    }
+                };
+
+                if filename == name {
+                    return Ok(entry);
+                }
+            }
+        }
+
+        Err(error::Status::NotFound)
+    }
 }
 
 impl filesystem::Directory for Directory {
@@ -137,12 +202,20 @@ impl filesystem::Directory for Directory {
         self.get_names(true)
     }
 
-    fn open_file(&self, _: &str) -> Result<Box<dyn File>, error::Status> {
+    fn open_file(&self, filename: &str) -> Result<Box<dyn File>, error::Status> {
+        logln!("Opening {}", filename);
         Err(error::Status::NotSupported)
     }
 
-    fn open_directory(&self, _: &str) -> Result<Box<dyn filesystem::Directory>, error::Status> {
-        Err(error::Status::NotSupported)
+    fn open_directory(
+        &self,
+        directory_name: &str,
+    ) -> Result<Box<dyn filesystem::Directory>, error::Status> {
+        let entry = self.open(directory_name)?;
+
+        let first_cluster =
+            (entry.first_cluster_low as u32) | ((entry.first_cluster_high as u32) << 16);
+        Ok(Box::new(Directory::new(first_cluster, self.fat.clone())))
     }
 
     fn make_file(&self, _: &str) -> error::Result {

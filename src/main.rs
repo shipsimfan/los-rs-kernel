@@ -75,6 +75,11 @@ fn startup_thread() -> usize {
 
     logln!("Starting shell . . . ");
 
+    match filesystem::open("1:/TEST/TEST.TXT") {
+        Ok(_) => {}
+        Err(status) => logln!("\x1BA22]Error\x1B] while opening file: {}", status),
+    }
+
     // Must keep one thread alive, otherwise the system may(most likely) crash
     loop {
         unsafe { asm!("hlt") }
