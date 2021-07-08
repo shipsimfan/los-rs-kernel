@@ -115,13 +115,10 @@ impl IDEController {
                 }
 
                 // Read identification space
-                let mut ident = [0u32; 128];
+                let mut ident = [0u8; 512];
                 self.read_buffer(channel.clone(), REGISTER_DATA as u16, &mut ident)?;
-                let ident: [u8; 512] = unsafe { core::mem::transmute(ident) };
 
                 // Read device parameters
-                let signature = (ident[IDENT_DEVICE_TYPE] as u16)
-                    | ((ident[IDENT_DEVICE_TYPE + 1] as u16) << 8);
                 let capabilities = (ident[IDENT_CAPABILITIES] as u16)
                     | ((ident[IDENT_CAPABILITIES + 1] as u16) << 8);
                 let command_sets = (ident[IDENT_COMMAND_SETS] as u32)
@@ -155,15 +152,7 @@ impl IDEController {
                 if drive_type == DRIVE_TYPE_ATA {
                     ATA::create(channel.clone(), drive, capabilities, size, model)?;
                 } else {
-                    ATAPI::create(
-                        channel.clone(),
-                        drive,
-                        signature,
-                        capabilities,
-                        command_sets,
-                        size,
-                        model,
-                    )?;
+                    ATAPI::create(channel.clone(), drive, capabilities, size, model)?;
                 }
             }
         }
@@ -198,7 +187,7 @@ impl IDEController {
         }
     }
 
-    fn read_buffer(&self, channel: Channel, register: u16, buffer: &mut [u32]) -> error::Result {
+    fn read_buffer(&self, channel: Channel, register: u16, buffer: &mut [u8]) -> error::Result {
         let channel = channel as usize;
 
         if register > 0x07 && register < 0x0C {
@@ -220,8 +209,17 @@ impl IDEController {
             return Err(error::Status::InvalidArgument);
         };
 
-        for value in buffer {
-            *value = device::ind(port);
+        let mut i = 0;
+        let top = buffer.len();
+        while i < top {
+            let value = device::ind(port);
+
+            buffer[i + 0] = (value.wrapping_shr(0) & 0xFF) as u8;
+            buffer[i + 1] = (value.wrapping_shr(8) & 0xFF) as u8;
+            buffer[i + 2] = (value.wrapping_shr(16) & 0xFF) as u8;
+            buffer[i + 3] = (value.wrapping_shr(24) & 0xFF) as u8;
+
+            i += 4;
         }
 
         if register > 0x07 && register < 0x0C {
@@ -239,13 +237,6 @@ impl Device for IDEController {
     fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result {
         let register: u16 = (address & 0xFF) as u16;
         let channel = Channel::from(address.wrapping_shr(8) & 1);
-
-        let buffer = unsafe {
-            core::slice::from_raw_parts_mut(
-                buffer.as_mut_ptr() as *mut u32,
-                buffer.len() / core::mem::size_of::<u32>(),
-            )
-        };
 
         self.read_buffer(channel, register, buffer)
     }

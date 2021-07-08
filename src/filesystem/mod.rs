@@ -2,6 +2,7 @@ use crate::{
     device::{self, DeviceBox},
     error,
     locks::Mutex,
+    logln,
     map::{Map, Mappable, INVALID_ID},
 };
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
@@ -67,19 +68,24 @@ pub fn register_filesystem_driver(detect_function: DetectFilesystemFunction) {
     FILESYSTEM_DRIVERS.lock().push(detect_function);
 }
 
-pub fn register_drive(drive_path: &str, size: usize) -> error::Result {
-    if size == 0 {
-        // Ignore zero size drives
-        return Err(error::Status::InvalidArgument);
-    }
-
+pub fn register_drive(drive_path: &str) -> error::Result {
     // Get the drive
-    let drive = device::get_device(drive_path)?;
+    let drive_lock = device::get_device(drive_path)?;
+    let mut drive = drive_lock.lock();
+
+    // Get drive size
+    let size = drive.ioctrl(0, 0)?;
+    drop(drive);
+
+    // Ignore zero size drives
+    if size == 0 {
+        return Ok(());
+    }
 
     // TODO: Search for GUID Partition table
 
     // No GPT found, assuming whole disk is one partition
-    detect_filesystem(drive, 0, size)
+    detect_filesystem(drive_lock, 0, size)
 }
 
 fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result {
@@ -105,12 +111,14 @@ impl DirectoryContainer {
         parent_directory: Option<DirectoryBox>,
     ) -> Result<Self, error::Status> {
         let sub_file_names = directory.get_sub_files()?;
+        logln!("Sub file names: {:?}", sub_file_names);
         let mut sub_files = Vec::with_capacity(sub_file_names.len());
         for sub_file_name in sub_file_names {
             sub_files.push((sub_file_name, None));
         }
 
         let sub_directory_names = directory.get_sub_directories()?;
+        logln!("Sub directory names: {:?}", sub_directory_names);
         let mut sub_directories = Vec::with_capacity(sub_directory_names.len());
         for sub_directory_name in sub_directory_names {
             sub_directories.push((sub_directory_name, None));
@@ -142,5 +150,14 @@ impl Mappable for Filesystem {
 
     fn set_id(&mut self, id: usize) {
         self.number = id;
+    }
+}
+
+impl FilesystemStarter {
+    pub fn new(root_directory: Box<dyn Directory>, volume_name: String) -> Self {
+        FilesystemStarter {
+            root_directory: root_directory,
+            volume_name: volume_name,
+        }
     }
 }

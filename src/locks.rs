@@ -77,7 +77,7 @@ impl<T> Mutex<T> {
     }
 
     #[inline(always)]
-    pub fn try_lock(&self) -> Option<MutexGuard<T>> {
+    pub fn _try_lock(&self) -> Option<MutexGuard<T>> {
         match process::get_current_thread_mut_option() {
             None => None,
             Some(current_thread) => {
@@ -111,7 +111,7 @@ impl<T> Mutex<T> {
     }
 
     #[inline(always)]
-    pub fn is_locked(&self) -> bool {
+    pub fn _is_locked(&self) -> bool {
         let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
         unsafe { asm!("cli") };
         let ret = self.lock.load(Ordering::Relaxed) != null_mut();

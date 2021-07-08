@@ -71,7 +71,7 @@ impl<T: PartialEq> Queue<T> {
         self.head.is_some()
     }
 
-    pub fn len(&self) -> usize {
+    pub fn _len(&self) -> usize {
         self.length
     }
 }

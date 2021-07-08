@@ -1,43 +1,42 @@
 use super::constants::*;
 use crate::{
-    device::{self, Device},
+    device::{self, Device, DeviceBox},
     error,
     locks::Mutex,
 };
 use alloc::{boxed::Box, format, string::String, sync::Arc};
 
 pub struct ATAPI {
-    channel: Channel,
-    drive: Drive,
-    signature: u16,
-    capabilities: u16,
-    command_sets: u32,
+    _controller: DeviceBox,
+    _channel: Channel,
+    _drive: Drive,
+    _capabilities: u16,
     size: usize,
-    model: String,
 }
+
+const SECTOR_SIZE: usize = 2048;
 
 impl ATAPI {
     pub fn create(
         channel: Channel,
         drive: Drive,
-        signature: u16,
         capabilities: u16,
-        command_sets: u32,
         size: usize,
-        model: String,
+        _model: String,
     ) -> error::Result {
+        let controller = device::get_device(super::IDE_PATH)?;
+
         let path = format!("/ide/{}_{}", channel, drive);
+        let size = size * SECTOR_SIZE;
 
         device::register_device(
             &path,
             Arc::new(Mutex::new(Box::new(ATAPI {
-                channel: channel,
-                drive: drive,
-                signature: signature,
-                capabilities: capabilities,
-                command_sets: command_sets,
+                _controller: controller,
+                _channel: channel,
+                _drive: drive,
+                _capabilities: capabilities,
                 size: size,
-                model: model,
             }))),
         )
     }
@@ -60,7 +59,10 @@ impl Device for ATAPI {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, error::Status> {
-        Err(error::Status::NotSupported)
+    fn ioctrl(&mut self, code: usize, _: usize) -> Result<usize, error::Status> {
+        match code {
+            0 => Ok(self.size),
+            _ => Err(error::Status::NotSupported),
+        }
     }
 }

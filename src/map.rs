@@ -91,7 +91,7 @@ impl<T: Mappable> Map<T> {
         self.count -= decrement;
     }
 
-    pub fn get(&self, key: usize) -> Option<&T> {
+    pub fn _get(&self, key: usize) -> Option<&T> {
         assert_ne!(key, INVALID_ID, "Invalid key while getting from map");
 
         let hash = key % HASH_SIZE;

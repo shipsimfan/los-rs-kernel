@@ -1,9 +1,10 @@
+use core::u8;
+
 use super::{constants::*, controller};
 use crate::{
     device::{self, Device, DeviceBox},
-    error, filesystem,
+    error,
     locks::Mutex,
-    logln, time,
 };
 use alloc::{boxed::Box, format, string::String, sync::Arc};
 
@@ -12,13 +13,7 @@ pub struct ATA {
     channel: Channel,
     drive: Drive,
     capabilities: u16,
-}
-
-#[derive(Debug, PartialEq)]
-enum LBAMode {
-    LBA48([usize; 6]),
-    LBA24([usize; 6], u8),
-    CHS([usize; 6], u8),
+    size: usize,
 }
 
 const SECTOR_SIZE: usize = 512;
@@ -29,11 +24,11 @@ impl ATA {
         drive: Drive,
         capabilities: u16,
         size: usize,
-        model: String,
+        _model: String,
     ) -> error::Result {
         let controller = device::get_device(super::IDE_PATH)?;
 
-        let path = format!("/ide/{}", model.trim());
+        let path = format!("/ide/{}_{}", channel, drive);
         let size = size * SECTOR_SIZE;
 
         device::register_device(
@@ -43,111 +38,107 @@ impl ATA {
                 channel: channel,
                 drive: drive,
                 capabilities: capabilities,
+                size: size,
             }))),
-        )?;
-
-        match filesystem::register_drive(&path, size) {
-            Err(status) => Ok(logln!("Error while registering drive: {}", status)),
-            Ok(()) => Ok(()),
-        }
+        )
     }
 }
 
 impl Device for ATA {
     fn read(&self, lba: usize, buffer: &mut [u8]) -> error::Result {
-        let num_sectors = buffer.len() / SECTOR_SIZE;
-
-        // Select lba_type
-        let lba_mode = if lba >= 0x10000000 {
-            LBAMode::LBA48([
-                (lba.wrapping_shr(0) & 0xFF),
-                (lba.wrapping_shr(8) & 0xFF),
-                (lba.wrapping_shr(16) & 0xFF),
-                (lba.wrapping_shr(24) & 0xFF),
-                (lba.wrapping_shr(30) & 0xFF),
-                (lba.wrapping_shr(40) & 0xFF),
-            ])
-        } else if self.capabilities & 0x200 != 0 {
-            LBAMode::LBA24(
-                [
-                    (lba.wrapping_shr(0) & 0xFF),
-                    (lba.wrapping_shr(8) & 0xFF),
-                    (lba.wrapping_shr(16) & 0xFF),
-                    0,
-                    0,
-                    0,
-                ],
-                (lba.wrapping_shr(24) & 0x0F) as u8,
-            )
-        } else {
-            let sector = (lba % 63) + 1;
-            let cylinder = (lba + 1 - sector) / (16 * 63);
-
-            LBAMode::CHS(
-                [
-                    sector,
-                    (cylinder.wrapping_shr(0) & 0xFF),
-                    (cylinder.wrapping_shr(8) & 0xFF),
-                    0,
-                    0,
-                    0,
-                ],
-                ((lba + 1 - sector) % (16 * 63) / 63) as u8,
-            )
-        };
-
-        // Get the IDE controller
+        let lba_mode;
+        let lba_io;
+        let channel = self.channel.clone();
+        let slavebit = self.drive.clone() as usize;
         let mut controller = self.controller.lock();
+        let cyl;
+        let num_sects = (buffer.len() + SECTOR_SIZE - 1) / SECTOR_SIZE;
+        let head;
+        let sect;
 
-        // Disable IRQs
+        // Disable IRQ
         controller.ioctrl(
             controller::IOCTRL_CLEAR_CHANNEL_INTERRUPT,
-            self.channel.clone() as usize,
+            channel.clone() as usize,
         )?;
-        controller.write_register(self.channel.reg(REGISTER_CONTROL), 0x02)?;
 
-        // Wait until drive is free
-        while controller.read_register(self.channel.reg(REGISTER_STATUS))? & STATUS_BUSY != 0 {}
+        if lba >= 0x10000000 {
+            lba_mode = 2;
+            lba_io = [
+                ((lba & 0x0000000000FF) >> 00) as u8,
+                ((lba & 0x00000000FF00) >> 08) as u8,
+                ((lba & 0x000000FF0000) >> 16) as u8,
+                ((lba & 0x0000FF000000) >> 24) as u8,
+                ((lba & 0x00FF00000000) >> 32) as u8,
+                ((lba & 0xFF0000000000) >> 40) as u8,
+            ];
+            head = 0;
+        } else if self.capabilities & 0x200 != 0 {
+            lba_mode = 1;
+            lba_io = [
+                ((lba & 0x00000FF) >> 00) as u8,
+                ((lba & 0x000FF00) >> 08) as u8,
+                ((lba & 0x0FF0000) >> 16) as u8,
+                0,
+                0,
+                0,
+            ];
+            head = (lba & 0xF000000) >> 24;
+        } else {
+            lba_mode = 0;
+            sect = (lba % 63) + 1;
+            cyl = (lba + 1 - sect) / (16 * 63);
+            lba_io = [
+                sect as u8,
+                ((cyl & 0x00FF) >> 0) as u8,
+                ((cyl & 0xFF00) >> 8) as u8,
+                0,
+                0,
+                0,
+            ];
+            head = (lba + 1 - sect) % (16 * 63) / 63;
+        }
+
+        // Poll
+        while controller.read_register(channel.reg(REGISTER_STATUS))? & STATUS_BUSY != 0 {}
 
         // Select drive
-        controller.write_register(
-            self.channel.reg(REGISTER_DRIVE_SELECT),
-            ((self.drive.clone() as usize) << 4)
-                | (match &lba_mode {
-                    LBAMode::CHS(_, head) => 0xA0 | head,
-                    LBAMode::LBA24(_, head) => 0xE0 | head,
-                    LBAMode::LBA48(_) => 0xE0,
-                } as usize),
-        )?;
-        time::sleep(2);
+        if lba_mode == 0 {
+            controller.write_register(
+                channel.reg(REGISTER_DRIVE_SELECT),
+                0xA0 | (slavebit << 4) | head,
+            )?;
+        } else {
+            controller.write_register(
+                channel.reg(REGISTER_DRIVE_SELECT),
+                0xE0 | (slavebit << 4) | head,
+            )?;
+        }
 
         // Write parameters
-        let lba_io = match &lba_mode {
-            LBAMode::LBA48(io) => {
-                controller.write_register(self.channel.reg(REGISTER_SECTOR_COUNT_1), 0)?;
-                controller.write_register(self.channel.reg(REGISTER_LBA_3), io[3])?;
-                controller.write_register(self.channel.reg(REGISTER_LBA_4), io[4])?;
-                controller.write_register(self.channel.reg(REGISTER_LBA_5), io[5])?;
-                io
-            }
-            LBAMode::LBA24(io, _) => io,
-            LBAMode::CHS(io, _) => io,
-        };
+        if lba_mode == 2 {
+            controller.write_register(channel.reg(REGISTER_SECTOR_COUNT_1), 0)?;
+            controller.write_register(channel.reg(REGISTER_LBA_3), lba_io[3] as usize)?;
+            controller.write_register(channel.reg(REGISTER_LBA_4), lba_io[4] as usize)?;
+            controller.write_register(channel.reg(REGISTER_LBA_5), lba_io[5] as usize)?;
+        }
 
-        controller.write_register(self.channel.reg(REGISTER_SECTOR_COUNT_0), 0)?;
-        controller.write_register(self.channel.reg(REGISTER_LBA_0), lba_io[0])?;
-        controller.write_register(self.channel.reg(REGISTER_LBA_1), lba_io[1])?;
-        controller.write_register(self.channel.reg(REGISTER_LBA_2), lba_io[2])?;
+        controller.write_register(channel.reg(REGISTER_SECTOR_COUNT_0), num_sects)?;
+        controller.write_register(channel.reg(REGISTER_LBA_0), lba_io[0] as usize)?;
+        controller.write_register(channel.reg(REGISTER_LBA_1), lba_io[1] as usize)?;
+        controller.write_register(channel.reg(REGISTER_LBA_2), lba_io[2] as usize)?;
 
-        // Write the command
-        let command = match lba_mode {
-            LBAMode::CHS(_, _) | LBAMode::LBA24(_, _) => COMMAND_READ_PIO,
-            LBAMode::LBA48(_) => COMMAND_READ_PIO_EXT,
-        };
-        controller.write_register(self.channel.reg(REGISTER_COMMAND), command)?;
+        // Select and send command
+        controller.write_register(
+            channel.reg(REGISTER_COMMAND),
+            match lba_mode {
+                0 => COMMAND_READ_PIO,
+                1 => COMMAND_READ_PIO,
+                _ => COMMAND_READ_PIO_EXT,
+            },
+        )?;
 
-        let mut index = 0;
-        for _ in 0..num_sectors {
+        for i in 0..num_sects {
             if controller.ioctrl(
                 controller::IOCTRL_ADVANCED_POLL,
                 self.channel.clone() as usize,
@@ -158,10 +149,8 @@ impl Device for ATA {
 
             controller.read(
                 self.channel.reg(REGISTER_DATA),
-                &mut buffer[index..index + SECTOR_SIZE],
+                &mut buffer[i * SECTOR_SIZE..(i + 1) * SECTOR_SIZE],
             )?;
-
-            index += SECTOR_SIZE;
         }
 
         Ok(())
@@ -179,7 +168,10 @@ impl Device for ATA {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, error::Status> {
-        Err(error::Status::NotSupported)
+    fn ioctrl(&mut self, code: usize, _: usize) -> Result<usize, error::Status> {
+        match code {
+            0 => Ok(self.size),
+            _ => Err(error::Status::NotSupported),
+        }
     }
 }

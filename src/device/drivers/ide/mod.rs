@@ -5,7 +5,7 @@ use crate::{
         drivers::ide::constants::{IDE_PATH, PCI_IDE_PATH},
         Device,
     },
-    error,
+    error, filesystem,
     locks::Mutex,
     log, logln,
 };
@@ -68,5 +68,37 @@ pub fn initialize() {
     match controller.ioctrl(controller::IOCTRL_ENUMERATE, 0) {
         Ok(_) => logln!("\x1B2A2]OK\x1B]!"),
         Err(status) => logln!("\x1BA22]Error\x1B]: {}!", status),
+    }
+
+    // Register drives
+    drop(controller);
+
+    match filesystem::register_drive("/ide/primary_master") {
+        Err(status) => match status {
+            error::Status::NotFound => {}
+            _ => logln!("Error while registering primary master: {}", status),
+        },
+        Ok(()) => {}
+    }
+    match filesystem::register_drive("/ide/primary_slave") {
+        Err(status) => match status {
+            error::Status::NotFound => {}
+            _ => logln!("Error while registering primary slave: {}", status),
+        },
+        Ok(()) => {}
+    }
+    match filesystem::register_drive("/ide/secondary_master") {
+        Err(status) => match status {
+            error::Status::NotFound => {}
+            _ => logln!("Error while registering secondary master: {}", status),
+        },
+        Ok(()) => {}
+    }
+    match filesystem::register_drive("/ide/secondary_slave") {
+        Err(status) => match status {
+            error::Status::NotFound => {}
+            _ => logln!("Error while registering secondary slave: {}", status),
+        },
+        Ok(()) => {}
     }
 }
