@@ -1,4 +1,4 @@
-use super::{Directory, DirectoryBox};
+use super::DirectoryBox;
 use crate::{error, locks::Mutex};
 use alloc::{boxed::Box, sync::Arc};
 
@@ -27,5 +27,13 @@ impl FileContainer {
 
     pub fn open(&mut self) {
         self.references += 1;
+    }
+
+    pub fn close(&mut self, arc_ptr: *const Mutex<FileContainer>) {
+        self.references -= 1;
+        if self.references == 0 {
+            let ptr = Arc::as_ptr(&self.parent);
+            self.parent.lock().close_file(arc_ptr, ptr);
+        }
     }
 }

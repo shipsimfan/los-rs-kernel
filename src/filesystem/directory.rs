@@ -104,4 +104,60 @@ impl DirectoryContainer {
 
         Err(error::Status::NotFound)
     }
+
+    pub fn close_directory(
+        &mut self,
+        directory_arc_ptr: *const Mutex<DirectoryContainer>,
+        arc_ptr: *const Mutex<DirectoryContainer>,
+    ) {
+        for (_, sub_directory) in &mut self.sub_directories {
+            let test_ptr = match sub_directory {
+                None => continue,
+                Some(directory) => Arc::as_ptr(directory),
+            };
+
+            if test_ptr == directory_arc_ptr {
+                *sub_directory = None;
+                self.references -= 1;
+                if self.references == 0 {
+                    match &self.parent {
+                        None => {}
+                        Some(parent) => {
+                            let ptr = Arc::as_ptr(parent);
+                            parent.lock().close_directory(arc_ptr, ptr)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn close_file(
+        &mut self,
+        file_arc_ptr: *const Mutex<FileContainer>,
+        arc_ptr: *const Mutex<DirectoryContainer>,
+    ) {
+        for (_, sub_file) in &mut self.sub_files {
+            let test_ptr = match sub_file {
+                None => continue,
+                Some(file) => Arc::as_ptr(file),
+            };
+
+            if test_ptr == file_arc_ptr {
+                *sub_file = None;
+                self.references -= 1;
+                if self.references == 0 {
+                    match &self.parent {
+                        None => {}
+                        Some(parent) => {
+                            let ptr = Arc::as_ptr(parent);
+                            parent.lock().close_directory(arc_ptr, ptr);
+                        }
+                    }
+                }
+
+                break;
+            }
+        }
+    }
 }
