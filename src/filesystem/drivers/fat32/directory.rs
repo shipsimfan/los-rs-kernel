@@ -2,7 +2,6 @@ use super::{fat::FATBox, SECTOR_SIZE};
 use crate::{
     error,
     filesystem::{self, File},
-    logln,
 };
 use alloc::{
     boxed::Box,
@@ -203,8 +202,15 @@ impl filesystem::Directory for Directory {
     }
 
     fn open_file(&self, filename: &str) -> Result<Box<dyn File>, error::Status> {
-        logln!("Opening {}", filename);
-        Err(error::Status::NotSupported)
+        let entry = self.open(filename)?;
+
+        let first_cluster =
+            (entry.first_cluster_low as u32) | ((entry.first_cluster_high as u32) << 16);
+        Ok(Box::new(super::file::File::new(
+            first_cluster,
+            entry.file_size as usize,
+            self.fat.clone(),
+        )))
     }
 
     fn open_directory(

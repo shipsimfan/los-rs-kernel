@@ -7,6 +7,7 @@ use alloc::{
 
 mod directory;
 mod fat;
+mod file;
 
 const SECTOR_SIZE: usize = 512;
 

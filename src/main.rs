@@ -8,6 +8,7 @@
 #![feature(ptr_internals)]
 #![feature(allocator_api)]
 #![feature(const_fn_trait_bound)]
+#![feature(trait_alias)]
 
 mod bootloader;
 mod device;
@@ -76,7 +77,7 @@ fn startup_thread() -> usize {
     logln!("Starting shell . . . ");
 
     match filesystem::open("1:/TEST/TEST.TXT") {
-        Ok(_) => {}
+        Ok(_) => logln!("Opened file!"),
         Err(status) => logln!("\x1BA22]Error\x1B] while opening file: {}", status),
     }
 

@@ -2,69 +2,28 @@ use crate::{
     device::{self, DeviceBox},
     error,
     locks::Mutex,
-    logln,
-    map::{Map, Mappable, INVALID_ID},
+    map::Map,
 };
-use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
+use alloc::vec::Vec;
 use core::ops::Deref;
 
+mod directory;
 pub mod drivers;
+mod file;
+mod file_descriptor;
+mod filesystem;
 
-pub type DetectFilesystemFunction = fn(
-    drive: DeviceBox,
-    start: usize,
-    size: usize,
-) -> Result<Option<FilesystemStarter>, error::Status>;
+pub use directory::Directory;
+pub use file::File;
+pub use file_descriptor::FileDescriptor;
 
-type DirectoryBox = Arc<Mutex<DirectoryContainer>>;
-type FileBox = Arc<Mutex<FileContainer>>;
-
-pub trait Directory: Send {
-    fn get_sub_files(&self) -> Result<Vec<String>, error::Status>; // Used to get sub files on initialization
-    fn get_sub_directories(&self) -> Result<Vec<String>, error::Status>; // Used to get sub directories on initialization
-    fn open_file(&self, filename: &str) -> Result<Box<dyn File>, error::Status>;
-    fn open_directory(&self, directory_name: &str) -> Result<Box<dyn Directory>, error::Status>;
-    fn make_file(&self, filename: &str) -> error::Result;
-    fn make_directory(&self, directory_name: &str) -> error::Result;
-    fn rename_file(&self, old_name: &str, new_name: &str) -> error::Result;
-    fn rename_directory(&self, old_name: &str, new_name: &str) -> error::Result;
-    fn remove_file(&self, filename: &str) -> error::Result;
-    fn remove_directory(&self, directory_name: &str) -> error::Result;
-}
-
-pub trait File: Send {
-    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result;
-    fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result;
-    fn set_length(&mut self, new_length: usize) -> error::Result;
-}
-
-pub struct FilesystemStarter {
-    volume_name: String,
-    root_directory: Box<dyn Directory>,
-}
-
-pub struct FileDescriptor {
-    file: FileBox,
-    current_offset: usize,
-}
-
-struct DirectoryContainer {
-    parent: Option<DirectoryBox>, // None for root directories
-    directory: Box<dyn Directory>,
-    sub_files: Vec<(String, Option<FileBox>)>,
-    sub_directories: Vec<(String, Option<DirectoryBox>)>,
-}
-
-struct FileContainer {
-    parent: FileBox,
-    file: Box<dyn File>,
-}
-
-struct Filesystem {
-    number: usize,
-    _volume_name: String,
-    root_directory: DirectoryBox,
-}
+type DirectoryBox = directory::DirectoryBox;
+type DirectoryContainer = directory::DirectoryContainer;
+type FileBox = file::FileBox;
+type FileContainer = file::FileContainer;
+type DetectFilesystemFunction = filesystem::DetectFilesystemFunction;
+type Filesystem = filesystem::Filesystem;
+type FilesystemStarter = filesystem::FilesystemStarter;
 
 static FILESYSTEM_DRIVERS: Mutex<Vec<DetectFilesystemFunction>> = Mutex::new(Vec::new());
 static FILESYSTEMS: Mutex<Map<Filesystem>> = Mutex::new(Map::with_starting_index(1));
@@ -105,7 +64,7 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
     };
 
     // Iterate path
-    let mut current_directory = filesystem.root_directory.clone();
+    let mut current_directory = filesystem.root_directory().clone();
     for dir_name in path {
         let mut directory = current_directory.lock();
         let new_directory = directory.open_directory(dir_name, &current_directory)?;
@@ -114,10 +73,12 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
     }
 
     // Open file
-    logln!("Opening file {}", filename);
+    let file = current_directory
+        .lock()
+        .open_file(filename, &current_directory)?;
 
     // Create file descriptor
-    Err(error::Status::NotSupported)
+    Ok(FileDescriptor::new(file))
 }
 
 fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result {
@@ -165,89 +126,4 @@ fn parse_filepath(filepath: &str) -> Result<(usize, Vec<&str>, &str), error::Sta
     let path = iter.collect();
 
     Ok((drive_number, path, filename))
-}
-
-impl DirectoryContainer {
-    pub fn new(
-        directory: Box<dyn Directory>,
-        parent_directory: Option<DirectoryBox>,
-    ) -> Result<Self, error::Status> {
-        let sub_file_names = directory.get_sub_files()?;
-        let mut sub_files = Vec::with_capacity(sub_file_names.len());
-        for sub_file_name in sub_file_names {
-            sub_files.push((sub_file_name, None));
-        }
-
-        let sub_directory_names = directory.get_sub_directories()?;
-        let mut sub_directories = Vec::with_capacity(sub_directory_names.len());
-        for sub_directory_name in sub_directory_names {
-            sub_directories.push((sub_directory_name, None));
-        }
-
-        Ok(DirectoryContainer {
-            parent: parent_directory,
-            directory: directory,
-            sub_files: sub_files,
-            sub_directories: sub_directories,
-        })
-    }
-
-    pub fn open_directory(
-        &mut self,
-        name: &str,
-        self_box: &DirectoryBox,
-    ) -> Result<DirectoryBox, error::Status> {
-        for (sub_name, sub_dir) in &mut self.sub_directories {
-            if sub_name != name {
-                continue;
-            }
-
-            match sub_dir {
-                Some(sub_dir) => return Ok(sub_dir.clone()),
-                None => {
-                    let new_directory = self.directory.open_directory(name)?;
-                    let new_directory = Arc::new(Mutex::new(DirectoryContainer::new(
-                        new_directory,
-                        Some(self_box.clone()),
-                    )?));
-                    *sub_dir = Some(new_directory.clone());
-                    return Ok(new_directory);
-                }
-            }
-        }
-
-        Err(error::Status::NotFound)
-    }
-}
-
-impl Filesystem {
-    pub fn new(filesystem_starter: FilesystemStarter) -> Result<Self, error::Status> {
-        Ok(Filesystem {
-            number: INVALID_ID,
-            root_directory: Arc::new(Mutex::new(DirectoryContainer::new(
-                filesystem_starter.root_directory,
-                None,
-            )?)),
-            _volume_name: filesystem_starter.volume_name,
-        })
-    }
-}
-
-impl Mappable for Filesystem {
-    fn id(&self) -> usize {
-        self.number
-    }
-
-    fn set_id(&mut self, id: usize) {
-        self.number = id;
-    }
-}
-
-impl FilesystemStarter {
-    pub fn new(root_directory: Box<dyn Directory>, volume_name: String) -> Self {
-        FilesystemStarter {
-            root_directory: root_directory,
-            volume_name: volume_name,
-        }
-    }
 }
