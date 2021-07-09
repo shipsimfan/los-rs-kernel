@@ -80,7 +80,7 @@ fn startup_thread() -> usize {
 
     match filesystem::open("1:/TEST/TEST.TXT") {
         Ok(mut fd) => {
-            let mut buffer = [0u8; 20];
+            let mut buffer = [0u8; 128];
             match fd.read(&mut buffer) {
                 Ok(bytes_read) => {
                     let str = String::from_utf8_lossy(&buffer);

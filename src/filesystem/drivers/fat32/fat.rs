@@ -6,6 +6,7 @@ pub type FATBox = Arc<Mutex<FAT>>;
 pub struct FAT {
     drive: DeviceBox,
     sectors_per_cluster: u32,
+    bytes_per_cluster: usize,
     _num_fats: u32,
     _fat_size: u32,
     first_fat_sector: usize,
@@ -25,6 +26,7 @@ impl FAT {
         FAT {
             drive: drive,
             sectors_per_cluster: sectors_per_cluster as u32,
+            bytes_per_cluster: (sectors_per_cluster as usize) * (bytes_per_sector as usize),
             first_fat_sector: reserved_sector_count as usize,
             _num_fats: num_fats as u32,
             _fat_size: fat_size as u32,
@@ -70,6 +72,10 @@ impl FAT {
         self.drive
             .lock()
             .read(self.cluster_to_sector(cluster), buffer)
+    }
+
+    pub fn bytes_per_cluster(&self) -> usize {
+        self.bytes_per_cluster
     }
 
     fn cluster_to_sector(&self, cluster: u32) -> usize {
