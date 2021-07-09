@@ -21,7 +21,7 @@ impl crate::filesystem::File for File {
         Err(crate::error::Status::NotSupported)
     }
 
-    fn read(&mut self, _: usize, _: &mut [u8]) -> crate::error::Result {
+    fn read(&mut self, _: usize, _: &mut [u8]) -> Result<usize, crate::error::Status> {
         Err(crate::error::Status::NotSupported)
     }
 

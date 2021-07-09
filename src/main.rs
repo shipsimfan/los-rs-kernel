@@ -10,6 +10,8 @@
 #![feature(const_fn_trait_bound)]
 #![feature(trait_alias)]
 
+use alloc::string::String;
+
 mod bootloader;
 mod device;
 mod error;
@@ -77,7 +79,17 @@ fn startup_thread() -> usize {
     logln!("Starting shell . . . ");
 
     match filesystem::open("1:/TEST/TEST.TXT") {
-        Ok(_) => logln!("Opened file!"),
+        Ok(mut fd) => {
+            let mut buffer = [0u8; 20];
+            match fd.read(&mut buffer) {
+                Ok(bytes_read) => {
+                    let str = String::from_utf8_lossy(&buffer);
+                    logln!("Read {} bytes:", bytes_read);
+                    logln!("{}", str);
+                }
+                Err(status) => logln!("\x1BA22]Error\x1B] while reading file: {}", status),
+            }
+        }
         Err(status) => logln!("\x1BA22]Error\x1B] while opening file: {}", status),
     }
 
