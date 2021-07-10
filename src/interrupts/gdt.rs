@@ -48,6 +48,7 @@ static TSS: locks::Mutex<TSS> = locks::Mutex::new(TSS::null());
 
 extern "C" {
     fn install_gdt(gdtr: *const c_void, data0: u16, tss: u16, code0: u16);
+    fn init_system_calls();
 }
 
 pub fn initialize() {
@@ -107,6 +108,9 @@ pub fn initialize() {
             0x8,
         );
     }
+
+    // Enable system calls
+    unsafe { init_system_calls() };
 }
 
 pub fn set_interrupt_stack(stack_pointer: usize) {

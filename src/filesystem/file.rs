@@ -16,6 +16,11 @@ pub struct FileContainer {
     references: usize,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct FileMetadata {
+    size: usize,
+}
+
 impl FileContainer {
     pub fn new(file: Box<dyn File>, parent: DirectoryBox) -> Self {
         FileContainer {
@@ -39,5 +44,15 @@ impl FileContainer {
             let ptr = Arc::as_ptr(&self.parent);
             self.parent.lock().close_file(arc_ptr, ptr);
         }
+    }
+}
+
+impl FileMetadata {
+    pub fn new(size: usize) -> Self {
+        FileMetadata { size: size }
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
     }
 }

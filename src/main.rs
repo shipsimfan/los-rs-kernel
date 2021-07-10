@@ -10,8 +10,6 @@
 #![feature(const_fn_trait_bound)]
 #![feature(trait_alias)]
 
-use alloc::string::String;
-
 mod bootloader;
 mod device;
 mod error;
@@ -78,24 +76,18 @@ fn startup_thread() -> usize {
 
     logln!("Starting shell . . . ");
 
-    match filesystem::open("1:/TEST/TEST.TXT") {
-        Ok(mut fd) => {
-            let mut buffer = [0u8; 128];
-            match fd.read(&mut buffer) {
-                Ok(bytes_read) => {
-                    let str = String::from_utf8_lossy(&buffer);
-                    logln!("Read {} bytes:", bytes_read);
-                    logln!("{}", str);
-                }
-                Err(status) => logln!("\x1BA22]Error\x1B] while reading file: {}", status),
-            }
-        }
-        Err(status) => logln!("\x1BA22]Error\x1B] while opening file: {}", status),
-    }
-
-    // Must keep one thread alive, otherwise the system may(most likely) crash
     loop {
-        unsafe { asm!("hlt") }
+        let pid = match process::execute("1:/LOS/SHELL.APP") {
+            Ok(pid) => pid,
+            Err(status) => {
+                logln!("Error while starting shell: {}", status);
+                loop {
+                    unsafe { asm!("hlt") }
+                }
+            }
+        };
+        let status = process::wait_process(pid);
+        logln!("Shell exited with status: {:#X}", status);
     }
 }
 

@@ -1,11 +1,12 @@
 #![allow(dead_code)]
 
 mod control;
+mod loader;
 mod process;
 mod queue;
 mod thread;
 
-use crate::map::Mappable;
+use crate::{filesystem, map::Mappable, memory::KERNEL_VMA};
 
 pub type Thread = thread::Thread;
 pub type Process = process::Process;
@@ -48,19 +49,57 @@ extern "C" fn switch_thread(next_thread: *mut Thread) {
     unsafe { THREAD_CONTROL.set_current_thread(next_thread) };
 }
 
+pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
+    // Load the executable
+    let buffer = filesystem::read(filepath)?;
+
+    // Parse the elf header
+    let entry = loader::verify_executable(&buffer)?;
+    if entry >= KERNEL_VMA {
+        return Err(crate::error::Status::InvalidArgument);
+    }
+
+    unsafe { asm!("cli") };
+    // Create a process
+    let pid = do_create_process(entry);
+    let current_process = get_current_thread_mut().get_process_mut();
+    let new_process = current_process
+        .get_session_mut()
+        .unwrap()
+        .get_process_mut(pid)
+        .unwrap();
+
+    // Switch to new process address space
+    new_process.set_address_space_as_current();
+
+    // Copy the executable into the address space
+    loader::load_executable(&buffer)?;
+
+    // Return to current process address space
+    current_process.set_address_space_as_current();
+
+    // Return the process id
+    unsafe { asm!("sti") };
+    Ok(pid)
+}
+
 pub fn create_thread(entry: ThreadFunc) -> usize {
     let current_thread = get_current_thread_mut();
     let current_process = current_thread.get_process_mut();
     current_process.create_thread(entry as usize, 0)
 }
 
-pub fn create_process(entry: ThreadFunc) -> usize {
+fn do_create_process(entry: usize) -> usize {
     let current_thread = get_current_thread_mut();
     let current_process = current_thread.get_process_mut();
     match current_process.get_session_mut() {
         None => panic!("Creating daemon process!"),
-        Some(current_session) => current_session.create_process(entry as usize, 0),
+        Some(current_session) => current_session.create_process(entry, 0),
     }
+}
+
+pub fn create_process(entry: ThreadFunc) -> usize {
+    do_create_process(entry as usize)
 }
 
 pub fn queue_thread(thread: &mut Thread) {
@@ -93,14 +132,11 @@ pub fn yield_thread() {
                             Some(current_thread) => {
                                 current_thread.save_float();
 
-                                if current_thread.compare_process(next_thread) {
-                                    next_thread.get_process().set_address_space_as_current();
-                                }
-
                                 current_thread.get_stack_pointer_location()
                             }
                         },
                         {
+                            next_thread.get_process().set_address_space_as_current();
                             next_thread.load_float();
                             next_thread.set_interrupt_stack();
                             next_thread.get_stack_pointer_location()

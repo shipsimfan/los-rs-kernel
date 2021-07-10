@@ -4,6 +4,7 @@ use super::{exit_thread, Process, ThreadFuncContext, ThreadQueue};
 use crate::{
     logln,
     map::{Mappable, INVALID_ID},
+    memory::KERNEL_VMA,
 };
 
 struct Stack {
@@ -33,6 +34,7 @@ const KERNEL_STACK_LAYOUT: alloc::alloc::Layout =
 extern "C" {
     fn float_save(floating_point_storage: *mut u8);
     fn float_load(floating_point_storage: *mut u8);
+    fn thread_enter_user(entry: *const c_void, context: usize);
 }
 
 extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
@@ -44,22 +46,41 @@ extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
 impl Thread {
     pub fn new(process: &mut Process, entry: usize, context: usize) -> Self {
         let mut kernel_stack = Stack::new();
-        kernel_stack.push(thread_enter_kernel as usize); // ret address
-        kernel_stack.push(0); // push rax
-        kernel_stack.push(0); // push rbx
-        kernel_stack.push(0); // push rcx
-        kernel_stack.push(0); // push rdx
-        kernel_stack.push(context); // push rsi
-        kernel_stack.push(entry); // push rdi
-        kernel_stack.push(0); // push rbp
-        kernel_stack.push(0); // push r8
-        kernel_stack.push(0); // push r9
-        kernel_stack.push(0); // push r10
-        kernel_stack.push(0); // push r11
-        kernel_stack.push(0); // push r12
-        kernel_stack.push(0); // push r13
-        kernel_stack.push(0); // push r14
-        kernel_stack.push(0); // push r15
+        if entry >= KERNEL_VMA {
+            kernel_stack.push(thread_enter_kernel as usize); // ret address
+            kernel_stack.push(0); // push rax
+            kernel_stack.push(0); // push rbx
+            kernel_stack.push(0); // push rcx
+            kernel_stack.push(0); // push rdx
+            kernel_stack.push(context); // push rsi
+            kernel_stack.push(entry); // push rdi
+            kernel_stack.push(0); // push rbp
+            kernel_stack.push(0); // push r8
+            kernel_stack.push(0); // push r9
+            kernel_stack.push(0); // push r10
+            kernel_stack.push(0); // push r11
+            kernel_stack.push(0); // push r12
+            kernel_stack.push(0); // push r13
+            kernel_stack.push(0); // push r14
+            kernel_stack.push(0); // push r15
+        } else {
+            kernel_stack.push(thread_enter_user as usize); // ret address
+            kernel_stack.push(0); // push rax
+            kernel_stack.push(0); // push rbx
+            kernel_stack.push(entry); // push rcx
+            kernel_stack.push(0); // push rdx
+            kernel_stack.push(0); // push rsi
+            kernel_stack.push(context); // push rdi
+            kernel_stack.push(0); // push rbp
+            kernel_stack.push(0); // push r8
+            kernel_stack.push(0); // push r9
+            kernel_stack.push(0); // push r10
+            kernel_stack.push(1 << 9); // push r11
+            kernel_stack.push(0); // push r12
+            kernel_stack.push(0); // push r13
+            kernel_stack.push(0); // push r14
+            kernel_stack.push(0); // push r15
+        }
 
         let fps = unsafe { alloc::alloc::alloc_zeroed(FLOATING_POINT_STORAGE_LAYOUT) };
 

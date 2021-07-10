@@ -128,13 +128,8 @@ fn page_fault_handler(_registers: Registers, info: ExceptionInfo) {
             let rip = info.rip;
             panic!("Null pointer exception at {:#X}", rip);
         } else {
-            if cr2 < KERNEL_VMA {
-                let rip = info.rip;
-                panic!("Page fault for access in userspace!\n\tUserspace address: {:#X}\n\tInstruction address: {:#X}\n", cr2, rip);
-            } else {
-                let mut current_address_space = unsafe { get_current_address_space() };
-                current_address_space.allocate(cr2, physical::allocate());
-            }
+            let mut current_address_space = unsafe { get_current_address_space() };
+            current_address_space.allocate(cr2, physical::allocate());
         }
     } else {
         let rip = info.rip;

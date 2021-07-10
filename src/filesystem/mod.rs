@@ -15,6 +15,7 @@ mod filesystem;
 
 pub use directory::Directory;
 pub use file::File;
+pub use file::FileMetadata;
 pub use file_descriptor::FileDescriptor;
 
 type DirectoryBox = directory::DirectoryBox;
@@ -79,6 +80,45 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
 
     // Create file descriptor
     Ok(FileDescriptor::new(file))
+}
+
+pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
+    // Parse filepath
+    let (fs_number, path, filename) = parse_filepath(filepath)?;
+
+    // Open filesystem
+    let mut filesystems = FILESYSTEMS.lock();
+    let filesystem = match filesystems.get_mut(fs_number) {
+        Some(filesystem) => filesystem,
+        None => return Err(error::Status::NotFound),
+    };
+
+    // Iterate path
+    let mut current_directory = filesystem.root_directory().clone();
+    for dir_name in path {
+        let mut directory = current_directory.lock();
+        let new_directory = directory.open_directory(dir_name, &current_directory)?;
+        drop(directory);
+        current_directory = new_directory;
+    }
+
+    // Get metadata and file
+    let (metadata, file) = {
+        let mut dir = current_directory.lock();
+        let metadata = dir.get_file_metadata(filename)?;
+        let file = dir.open_file(filename, &current_directory)?;
+        (metadata, file)
+    };
+
+    // Create the buffer
+    let mut buffer = Vec::with_capacity(metadata.size());
+    unsafe { buffer.set_len(metadata.size()) };
+
+    // Read the file
+    let bytes_read = file.lock().read(0, buffer.as_mut_slice())?;
+    unsafe { buffer.set_len(bytes_read) }; // Just in case
+
+    Ok(buffer)
 }
 
 fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result {
