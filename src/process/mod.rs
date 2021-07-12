@@ -192,6 +192,10 @@ pub fn exit_thread(exit_status: usize) {
     yield_thread();
 }
 
+pub fn get_current_thread() -> &'static Thread {
+    get_current_thread_option().expect("No current thread when one required!")
+}
+
 pub fn get_current_thread_option() -> Option<&'static Thread> {
     unsafe {
         let return_interrupts = get_rflags() & (1 << 9) == 0;

@@ -16,6 +16,7 @@ struct Stack {
 pub struct Thread {
     id: usize,
     kernel_stack: Stack,
+    user_stack_pointer: usize,
     floating_point_storage: *mut u8,
     process: *mut Process,
     queue: Option<*mut ThreadQueue>,
@@ -87,6 +88,7 @@ impl Thread {
         Thread {
             id: INVALID_ID,
             kernel_stack: kernel_stack,
+            user_stack_pointer: 0,
             floating_point_storage: fps,
             process: process,
             queue: None,
@@ -121,6 +123,18 @@ impl Thread {
 
     pub fn get_stack_pointer_location(&self) -> *mut usize {
         (&self.kernel_stack.pointer) as *const _ as *mut _
+    }
+
+    pub fn get_kernel_stack_top(&self) -> usize {
+        self.kernel_stack.top
+    }
+
+    pub fn set_user_stack_pointer(&mut self, stack_pointer: usize) {
+        self.user_stack_pointer = stack_pointer;
+    }
+
+    pub fn get_user_stack_pointer(&self) -> usize {
+        self.user_stack_pointer
     }
 
     pub fn get_process(&self) -> &'static Process {

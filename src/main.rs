@@ -22,6 +22,7 @@ mod memory;
 mod process;
 mod queue;
 mod session;
+mod syscall;
 mod time;
 
 extern crate alloc;
@@ -76,18 +77,20 @@ fn startup_thread() -> usize {
 
     logln!("Starting shell . . . ");
 
-    loop {
-        let pid = match process::execute("1:/LOS/SHELL.APP") {
-            Ok(pid) => pid,
-            Err(status) => {
-                logln!("Error while starting shell: {}", status);
-                loop {
-                    unsafe { asm!("hlt") }
-                }
+    let pid = match process::execute("1:/LOS/SHELL.APP") {
+        Ok(pid) => pid,
+        Err(status) => {
+            logln!("Error while starting shell: {}", status);
+            loop {
+                unsafe { asm!("hlt") }
             }
-        };
-        let status = process::wait_process(pid);
-        logln!("Shell exited with status: {:#X}", status);
+        }
+    };
+    let status = process::wait_process(pid);
+    logln!("Shell exited with status: {:#X}", status);
+
+    loop {
+        unsafe { asm!("sti;hlt") };
     }
 }
 
