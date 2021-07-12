@@ -26,7 +26,7 @@ pub fn millisecond_tick() {
         /*
         // Testing Code - displays a message once a second
         if SYSTEM_TIME % 1000 == 0 {
-            logln!("System Time: {}s", SYSTEM_TIME / 1000);
+            crate::logln!("System Time: {}s", SYSTEM_TIME / 1000);
         }*/
 
         if SYSTEM_TIME % 10 == 0 {

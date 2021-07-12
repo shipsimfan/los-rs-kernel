@@ -1,4 +1,3 @@
-use crate::locks;
 use core::ffi::c_void;
 
 #[repr(packed(1))]
@@ -43,8 +42,8 @@ const GDT_FLAGS_64_CODE: u8 = 32;
 const GDT_FLAGS_SIZE: u8 = 64;
 const GDT_FLAGS_GRANULARITY: u8 = 128;
 
-static GDT: locks::Mutex<GlobalDescriptorTable> = locks::Mutex::new(GlobalDescriptorTable::null());
-static TSS: locks::Mutex<TSS> = locks::Mutex::new(TSS::null());
+static mut GDT: GlobalDescriptorTable = GlobalDescriptorTable::null();
+static mut TSS: TSS = TSS::null();
 
 extern "C" {
     fn install_gdt(gdtr: *const c_void, data0: u16, tss: u16, code0: u16);
@@ -52,69 +51,66 @@ extern "C" {
 }
 
 pub fn initialize() {
-    let mut gdt = GDT.lock();
-
-    // CODE 0
-    gdt.0[1] = Entry::new(true, false, false, true);
-
-    // DATA 0
-    gdt.0[2] = Entry::new(false, false, true, false);
-
-    // CODE 3
-    gdt.0[4] = Entry::new(true, true, false, true);
-
-    // DATA 0
-    gdt.0[3] = Entry::new(false, true, true, false);
-
-    // TSS
-    let tss_lock = TSS.lock();
-    let tss_ptr = &tss_lock as *const _ as usize;
-
-    gdt.0[5] = super::gdt::Entry {
-        _limit_low: 104,
-        _base_low: (tss_ptr & 0xFFFF) as u16,
-        _base_mid: ((tss_ptr >> 16) & 0xFF) as u8,
-        _access: super::gdt::GDT_ACCESS_ACCESSED
-            | super::gdt::GDT_ACCESS_EXECUTABLE
-            | super::gdt::GDT_ACCESS_DPL_3
-            | super::gdt::GDT_ACCESS_PRESENT,
-        _flags_limit_high: super::gdt::GDT_FLAGS_GRANULARITY,
-        _base_high: ((tss_ptr >> 24) & 0xFF) as u8,
-    };
-
-    gdt.0[6] = super::gdt::Entry {
-        _limit_low: ((tss_ptr >> 32) & 0xFFFF) as u16,
-        _base_low: ((tss_ptr >> 48) & 0xFFFF) as u16,
-        _base_mid: 0,
-        _access: 0,
-        _flags_limit_high: 0,
-        _base_high: 0,
-    };
-
-    // Prepare the GDTR
-    let gdt_ptr = &(*gdt) as *const super::gdt::GlobalDescriptorTable as usize;
-
-    let gdtr = super::CPUPointer {
-        _size: 55,
-        _ptr: gdt_ptr,
-    };
-
-    // Install GDT
     unsafe {
+        // CODE 0
+        GDT.0[1] = Entry::new(true, false, false, true);
+
+        // DATA 0
+        GDT.0[2] = Entry::new(false, false, true, false);
+
+        // CODE 3
+        GDT.0[4] = Entry::new(true, true, false, true);
+
+        // DATA 0
+        GDT.0[3] = Entry::new(false, true, true, false);
+
+        // TSS
+        let tss_ptr = &TSS as *const _ as usize;
+
+        GDT.0[5] = super::gdt::Entry {
+            _limit_low: 104,
+            _base_low: (tss_ptr & 0xFFFF) as u16,
+            _base_mid: ((tss_ptr >> 16) & 0xFF) as u8,
+            _access: super::gdt::GDT_ACCESS_ACCESSED
+                | super::gdt::GDT_ACCESS_EXECUTABLE
+                | super::gdt::GDT_ACCESS_DPL_3
+                | super::gdt::GDT_ACCESS_PRESENT,
+            _flags_limit_high: super::gdt::GDT_FLAGS_GRANULARITY,
+            _base_high: ((tss_ptr >> 24) & 0xFF) as u8,
+        };
+
+        GDT.0[6] = super::gdt::Entry {
+            _limit_low: ((tss_ptr >> 32) & 0xFFFF) as u16,
+            _base_low: ((tss_ptr >> 48) & 0xFFFF) as u16,
+            _base_mid: 0,
+            _access: 0,
+            _flags_limit_high: 0,
+            _base_high: 0,
+        };
+
+        // Prepare the GDTR
+        let gdt_ptr = &GDT as *const super::gdt::GlobalDescriptorTable as usize;
+
+        let gdtr = super::CPUPointer {
+            _size: 55,
+            _ptr: gdt_ptr,
+        };
+
+        // Install GDT
         install_gdt(
             &gdtr as *const super::CPUPointer as *const c_void,
             0x10,
             0x28,
             0x8,
         );
-    }
 
-    // Enable system calls
-    unsafe { init_system_calls() };
+        // Enable system calls
+        init_system_calls();
+    }
 }
 
 pub fn set_interrupt_stack(stack_pointer: usize) {
-    (*TSS.lock()).set_stack(stack_pointer);
+    unsafe { TSS.set_stack(stack_pointer) };
 }
 
 impl GlobalDescriptorTable {
