@@ -6,7 +6,7 @@ mod process;
 mod queue;
 mod thread;
 
-use crate::{filesystem, map::Mappable, memory::KERNEL_VMA};
+use crate::{filesystem, logln, map::Mappable, memory::KERNEL_VMA};
 
 pub type Thread = thread::Thread;
 pub type Process = process::Process;
@@ -58,6 +58,8 @@ pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
     if entry >= KERNEL_VMA {
         return Err(crate::error::Status::InvalidArgument);
     }
+
+    logln!("Entry for {}: {:#X}", filepath, entry);
 
     unsafe { asm!("cli") };
     // Create a process
