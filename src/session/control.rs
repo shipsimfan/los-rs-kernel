@@ -1,4 +1,4 @@
-use super::{Session, SessionBox, SessionType, SID};
+use super::{Session, SessionBox, SubSession, SID};
 use crate::locks::Mutex;
 use alloc::{sync::Arc, vec::Vec};
 
@@ -15,7 +15,7 @@ impl SessionControl {
         }
     }
 
-    pub fn create_session(&mut self, sub: SessionType) -> SessionBox {
+    pub fn create_session(&mut self, sub: SubSession) -> SessionBox {
         let new_session = Arc::new(Mutex::new(Session::new(self.next_id, sub)));
         self.next_id += 1;
         self.sessions.push(new_session.clone());

@@ -1,25 +1,30 @@
 use crate::logln;
 
+mod console;
+mod filesystem;
+mod process;
+mod stack;
+mod thread;
+
 #[no_mangle]
-extern "C" fn get_kernel_stack_pointer_and_save_user_stack_pointer(
-    user_stack_pointer: usize,
+extern "C" fn system_call(
+    code: usize,
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+    arg5: usize,
 ) -> usize {
-    let current_thread = crate::process::get_current_thread_mut();
-    current_thread.set_user_stack_pointer(user_stack_pointer);
-    current_thread.get_kernel_stack_top()
-}
-
-#[no_mangle]
-extern "C" fn get_user_stack_pointer() -> usize {
-    crate::process::get_current_thread().get_user_stack_pointer()
-}
-
-#[no_mangle]
-extern "C" fn system_call(code: usize, arg1: usize) -> usize {
-    match code {
-        0 => crate::process::exit_thread(arg1),
-        _ => logln!("Invalid system call: {}", code),
+    if code <= 0x0FFF {
+        process::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x1000 && code <= 0x1FFF {
+        thread::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x2000 && code <= 0x2FFF {
+        filesystem::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x3000 && code <= 0x3FFF {
+        console::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else {
+        logln!("Invalid system call: {}", code);
+        usize::MAX
     }
-
-    0
 }

@@ -84,9 +84,13 @@ pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
 }
 
 pub fn create_thread(entry: ThreadFunc) -> usize {
+    create_thread_raw(entry as usize)
+}
+
+pub fn create_thread_raw(entry: usize) -> usize {
     let current_thread = get_current_thread_mut();
     let current_process = current_thread.get_process_mut();
-    current_process.create_thread(entry as usize, 0)
+    current_process.create_thread(entry, 0)
 }
 
 fn do_create_process(entry: usize) -> usize {
@@ -182,7 +186,7 @@ pub fn wait_process(pid: usize) -> usize {
     current_thread.get_queue_data()
 }
 
-pub fn exit_thread(exit_status: usize) {
+pub fn exit_thread(exit_status: usize) -> ! {
     let current_thread = get_current_thread_mut();
 
     current_thread.pre_exit(exit_status);
@@ -190,6 +194,7 @@ pub fn exit_thread(exit_status: usize) {
 
     current_thread.clear_queue();
     yield_thread();
+    panic!("Returned to thread after exit!");
 }
 
 pub fn get_current_thread() -> &'static Thread {

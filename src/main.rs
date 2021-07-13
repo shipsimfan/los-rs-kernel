@@ -52,7 +52,8 @@ pub extern "C" fn kmain(
     interrupts::irq::initialize();
 
     log!("Creating first session . . . ");
-    let first_session = session::create_console_session();
+    let first_session =
+        session::create_console_session("/uefi_console").expect("Failed to create first session");
     logln!("\x1B2A2]OK\x1B]!");
     log!("Creating startup process . . . ");
     first_session

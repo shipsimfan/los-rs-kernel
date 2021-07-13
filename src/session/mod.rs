@@ -1,4 +1,4 @@
-use crate::{locks::Mutex, map::Map, process::Process};
+use crate::{error, locks::Mutex, map::Map, process::Process};
 use alloc::sync::Arc;
 
 pub mod color;
@@ -7,11 +7,11 @@ mod control;
 
 pub struct Session {
     _id: SID,
-    _sub: SessionType,
+    sub: SubSession,
     processes: Map<Process>,
 }
 
-pub enum SessionType {
+pub enum SubSession {
     Console(console::Console),
 }
 
@@ -20,15 +20,19 @@ type SID = usize;
 
 static SESSIONS: Mutex<control::SessionControl> = Mutex::new(control::SessionControl::new());
 
-pub fn create_console_session() -> SessionBox {
-    (*SESSIONS.lock()).create_session(SessionType::Console(console::Console::new()))
+pub fn create_console_session(output_device_path: &str) -> Result<SessionBox, error::Status> {
+    let output_device = crate::device::get_device(output_device_path)?;
+    Ok(
+        (*SESSIONS.lock())
+            .create_session(SubSession::Console(console::Console::new(output_device))),
+    )
 }
 
 impl Session {
-    pub fn new(id: SID, sub: SessionType) -> Self {
+    pub fn new(id: SID, sub: SubSession) -> Self {
         Session {
             _id: id,
-            _sub: sub,
+            sub,
             processes: Map::new(),
         }
     }
@@ -49,5 +53,9 @@ impl Session {
 
     pub fn remove_process(&mut self, id: usize) {
         self.processes.remove(id);
+    }
+
+    pub fn get_sub_session_mut(&mut self) -> &mut SubSession {
+        &mut self.sub
     }
 }

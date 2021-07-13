@@ -181,6 +181,8 @@ impl Mappable for Thread {
 
 impl Drop for Thread {
     fn drop(&mut self) {
+        self.pre_exit(0);
+
         match self.queue {
             Some(queue) => unsafe { (*queue).remove(self) },
             None => {}
