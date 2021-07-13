@@ -37,9 +37,12 @@ system_call_handler:
     call system_call
 
     ; Get user stack pointer
-    call get_user_stack_pointer
     cli
-    mov rsp, rax
+    push rax
+    call get_user_stack_pointer
+    mov rdi, rax
+    pop rax
+    mov rsp, rdi
 
     ; Restore registers (R11 -> RFLAGS, RCX -> RIP)
     pop r11
