@@ -97,4 +97,8 @@ impl crate::filesystem::File for File {
     fn set_length(&mut self, _: usize) -> crate::error::Result {
         Err(crate::error::Status::NotSupported)
     }
+
+    fn get_length(&self) -> usize {
+        self.file_size
+    }
 }

@@ -1,5 +1,7 @@
 use super::{Thread, ThreadQueue};
 use crate::{
+    error,
+    filesystem::{self, FileDescriptor},
     logln,
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
@@ -12,6 +14,7 @@ pub struct Process {
     address_space: AddressSpace,
     session: Option<*mut Session>,
     exit_queue: ThreadQueue,
+    file_descriptors: Map<FileDescriptor>,
 }
 
 impl Process {
@@ -25,6 +28,7 @@ impl Process {
                 None => None,
             },
             exit_queue: ThreadQueue::new(),
+            file_descriptors: Map::with_starting_index(3),
         }
     }
 
@@ -67,6 +71,22 @@ impl Process {
         while let Some(thread) = self.exit_queue.pop_mut() {
             thread.set_queue_data(exit_status);
             super::queue_thread(thread);
+        }
+    }
+
+    pub fn open_file(&mut self, filepath: &str) -> Result<usize, error::Status> {
+        let file_descriptor = filesystem::open(filepath)?;
+        Ok(self.file_descriptors.insert(file_descriptor))
+    }
+
+    pub fn close_file(&mut self, fd: usize) {
+        self.file_descriptors.remove(fd);
+    }
+
+    pub fn get_file(&mut self, fd: usize) -> Result<&mut FileDescriptor, error::Status> {
+        match self.file_descriptors.get_mut(fd) {
+            None => Err(error::Status::NotFound),
+            Some(file_descriptor) => Ok(file_descriptor),
         }
     }
 }

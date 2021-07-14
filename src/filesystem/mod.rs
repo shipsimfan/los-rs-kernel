@@ -17,6 +17,7 @@ pub use directory::Directory;
 pub use file::File;
 pub use file::FileMetadata;
 pub use file_descriptor::FileDescriptor;
+pub use file_descriptor::SeekFrom;
 
 type DirectoryBox = directory::DirectoryBox;
 type DirectoryContainer = directory::DirectoryContainer;

@@ -8,6 +8,7 @@ pub trait File: Send {
     fn read(&mut self, offset: usize, buffer: &mut [u8]) -> Result<usize, error::Status>;
     fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result;
     fn set_length(&mut self, new_length: usize) -> error::Result;
+    fn get_length(&self) -> usize;
 }
 
 pub struct FileContainer {
@@ -44,6 +45,10 @@ impl FileContainer {
             let ptr = Arc::as_ptr(&self.parent);
             self.parent.lock().close_file(arc_ptr, ptr);
         }
+    }
+
+    pub fn get_length(&self) -> usize {
+        self.file.get_length()
     }
 }
 

@@ -59,8 +59,6 @@ pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
         return Err(crate::error::Status::InvalidArgument);
     }
 
-    logln!("Entry for {}: {:#X}", filepath, entry);
-
     unsafe { asm!("cli") };
     // Create a process
     let pid = do_create_process(entry);
