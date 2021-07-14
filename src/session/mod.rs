@@ -4,6 +4,10 @@ use alloc::sync::Arc;
 pub mod color;
 mod console;
 mod control;
+mod event;
+
+pub use event::CEvent;
+pub use event::Event;
 
 pub struct Session {
     _id: SID,
@@ -57,5 +61,27 @@ impl Session {
 
     pub fn get_sub_session_mut(&mut self) -> &mut SubSession {
         &mut self.sub
+    }
+
+    pub fn push_event(&mut self, event: Event) {
+        self.sub.push_event(event);
+    }
+
+    pub fn peek_event(&mut self) -> Option<Event> {
+        self.sub.peek_event()
+    }
+}
+
+impl SubSession {
+    pub fn push_event(&mut self, event: Event) {
+        match self {
+            SubSession::Console(console) => console.push_event(event),
+        }
+    }
+
+    pub fn peek_event(&mut self) -> Option<Event> {
+        match self {
+            SubSession::Console(console) => console.peek_event(),
+        }
     }
 }
