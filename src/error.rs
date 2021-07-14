@@ -7,6 +7,7 @@ pub enum Status {
     AlreadyExists,
     NotSupported,
     DeviceError,
+    Timeout,
 }
 
 pub type Result = core::result::Result<(), Status>;
@@ -19,6 +20,7 @@ impl fmt::Display for Status {
             Status::AlreadyExists => "Already exists",
             Status::NotSupported => "Not supported",
             Status::DeviceError => "Device error",
+            Status::Timeout => "Timeout",
         })
     }
 }

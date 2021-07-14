@@ -75,6 +75,7 @@ fn startup_thread() -> usize {
     device::drivers::hpet::initialize();
     device::drivers::pci::initialize();
     device::drivers::ide::initialize();
+    device::drivers::ps2::initialize();
 
     logln!("Starting shell . . . ");
 

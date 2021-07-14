@@ -7,8 +7,9 @@ use core::ffi::c_void;
 
 mod table;
 
-pub type MADT = table::MADT;
-pub type HPET = table::HPET;
+pub use table::FADT;
+pub use table::HPET;
+pub use table::MADT;
 
 static TABLES: Mutex<Vec<table::TablePointer>> = Mutex::new(Vec::new());
 
