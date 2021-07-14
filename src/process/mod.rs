@@ -110,7 +110,7 @@ pub fn create_process(entry: ThreadFunc) -> usize {
 
 pub fn queue_thread(thread: &mut Thread) {
     unsafe {
-        let return_interrupts = get_rflags() & (1 << 9) == 0;
+        let return_interrupts = get_rflags() & (1 << 9) != 0;
         asm!("cli");
         THREAD_CONTROL.queue_execution(thread);
         if return_interrupts {
@@ -205,7 +205,7 @@ pub fn get_current_thread() -> &'static Thread {
 
 pub fn get_current_thread_option() -> Option<&'static Thread> {
     unsafe {
-        let return_interrupts = get_rflags() & (1 << 9) == 0;
+        let return_interrupts = get_rflags() & (1 << 9) != 0;
         asm!("cli");
         let ret = THREAD_CONTROL.get_current_thread();
         if return_interrupts {
@@ -221,7 +221,7 @@ pub fn get_current_thread_mut() -> &'static mut Thread {
 
 pub fn get_current_thread_mut_option() -> Option<&'static mut Thread> {
     unsafe {
-        let return_interrupts = get_rflags() & (1 << 9) == 0;
+        let return_interrupts = get_rflags() & (1 << 9) != 0;
         asm!("cli");
         let ret = THREAD_CONTROL.get_current_thread_mut();
         if return_interrupts {

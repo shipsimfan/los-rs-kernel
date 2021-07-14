@@ -46,7 +46,7 @@ impl<T> Mutex<T> {
         match process::get_current_thread_mut_option() {
             None => {}
             Some(current_thread) => {
-                let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
+                let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
                 unsafe { asm!("cli") };
                 if self
                     .lock
@@ -81,7 +81,7 @@ impl<T> Mutex<T> {
         match process::get_current_thread_mut_option() {
             None => None,
             Some(current_thread) => {
-                let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
+                let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
                 unsafe { asm!("cli") };
                 let ret = if self
                     .lock
@@ -112,7 +112,7 @@ impl<T> Mutex<T> {
 
     #[inline(always)]
     pub fn _is_locked(&self) -> bool {
-        let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
+        let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
         unsafe { asm!("cli") };
         let ret = self.lock.load(Ordering::Relaxed) != null_mut();
         if return_interrupts {
@@ -139,7 +139,7 @@ impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T> {
 impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
-        let return_interrupts = unsafe { get_rflags() } & (1 << 9) == 0;
+        let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
         unsafe { asm!("cli") };
         let mutex = unsafe { &mut *(self.lock as *const _ as *mut Mutex<T>) };
 

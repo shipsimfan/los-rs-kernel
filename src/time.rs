@@ -45,6 +45,6 @@ pub fn sleep(duration: usize) {
     let end = start + duration;
 
     while current_time_millis() < end {
-        unsafe { asm!("sti;hlt") };
+        unsafe { asm!("hlt") };
     }
 }
