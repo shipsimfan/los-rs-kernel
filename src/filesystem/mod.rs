@@ -3,17 +3,21 @@ use crate::{
     error,
     locks::Mutex,
     map::Map,
+    process,
 };
 use alloc::vec::Vec;
 use core::ops::Deref;
 
 mod directory;
+mod directory_descriptor;
 pub mod drivers;
 mod file;
 mod file_descriptor;
 mod filesystem;
 
 pub use directory::Directory;
+pub use directory::ParentDirectory;
+pub use directory_descriptor::DirectoryDescriptor;
 pub use file::File;
 pub use file::FileMetadata;
 pub use file_descriptor::FileDescriptor;
@@ -56,18 +60,39 @@ pub fn register_drive(drive_path: &str) -> error::Result {
 
 pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
     // Parse filepath
-    let (fs_number, path, filename) = parse_filepath(filepath)?;
+    let (fs_number, path) = parse_filepath(filepath)?;
+    if path.len() == 0 {
+        return Err(error::Status::InvalidArgument);
+    }
 
     // Open filesystem
-    let mut filesystems = FILESYSTEMS.lock();
-    let filesystem = match filesystems.get_mut(fs_number) {
-        Some(filesystem) => filesystem,
-        None => return Err(error::Status::NotFound),
+    let mut current_directory = match fs_number {
+        Some(fs_number) => {
+            let mut filesystems = FILESYSTEMS.lock();
+            match filesystems.get_mut(fs_number) {
+                Some(filesystem) => filesystem.root_directory().clone(),
+                None => return Err(error::Status::NotFound),
+            }
+        }
+        None => {
+            match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_current_working_directory()
+            {
+                Some(dir) => dir.get_directory(),
+                None => return Err(error::Status::InvalidArgument),
+            }
+        }
     };
 
     // Iterate path
-    let mut current_directory = filesystem.root_directory().clone();
-    for dir_name in path {
+    let mut iter = path.into_iter();
+    let filename = match iter.next_back() {
+        Some(str) => str,
+        None => return Err(error::Status::InvalidArgument),
+    };
+
+    while let Some(dir_name) = iter.next() {
         let mut directory = current_directory.lock();
         let new_directory = directory.open_directory(dir_name, &current_directory)?;
         drop(directory);
@@ -83,20 +108,73 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
     Ok(FileDescriptor::new(file))
 }
 
-pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
+pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> {
     // Parse filepath
-    let (fs_number, path, filename) = parse_filepath(filepath)?;
+    let (fs_number, path) = parse_filepath(path)?;
 
     // Open filesystem
-    let mut filesystems = FILESYSTEMS.lock();
-    let filesystem = match filesystems.get_mut(fs_number) {
-        Some(filesystem) => filesystem,
-        None => return Err(error::Status::NotFound),
+    let mut current_directory = match fs_number {
+        Some(fs_number) => {
+            let mut filesystems = FILESYSTEMS.lock();
+            match filesystems.get_mut(fs_number) {
+                Some(filesystem) => filesystem.root_directory().clone(),
+                None => return Err(error::Status::NotFound),
+            }
+        }
+        None => {
+            match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_current_working_directory()
+            {
+                Some(dir) => dir.get_directory(),
+                None => return Err(error::Status::InvalidArgument),
+            }
+        }
     };
 
     // Iterate path
-    let mut current_directory = filesystem.root_directory().clone();
     for dir_name in path {
+        let mut directory = current_directory.lock();
+        let new_directory = directory.open_directory(dir_name, &current_directory)?;
+        drop(directory);
+        current_directory = new_directory;
+    }
+
+    Ok(DirectoryDescriptor::new(current_directory))
+}
+
+pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
+    // Parse filepath
+    let (fs_number, path) = parse_filepath(filepath)?;
+
+    // Open filesystem
+    let mut current_directory = match fs_number {
+        Some(fs_number) => {
+            let mut filesystems = FILESYSTEMS.lock();
+            match filesystems.get_mut(fs_number) {
+                Some(filesystem) => filesystem.root_directory().clone(),
+                None => return Err(error::Status::NotFound),
+            }
+        }
+        None => {
+            match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_current_working_directory()
+            {
+                Some(dir) => dir.get_directory(),
+                None => return Err(error::Status::InvalidArgument),
+            }
+        }
+    };
+
+    // Iterate path
+    let mut iter = path.into_iter();
+    let filename = match iter.next_back() {
+        Some(str) => str,
+        None => return Err(error::Status::InvalidArgument),
+    };
+
+    while let Some(dir_name) = iter.next() {
         let mut directory = current_directory.lock();
         let new_directory = directory.open_directory(dir_name, &current_directory)?;
         drop(directory);
@@ -139,32 +217,24 @@ fn register_filesystem(filesystem: Filesystem) {
     FILESYSTEMS.lock().insert(filesystem);
 }
 
-fn parse_filepath(filepath: &str) -> Result<(usize, Vec<&str>, &str), error::Status> {
+fn parse_filepath(filepath: &str) -> Result<(Option<usize>, Vec<&str>), error::Status> {
     let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
 
     // Parse drive number
-    let drive_number = match iter.next() {
-        Some(str) => {
-            if str.ends_with(':') {
-                match usize::from_str_radix(&str[..str.len() - 1], 10) {
-                    Ok(value) => value,
-                    Err(_) => return Err(error::Status::InvalidArgument),
-                }
-            } else {
-                return Err(error::Status::InvalidArgument);
-            }
+    let drive_number = if filepath.starts_with(':') {
+        match iter.next() {
+            Some(str) => match usize::from_str_radix(&str[1..], 10) {
+                Ok(value) => Some(value),
+                Err(_) => return Err(error::Status::InvalidArgument),
+            },
+            None => return Err(error::Status::InvalidArgument),
         }
-        None => return Err(error::Status::InvalidArgument),
-    };
-
-    // Get filename
-    let filename = match iter.next_back() {
-        Some(value) => value,
-        None => return Err(error::Status::InvalidArgument),
+    } else {
+        None
     };
 
     // Get path
     let path = iter.collect();
 
-    Ok((drive_number, path, filename))
+    Ok((drive_number, path))
 }

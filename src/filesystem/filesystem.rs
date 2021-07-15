@@ -1,4 +1,4 @@
-use super::{Directory, DirectoryBox, DirectoryContainer};
+use super::{Directory, DirectoryBox, DirectoryContainer, ParentDirectory};
 use crate::{device::DeviceBox, error, locks::Mutex, map::*};
 use alloc::{boxed::Box, string::String, sync::Arc};
 
@@ -25,7 +25,7 @@ impl Filesystem {
             number: INVALID_ID,
             root_directory: Arc::new(Mutex::new(DirectoryContainer::new(
                 filesystem_starter.root_directory,
-                None,
+                ParentDirectory::Root(INVALID_ID),
             )?)),
             _volume_name: filesystem_starter.volume_name,
         })
@@ -43,6 +43,7 @@ impl Mappable for Filesystem {
 
     fn set_id(&mut self, id: usize) {
         self.number = id;
+        self.root_directory.lock().set_drive_number(id);
     }
 }
 

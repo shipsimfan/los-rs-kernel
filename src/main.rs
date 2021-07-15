@@ -59,7 +59,7 @@ pub extern "C" fn kmain(
     log!("Creating startup process . . . ");
     first_session
         .lock()
-        .create_process(startup_thread as usize, 0);
+        .create_process(startup_thread as usize, 0, None);
     logln!("\x1B2A2]OK\x1B]!");
     process::yield_thread();
 
@@ -80,7 +80,7 @@ fn startup_thread() -> usize {
 
     logln!("Starting shell . . . ");
 
-    let pid = match process::execute("1:/LOS/SHELL.APP") {
+    let pid = match process::execute(":1/LOS/SHELL.APP") {
         Ok(pid) => pid,
         Err(status) => {
             logln!("Error while starting shell: {}", status);

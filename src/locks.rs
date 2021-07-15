@@ -121,6 +121,10 @@ impl<T> Mutex<T> {
 
         ret
     }
+
+    pub fn matching_data(&self, other: *const T) -> bool {
+        self.data.get() as *const _ == other
+    }
 }
 
 impl<'a, T: ?Sized> Deref for MutexGuard<'a, T> {

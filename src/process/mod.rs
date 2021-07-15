@@ -6,7 +6,14 @@ mod process;
 mod queue;
 mod thread;
 
-use crate::{filesystem, logln, map::Mappable, memory::KERNEL_VMA};
+use alloc::string::String;
+
+use crate::{
+    filesystem::{self, open_directory, DirectoryDescriptor},
+    logln,
+    map::Mappable,
+    memory::KERNEL_VMA,
+};
 
 pub type Thread = thread::Thread;
 pub type Process = process::Process;
@@ -59,9 +66,31 @@ pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
         return Err(crate::error::Status::InvalidArgument);
     }
 
+    // Figure out working directory
+    let working_directory = match get_current_thread_mut()
+        .get_process_mut()
+        .get_current_working_directory()
+    {
+        None => {
+            let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
+            iter.next_back();
+
+            let mut path = String::new();
+            while let Some(part) = iter.next() {
+                path.push_str(part);
+                path.push('/');
+            }
+
+            path.pop();
+
+            open_directory(&path)?
+        }
+        Some(working_directory) => DirectoryDescriptor::new(working_directory.get_directory()),
+    };
+
     unsafe { asm!("cli") };
     // Create a process
-    let pid = do_create_process(entry);
+    let pid = do_create_process(entry, Some(working_directory));
     let current_process = get_current_thread_mut().get_process_mut();
     let new_process = current_process
         .get_session_mut()
@@ -93,17 +122,17 @@ pub fn create_thread_raw(entry: usize) -> usize {
     current_process.create_thread(entry, 0)
 }
 
-fn do_create_process(entry: usize) -> usize {
+fn do_create_process(entry: usize, working_directory: Option<DirectoryDescriptor>) -> usize {
     let current_thread = get_current_thread_mut();
     let current_process = current_thread.get_process_mut();
     match current_process.get_session_mut() {
         None => panic!("Creating daemon process!"),
-        Some(current_session) => current_session.create_process(entry, 0),
+        Some(current_session) => current_session.create_process(entry, 0, working_directory),
     }
 }
 
-pub fn create_process(entry: ThreadFunc) -> usize {
-    do_create_process(entry as usize)
+pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> usize {
+    do_create_process(entry as usize, working_directory)
 }
 
 pub fn queue_thread(thread: &mut Thread) {

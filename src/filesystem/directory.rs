@@ -1,6 +1,6 @@
 use super::{File, FileBox, FileContainer, FileMetadata};
 use crate::{error, locks::Mutex};
-use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, format, string::String, sync::Arc, vec::Vec};
 
 pub type DirectoryBox = Arc<Mutex<DirectoryContainer>>;
 
@@ -17,8 +17,13 @@ pub trait Directory: Send {
     fn remove_directory(&self, directory_name: &str) -> error::Result;
 }
 
+pub enum ParentDirectory {
+    Root(usize),
+    Other(DirectoryBox),
+}
+
 pub struct DirectoryContainer {
-    parent: Option<DirectoryBox>, // None for root directories
+    parent: ParentDirectory,
     directory: Box<dyn Directory>,
     sub_files: Vec<(String, FileMetadata, Option<FileBox>)>,
     sub_directories: Vec<(String, Option<DirectoryBox>)>,
@@ -28,7 +33,7 @@ pub struct DirectoryContainer {
 impl DirectoryContainer {
     pub fn new(
         directory: Box<dyn Directory>,
-        parent_directory: Option<DirectoryBox>,
+        parent_directory: ParentDirectory,
     ) -> Result<Self, error::Status> {
         let sub_file_names = directory.get_sub_files()?;
         let mut sub_files = Vec::with_capacity(sub_file_names.len());
@@ -61,6 +66,38 @@ impl DirectoryContainer {
         Err(error::Status::NotFound)
     }
 
+    pub fn set_drive_number(&mut self, number: usize) {
+        self.parent = ParentDirectory::Root(number);
+    }
+
+    pub fn get_directory_name(&self, directory_ptr: *const DirectoryContainer) -> &str {
+        for (sub_name, sub_dir) in &self.sub_directories {
+            match sub_dir {
+                None => continue,
+                Some(directory) => {
+                    if directory.matching_data(directory_ptr) {
+                        return sub_name;
+                    }
+                }
+            };
+        }
+
+        "DIRECTORY_NAME_ERROR"
+    }
+
+    pub fn construct_path_name(&self) -> String {
+        match &self.parent {
+            ParentDirectory::Root(fs_number) => format!(":{}", fs_number),
+            ParentDirectory::Other(parent_lock) => {
+                let parent = parent_lock.lock();
+                let mut base_path = parent.construct_path_name();
+                base_path.push('/');
+                base_path.push_str(parent.get_directory_name(self));
+                base_path
+            }
+        }
+    }
+
     pub fn open_directory(
         &mut self,
         name: &str,
@@ -77,7 +114,7 @@ impl DirectoryContainer {
                     let new_directory = self.directory.open_directory(name)?;
                     let new_directory = Arc::new(Mutex::new(DirectoryContainer::new(
                         new_directory,
-                        Some(self_box.clone()),
+                        ParentDirectory::Other(self_box.clone()),
                     )?));
                     *sub_dir = Some(new_directory.clone());
                     self.references += 1;
@@ -115,6 +152,10 @@ impl DirectoryContainer {
         Err(error::Status::NotFound)
     }
 
+    pub fn open(&mut self) {
+        self.references += 1;
+    }
+
     pub fn close_directory(
         &mut self,
         directory_arc_ptr: *const Mutex<DirectoryContainer>,
@@ -131,8 +172,8 @@ impl DirectoryContainer {
                 self.references -= 1;
                 if self.references == 0 {
                     match &self.parent {
-                        None => {}
-                        Some(parent) => {
+                        ParentDirectory::Root(_) => {}
+                        ParentDirectory::Other(parent) => {
                             let ptr = Arc::as_ptr(parent);
                             parent.lock().close_directory(arc_ptr, ptr)
                         }
@@ -158,8 +199,8 @@ impl DirectoryContainer {
                 self.references -= 1;
                 if self.references == 0 {
                     match &self.parent {
-                        None => {}
-                        Some(parent) => {
+                        ParentDirectory::Root(_) => {}
+                        ParentDirectory::Other(parent) => {
                             let ptr = Arc::as_ptr(parent);
                             parent.lock().close_directory(arc_ptr, ptr);
                         }
@@ -167,6 +208,19 @@ impl DirectoryContainer {
                 }
 
                 break;
+            }
+        }
+    }
+
+    pub fn close(&mut self, arc_ptr: *const Mutex<DirectoryContainer>) {
+        self.references -= 1;
+        if self.references == 0 {
+            match &self.parent {
+                ParentDirectory::Root(_) => {}
+                ParentDirectory::Other(parent) => {
+                    let ptr = Arc::as_ptr(parent);
+                    parent.lock().close_directory(arc_ptr, ptr);
+                }
             }
         }
     }

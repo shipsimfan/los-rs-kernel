@@ -1,4 +1,6 @@
-use crate::{error, event::Event, locks::Mutex, map::Map, process::Process};
+use crate::{
+    error, event::Event, filesystem::DirectoryDescriptor, locks::Mutex, map::Map, process::Process,
+};
 use alloc::sync::Arc;
 
 pub mod color;
@@ -37,8 +39,13 @@ impl Session {
         }
     }
 
-    pub fn create_process(&mut self, entry: usize, context: usize) -> usize {
-        let new_process = Process::new(Some(self));
+    pub fn create_process(
+        &mut self,
+        entry: usize,
+        context: usize,
+        working_directory: Option<DirectoryDescriptor>,
+    ) -> usize {
+        let new_process = Process::new(Some(self), working_directory);
         let pid = self.processes.insert(new_process);
         self.processes
             .get_mut(pid)
