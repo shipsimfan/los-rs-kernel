@@ -1,7 +1,7 @@
 use crate::{
     device::{inb, outb, Device},
     error,
-    event::{Event, Keycode},
+    event::{Event, KeyState, Keycode},
     session::Session,
 };
 
@@ -9,11 +9,7 @@ use super::controller;
 
 pub struct Keyboard {
     session: *mut Session,
-    caps_lock: bool,
-    num_lock: bool,
-    scroll_lock: bool,
-    left_shift: bool,
-    right_shift: bool,
+    key_state: KeyState,
     ignore_next_irq: bool,
 }
 
@@ -35,11 +31,7 @@ impl Keyboard {
         // Return keyboard
         Ok(Keyboard {
             session,
-            caps_lock: false,
-            num_lock: false,
-            scroll_lock: false,
-            left_shift: false,
-            right_shift: false,
+            key_state: KeyState::new(),
             ignore_next_irq: false,
         })
     }
@@ -75,9 +67,19 @@ impl Keyboard {
             };
 
             if key_press {
-                return Event::KeyPress(key);
+                return Event::KeyPress(key, self.key_state);
             } else {
-                return Event::KeyRelease(key);
+                return Event::KeyRelease(key, self.key_state);
+            }
+        }
+
+        if scancode < 0x58 {
+            if SCANCODES[scancode as usize] == Keycode::CapsLock {
+                self.key_state.caps_lock = !self.key_state.caps_lock;
+            } else if SCANCODES[scancode as usize] == Keycode::NumLock {
+                self.key_state.num_lock = !self.key_state.num_lock;
+            } else if SCANCODES[scancode as usize] == Keycode::ScrollLock {
+                self.key_state.scroll_lock = !self.key_state.scroll_lock;
             }
         }
 
@@ -87,6 +89,14 @@ impl Keyboard {
             (true, scancode)
         };
 
+        if scancode < 0x58 {
+            if SCANCODES[scancode as usize] == Keycode::LeftShift {
+                self.key_state.left_shift = !self.key_state.left_shift;
+            } else if SCANCODES[scancode as usize] == Keycode::RightShift {
+                self.key_state.right_shift = !self.key_state.right_shift;
+            }
+        }
+
         let key = if scancode > 0x58 {
             Keycode::Undefined
         } else {
@@ -94,9 +104,9 @@ impl Keyboard {
         };
 
         if key_press {
-            Event::KeyPress(key)
+            Event::KeyPress(key, self.key_state)
         } else {
-            Event::KeyRelease(key)
+            Event::KeyRelease(key, self.key_state)
         }
     }
 
@@ -151,7 +161,7 @@ const SCANCODES: [Keycode; 89] = [
     Keycode::Seven,
     Keycode::Eight,
     Keycode::Nine,
-    Keycode::One,
+    Keycode::Zero,
     Keycode::Minus,
     Keycode::Equal,
     Keycode::Backspace,

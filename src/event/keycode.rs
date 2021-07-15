@@ -1,4 +1,13 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyState {
+    pub caps_lock: bool,
+    pub num_lock: bool,
+    pub scroll_lock: bool,
+    pub left_shift: bool,
+    pub right_shift: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Keycode {
     Undefined,
@@ -93,4 +102,50 @@ pub enum Keycode {
     RightArrow,
     UpArrow,
     DownArrow,
+}
+
+const STATE_CAPS_LOCK: usize = 0x01;
+const STATE_NUM_LOCK: usize = 0x02;
+const STATE_SCROLL_LOCK: usize = 0x04;
+const STATE_LEFT_SHIFT: usize = 0x08;
+const STATE_RIGHT_SHIFT: usize = 0x10;
+
+impl KeyState {
+    pub const fn new() -> Self {
+        KeyState {
+            caps_lock: false,
+            num_lock: false,
+            scroll_lock: false,
+            left_shift: false,
+            right_shift: false,
+        }
+    }
+}
+
+impl Into<usize> for KeyState {
+    fn into(self) -> usize {
+        let mut state = 0;
+
+        if self.caps_lock {
+            state |= STATE_CAPS_LOCK;
+        }
+
+        if self.num_lock {
+            state |= STATE_NUM_LOCK;
+        }
+
+        if self.scroll_lock {
+            state |= STATE_SCROLL_LOCK;
+        }
+
+        if self.left_shift {
+            state |= STATE_LEFT_SHIFT;
+        }
+
+        if self.right_shift {
+            state |= STATE_RIGHT_SHIFT;
+        }
+
+        state
+    }
 }
