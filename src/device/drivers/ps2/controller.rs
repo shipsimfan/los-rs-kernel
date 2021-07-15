@@ -4,7 +4,7 @@ use crate::{
     device::{self, inb, outb, Device, DeviceBox},
     error, interrupts,
     locks::Mutex,
-    logln, time,
+    logln, process, time,
 };
 
 use super::keyboard;
@@ -288,8 +288,23 @@ impl Controller {
         }
 
         if len == 0 {
-            let keyboard: DeviceBox =
-                Arc::new(Mutex::new(Box::new(keyboard::Keyboard::new(self, port)?)));
+            let current_session = match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_session_mut()
+            {
+                None => {
+                    logln!("Unable to register keyboard without session!");
+                    self.port_exists[port] = false;
+                    return Ok(());
+                }
+                Some(session) => session,
+            };
+
+            let keyboard: DeviceBox = Arc::new(Mutex::new(Box::new(keyboard::Keyboard::new(
+                self,
+                port,
+                current_session,
+            )?)));
             let path = format!("/ps2/{}", port);
             device::register_device(&path, keyboard.clone())?;
             self.devices[port] = Some(keyboard);

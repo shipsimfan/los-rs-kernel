@@ -13,6 +13,7 @@
 mod bootloader;
 mod device;
 mod error;
+mod event;
 mod filesystem;
 mod interrupts;
 mod locks;

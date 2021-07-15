@@ -1,4 +1,4 @@
-use crate::{logln, memory::KERNEL_VMA, process, session::CEvent};
+use crate::{event::CEvent, logln, memory::KERNEL_VMA, process};
 
 const PEEK_EVENT_SYSCALL: usize = 0x4000;
 

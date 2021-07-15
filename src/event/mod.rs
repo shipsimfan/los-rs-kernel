@@ -1,8 +1,12 @@
+mod keycode;
+
+pub use keycode::Keycode;
+
 #[derive(Debug, PartialEq)]
 #[repr(usize)]
 pub enum Event {
-    KeyPress(u8),
-    KeyRelease(u8),
+    KeyPress(Keycode),
+    KeyRelease(Keycode),
 }
 
 #[repr(C)]

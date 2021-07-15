@@ -1,11 +1,14 @@
 use crate::{
-    device::{outb, Device},
-    error, logln,
+    device::{inb, outb, Device},
+    error,
+    event::{Event, Keycode},
+    session::Session,
 };
 
 use super::controller;
 
 pub struct Keyboard {
+    session: *mut Session,
     caps_lock: bool,
     num_lock: bool,
     scroll_lock: bool,
@@ -18,6 +21,7 @@ impl Keyboard {
     pub fn new(
         controller: &mut controller::Controller,
         port: usize,
+        session: *mut Session,
     ) -> Result<Self, error::Status> {
         // Set scancode set to 1
         controller.write_and_wait(port, 0xF0)?;
@@ -30,6 +34,7 @@ impl Keyboard {
 
         // Return keyboard
         Ok(Keyboard {
+            session,
             caps_lock: false,
             num_lock: false,
             scroll_lock: false,
@@ -39,14 +44,72 @@ impl Keyboard {
         })
     }
 
+    fn scancode_to_event(&mut self, scancode: u8) -> Event {
+        if scancode == 0xE0 {
+            self.ignore_next_irq = true;
+
+            let scancode = inb(controller::REGISTER_DATA);
+
+            let (key_press, scancode) = if scancode > 0x80 {
+                (false, scancode - 0x80)
+            } else {
+                (true, scancode)
+            };
+
+            let key = match scancode {
+                0x1C => Keycode::Enter,
+                0x1D => Keycode::RightControl,
+                0x35 => Keycode::ForwardSlash,
+                0x38 => Keycode::RightAlt,
+                0x47 => Keycode::Home,
+                0x48 => Keycode::UpArrow,
+                0x49 => Keycode::PageUp,
+                0x4B => Keycode::LeftArrow,
+                0x4D => Keycode::RightArrow,
+                0x4F => Keycode::End,
+                0x50 => Keycode::DownArrow,
+                0x51 => Keycode::PageDown,
+                0x52 => Keycode::Insert,
+                0x53 => Keycode::Delete,
+                _ => Keycode::Undefined,
+            };
+
+            if key_press {
+                return Event::KeyPress(key);
+            } else {
+                return Event::KeyRelease(key);
+            }
+        }
+
+        let (key_press, scancode) = if scancode > 0x80 {
+            (false, scancode - 0x80)
+        } else {
+            (true, scancode)
+        };
+
+        let key = if scancode > 0x58 {
+            Keycode::Undefined
+        } else {
+            SCANCODES[scancode as usize]
+        };
+
+        if key_press {
+            Event::KeyPress(key)
+        } else {
+            Event::KeyRelease(key)
+        }
+    }
+
     fn irq(&mut self, data: u8) {
         if self.ignore_next_irq {
             self.ignore_next_irq = false;
         } else {
-            logln!("Key: {}", data);
+            unsafe { (*self.session).push_event(self.scancode_to_event(data)) };
         }
     }
 }
+
+unsafe impl Send for Keyboard {}
 
 impl Device for Keyboard {
     fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
@@ -75,3 +138,95 @@ impl Device for Keyboard {
         }
     }
 }
+
+const SCANCODES: [Keycode; 89] = [
+    Keycode::Undefined,
+    Keycode::Escape,
+    Keycode::One,
+    Keycode::Two,
+    Keycode::Three,
+    Keycode::Four,
+    Keycode::Five,
+    Keycode::Six,
+    Keycode::Seven,
+    Keycode::Eight,
+    Keycode::Nine,
+    Keycode::One,
+    Keycode::Minus,
+    Keycode::Equal,
+    Keycode::Backspace,
+    Keycode::Tab,
+    Keycode::Q,
+    Keycode::W,
+    Keycode::E,
+    Keycode::R,
+    Keycode::T,
+    Keycode::Y,
+    Keycode::U,
+    Keycode::I,
+    Keycode::O,
+    Keycode::P,
+    Keycode::OpenSquareBracket,
+    Keycode::CloseSquareBracket,
+    Keycode::Enter,
+    Keycode::LeftControl,
+    Keycode::A,
+    Keycode::S,
+    Keycode::D,
+    Keycode::F,
+    Keycode::G,
+    Keycode::H,
+    Keycode::J,
+    Keycode::K,
+    Keycode::L,
+    Keycode::SemiColon,
+    Keycode::Quote,
+    Keycode::Tick,
+    Keycode::LeftShift,
+    Keycode::Backslash,
+    Keycode::Z,
+    Keycode::X,
+    Keycode::C,
+    Keycode::V,
+    Keycode::B,
+    Keycode::N,
+    Keycode::M,
+    Keycode::Comma,
+    Keycode::Period,
+    Keycode::ForwardSlash,
+    Keycode::RightShift,
+    Keycode::NumAsterick,
+    Keycode::LeftAlt,
+    Keycode::Space,
+    Keycode::CapsLock,
+    Keycode::F1,
+    Keycode::F2,
+    Keycode::F3,
+    Keycode::F4,
+    Keycode::F5,
+    Keycode::F6,
+    Keycode::F7,
+    Keycode::F8,
+    Keycode::F9,
+    Keycode::F10,
+    Keycode::NumLock,
+    Keycode::ScrollLock,
+    Keycode::Seven,
+    Keycode::Eight,
+    Keycode::Nine,
+    Keycode::NumMinus,
+    Keycode::Four,
+    Keycode::Five,
+    Keycode::Six,
+    Keycode::NumPlus,
+    Keycode::One,
+    Keycode::Two,
+    Keycode::Three,
+    Keycode::Zero,
+    Keycode::NumPeriod,
+    Keycode::Undefined,
+    Keycode::Undefined,
+    Keycode::Undefined,
+    Keycode::F11,
+    Keycode::F12,
+];

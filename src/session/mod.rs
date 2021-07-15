@@ -1,13 +1,9 @@
-use crate::{error, locks::Mutex, map::Map, process::Process};
+use crate::{error, event::Event, locks::Mutex, map::Map, process::Process};
 use alloc::sync::Arc;
 
 pub mod color;
 mod console;
 mod control;
-mod event;
-
-pub use event::CEvent;
-pub use event::Event;
 
 pub struct Session {
     _id: SID,
