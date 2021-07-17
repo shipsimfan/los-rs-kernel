@@ -7,6 +7,8 @@ pub mod color;
 mod console;
 mod control;
 
+pub use console::CONSOLE_IOCTRL_CLEAR;
+
 pub struct Session {
     _id: SID,
     sub: SubSession,

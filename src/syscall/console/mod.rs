@@ -2,6 +2,7 @@ use crate::{error, logln, memory::KERNEL_VMA, process, session::SubSession};
 
 const CONSOLE_WRITE_SYSCALL: usize = 0x3000;
 const CONSOLE_WRITE_STR_SYSCALL: usize = 0x3001;
+const CONSOLE_CLEAR_SYSCALL: usize = 0x3002;
 
 pub fn system_call(
     code: usize,
@@ -38,6 +39,7 @@ pub fn system_call(
                 console_session.write_str(string)
             }
         }
+        CONSOLE_CLEAR_SYSCALL => console_session.clear(),
         _ => {
             logln!("Invalid console system call: {}", code);
             Ok(())

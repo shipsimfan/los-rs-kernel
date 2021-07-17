@@ -3,7 +3,7 @@ use crate::{
     device::{Device, DeviceBox},
     error,
     locks::Mutex,
-    session::color::Color,
+    session::{color::Color, CONSOLE_IOCTRL_CLEAR},
 };
 use alloc::{boxed::Box, str, sync::Arc};
 use core::fmt;
@@ -74,6 +74,10 @@ impl UEFIConsole {
 
             cy += 1;
         }
+    }
+
+    fn clear_screen(&mut self) {
+        self.framebuffer.clear(self.background);
     }
 
     pub fn print(&mut self, string: &str) {
@@ -228,8 +232,16 @@ impl Device for UEFIConsole {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, error::Status> {
-        Err(error::Status::NotSupported)
+    fn ioctrl(&mut self, code: usize, _: usize) -> Result<usize, error::Status> {
+        match code {
+            CONSOLE_IOCTRL_CLEAR => {
+                self.cx = 0;
+                self.cy = 0;
+                self.clear_screen();
+                Ok(0)
+            }
+            _ => Err(error::Status::NotSupported),
+        }
     }
 }
 
