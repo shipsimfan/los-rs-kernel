@@ -56,6 +56,13 @@ impl DirectoryContainer {
         })
     }
 
+    pub fn get_parent(&self) -> Option<DirectoryBox> {
+        match &self.parent {
+            ParentDirectory::Root(_) => None,
+            ParentDirectory::Other(parent) => Some(parent.clone()),
+        }
+    }
+
     pub fn get_file_metadata(&self, name: &str) -> Result<FileMetadata, error::Status> {
         for (sub_name, sub_metadata, _) in &self.sub_files {
             if sub_name == name {

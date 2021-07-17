@@ -101,6 +101,10 @@ impl Process {
             None => None,
         }
     }
+
+    pub fn set_current_working_directory(&mut self, directory: DirectoryDescriptor) {
+        self.current_working_directory = Some(directory);
+    }
 }
 
 impl Mappable for Process {

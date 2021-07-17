@@ -1,8 +1,9 @@
-use crate::{logln, memory::KERNEL_VMA, process};
+use crate::{filesystem, logln, memory::KERNEL_VMA, process};
 
 const WAIT_PROCESS_SYSCALL: usize = 0x0000;
 const EXECUTE_SYSCALL: usize = 0x0001;
 const GET_CURRENT_WORKING_DIRECTORY: usize = 0x0002;
+const SET_CURRENT_WORKING_DIRECTORY: usize = 0x0003;
 
 pub fn system_call(
     code: usize,
@@ -47,6 +48,27 @@ pub fn system_call(
                 unsafe { core::ptr::copy_nonoverlapping(path.as_ptr(), arg1 as *mut u8, copy_len) };
 
                 copy_len
+            }
+        }
+        SET_CURRENT_WORKING_DIRECTORY => {
+            if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
+                usize::MAX
+            } else {
+                let slice = unsafe { core::slice::from_raw_parts(arg1 as *const u8, arg2) };
+                let path = match core::str::from_utf8(slice) {
+                    Ok(str) => str,
+                    Err(_) => return usize::MAX,
+                };
+
+                match filesystem::open_directory(path) {
+                    Ok(directory) => {
+                        process::get_current_thread_mut()
+                            .get_process_mut()
+                            .set_current_working_directory(directory);
+                        0
+                    }
+                    Err(_) => usize::MAX,
+                }
             }
         }
         _ => {

@@ -60,7 +60,7 @@ pub fn register_drive(drive_path: &str) -> error::Result {
 
 pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
     // Parse filepath
-    let (fs_number, path) = parse_filepath(filepath)?;
+    let (fs_number, path) = parse_filepath(filepath, true)?;
     if path.len() == 0 {
         return Err(error::Status::InvalidArgument);
     }
@@ -93,8 +93,19 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
     };
 
     while let Some(dir_name) = iter.next() {
+        if dir_name == "." {
+            continue;
+        }
+
         let mut directory = current_directory.lock();
-        let new_directory = directory.open_directory(dir_name, &current_directory)?;
+        let new_directory = if dir_name == ".." {
+            match directory.get_parent() {
+                Some(parent) => parent,
+                None => continue,
+            }
+        } else {
+            directory.open_directory(dir_name, &current_directory)?
+        };
         drop(directory);
         current_directory = new_directory;
     }
@@ -110,7 +121,7 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
 
 pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> {
     // Parse filepath
-    let (fs_number, path) = parse_filepath(path)?;
+    let (fs_number, path) = parse_filepath(path, false)?;
 
     // Open filesystem
     let mut current_directory = match fs_number {
@@ -134,8 +145,19 @@ pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> 
 
     // Iterate path
     for dir_name in path {
+        if dir_name == "." {
+            continue;
+        }
+
         let mut directory = current_directory.lock();
-        let new_directory = directory.open_directory(dir_name, &current_directory)?;
+        let new_directory = if dir_name == ".." {
+            match directory.get_parent() {
+                Some(parent) => parent,
+                None => continue,
+            }
+        } else {
+            directory.open_directory(dir_name, &current_directory)?
+        };
         drop(directory);
         current_directory = new_directory;
     }
@@ -145,7 +167,7 @@ pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> 
 
 pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
     // Parse filepath
-    let (fs_number, path) = parse_filepath(filepath)?;
+    let (fs_number, path) = parse_filepath(filepath, true)?;
 
     // Open filesystem
     let mut current_directory = match fs_number {
@@ -175,8 +197,19 @@ pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
     };
 
     while let Some(dir_name) = iter.next() {
+        if dir_name == "." {
+            continue;
+        }
+
         let mut directory = current_directory.lock();
-        let new_directory = directory.open_directory(dir_name, &current_directory)?;
+        let new_directory = if dir_name == ".." {
+            match directory.get_parent() {
+                Some(parent) => parent,
+                None => continue,
+            }
+        } else {
+            directory.open_directory(dir_name, &current_directory)?
+        };
         drop(directory);
         current_directory = new_directory;
     }
@@ -217,7 +250,16 @@ fn register_filesystem(filesystem: Filesystem) {
     FILESYSTEMS.lock().insert(filesystem);
 }
 
-fn parse_filepath(filepath: &str) -> Result<(Option<usize>, Vec<&str>), error::Status> {
+fn parse_filepath(filepath: &str, file: bool) -> Result<(Option<usize>, Vec<&str>), error::Status> {
+    let filepath = if filepath.ends_with('/') {
+        if file {
+            return Err(error::Status::InvalidArgument);
+        }
+        &filepath[..filepath.len() - 1]
+    } else {
+        filepath
+    };
+
     let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
 
     // Parse drive number
