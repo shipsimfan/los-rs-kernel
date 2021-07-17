@@ -10,7 +10,6 @@ use alloc::string::String;
 
 use crate::{
     filesystem::{self, open_directory, DirectoryDescriptor},
-    logln,
     map::Mappable,
     memory::KERNEL_VMA,
 };

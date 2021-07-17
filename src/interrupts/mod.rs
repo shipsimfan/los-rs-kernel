@@ -9,6 +9,10 @@ struct CPUPointer {
     _ptr: usize,
 }
 
+#[no_mangle]
+static mut KERNEL_STACK_TOP: usize = 0;
+
 pub fn set_interrupt_stack(stack_pointer: usize) {
     gdt::set_interrupt_stack(stack_pointer);
+    unsafe { KERNEL_STACK_TOP = stack_pointer };
 }

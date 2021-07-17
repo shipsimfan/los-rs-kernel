@@ -1,9 +1,15 @@
-EXTERN get_kernel_stack_pointer_and_save_user_stack_pointer
-EXTERN get_user_stack_pointer
 EXTERN system_call
+EXTERN KERNEL_STACK_TOP
 
 system_call_handler:
     cli ; Until we enter the kernel stack
+
+    ; Get kernel stack pointer and save user stack 
+    mov rax, rsp
+    mov r9, KERNEL_STACK_TOP
+    mov rsp, [r9]
+    push rax
+    sti
 
     ; Save registers
     ; RCX contains RIP, R11 contains RFLAGS
@@ -13,40 +19,16 @@ system_call_handler:
     ; Move parameter
     mov rcx, r10
 
-    ; Get kernel stack pointer and save user stack 
-    mov rax, rsp
-    push rdi
-    push rsi
-    push rdx
-    push rcx
-    push r8
-    push r9
-    mov rdi, rax
-    call get_kernel_stack_pointer_and_save_user_stack_pointer
-    pop r9
-    pop r8
-    pop rcx
-    pop rdx
-    pop rsi
-    pop rdi
-
-    mov rsp, rax
-    sti
-
     ; Perform Syscall
     call system_call
-
-    ; Get user stack pointer
-    cli
-    push rax
-    call get_user_stack_pointer
-    mov rdi, rax
-    pop rax
-    mov rsp, rdi
 
     ; Restore registers (R11 -> RFLAGS, RCX -> RIP)
     pop r11
     pop rcx
+
+    ; Get user stack pointer
+    cli
+    pop rsp
 
     ; Return
     o64 sysret

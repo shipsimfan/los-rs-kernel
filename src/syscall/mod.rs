@@ -4,7 +4,6 @@ mod console;
 mod event;
 mod filesystem;
 mod process;
-mod stack;
 mod thread;
 
 #[no_mangle]
