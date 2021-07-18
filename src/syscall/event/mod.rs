@@ -1,4 +1,4 @@
-use crate::{event::CEvent, logln, memory::KERNEL_VMA, process};
+use crate::{event::CEvent, logln, process};
 
 const PEEK_EVENT_SYSCALL: usize = 0x4000;
 
@@ -11,10 +11,8 @@ pub fn system_call(
     _arg5: usize,
 ) -> usize {
     match code {
-        PEEK_EVENT_SYSCALL => {
-            if arg1 >= KERNEL_VMA || arg1 + core::mem::size_of::<CEvent>() >= KERNEL_VMA {
-                0
-            } else {
+        PEEK_EVENT_SYSCALL => match super::to_ptr_mut(arg1) {
+            Ok(ptr) => {
                 match process::get_current_thread_mut()
                     .get_process_mut()
                     .get_session_mut()
@@ -23,7 +21,6 @@ pub fn system_call(
                         None => 0,
                         Some(event) => {
                             let cevent = CEvent::from(event);
-                            let ptr = arg1 as *mut CEvent;
                             unsafe { *ptr = cevent };
                             1
                         }
@@ -31,7 +28,8 @@ pub fn system_call(
                     None => panic!("Attempting to peek event on daemon process!"),
                 }
             }
-        }
+            Err(_) => 0,
+        },
         _ => {
             logln!("Invalid process system call: {}", code);
             usize::MAX

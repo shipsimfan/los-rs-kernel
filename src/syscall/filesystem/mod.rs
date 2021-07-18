@@ -1,4 +1,4 @@
-use crate::{filesystem::SeekFrom, logln, memory::KERNEL_VMA, process};
+use crate::{filesystem::SeekFrom, logln, process};
 
 const OPEN_FILE_SYSCALL: usize = 0x2000;
 const CLOSE_FILE_SYSCALL: usize = 0x2001;
@@ -15,21 +15,16 @@ pub fn system_call(
 ) -> usize {
     match code {
         OPEN_FILE_SYSCALL => {
-            if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
-                usize::MAX
-            } else {
-                let slice = unsafe { core::slice::from_raw_parts(arg1 as *const u8, arg2) };
-                let filepath = match core::str::from_utf8(slice) {
-                    Ok(str) => str,
-                    Err(_) => return usize::MAX,
-                };
-                match process::get_current_thread_mut()
-                    .get_process_mut()
-                    .open_file(filepath)
-                {
-                    Ok(bytes_read) => bytes_read,
-                    Err(_) => usize::MAX,
-                }
+            let filepath = match super::to_str(arg1, arg2) {
+                Ok(str) => str,
+                Err(_) => return usize::MAX,
+            };
+            match process::get_current_thread_mut()
+                .get_process_mut()
+                .open_file(filepath)
+            {
+                Ok(bytes_read) => bytes_read,
+                Err(_) => usize::MAX,
             }
         }
         CLOSE_FILE_SYSCALL => {
@@ -50,23 +45,22 @@ pub fn system_call(
             file.seek(arg2, SeekFrom::from(arg3))
         }
         READ_FILE_SYSCALL => {
-            if arg2 >= KERNEL_VMA || arg2 + arg3 >= KERNEL_VMA {
-                usize::MAX
-            } else {
-                let file = match process::get_current_thread_mut()
-                    .get_process_mut()
-                    .get_file(arg1)
-                {
-                    Ok(file) => file,
-                    Err(_) => return usize::MAX,
-                };
+            let file = match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_file(arg1)
+            {
+                Ok(file) => file,
+                Err(_) => return usize::MAX,
+            };
 
-                let buffer = unsafe { core::slice::from_raw_parts_mut(arg2 as *mut u8, arg3) };
+            let buffer = match super::to_slice_mut(arg2, arg3) {
+                Ok(slice) => slice,
+                Err(_) => return usize::MAX,
+            };
 
-                match file.read(buffer) {
-                    Ok(bytes_read) => bytes_read,
-                    Err(_) => usize::MAX,
-                }
+            match file.read(buffer) {
+                Ok(bytes_read) => bytes_read,
+                Err(_) => usize::MAX,
             }
         }
         _ => {

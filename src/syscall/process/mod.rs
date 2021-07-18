@@ -16,17 +16,14 @@ pub fn system_call(
     match code {
         WAIT_PROCESS_SYSCALL => process::wait_process(arg1),
         EXECUTE_SYSCALL => {
-            if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
-                usize::MAX
-            } else {
-                let slice = unsafe { core::slice::from_raw_parts(arg1 as *const u8, arg2) };
-                match alloc::str::from_utf8(slice) {
-                    Ok(filepath) => match process::execute(filepath) {
-                        Ok(pid) => pid,
-                        Err(_) => usize::MAX,
-                    },
-                    Err(_) => usize::MAX,
-                }
+            let filepath = match super::to_str(arg1, arg2) {
+                Ok(str) => str,
+                Err(_) => return usize::MAX,
+            };
+
+            match process::execute(filepath) {
+                Ok(pid) => pid,
+                Err(_) => usize::MAX,
             }
         }
         GET_CURRENT_WORKING_DIRECTORY => {
@@ -51,24 +48,19 @@ pub fn system_call(
             }
         }
         SET_CURRENT_WORKING_DIRECTORY => {
-            if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
-                usize::MAX
-            } else {
-                let slice = unsafe { core::slice::from_raw_parts(arg1 as *const u8, arg2) };
-                let path = match core::str::from_utf8(slice) {
-                    Ok(str) => str,
-                    Err(_) => return usize::MAX,
-                };
+            let path = match super::to_str(arg1, arg2) {
+                Ok(str) => str,
+                Err(_) => return usize::MAX,
+            };
 
-                match filesystem::open_directory(path) {
-                    Ok(directory) => {
-                        process::get_current_thread_mut()
-                            .get_process_mut()
-                            .set_current_working_directory(directory);
-                        0
-                    }
-                    Err(_) => usize::MAX,
+            match filesystem::open_directory(path) {
+                Ok(directory) => {
+                    process::get_current_thread_mut()
+                        .get_process_mut()
+                        .set_current_working_directory(directory);
+                    0
                 }
+                Err(_) => usize::MAX,
             }
         }
         _ => {

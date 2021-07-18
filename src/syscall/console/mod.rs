@@ -1,4 +1,4 @@
-use crate::{error, logln, memory::KERNEL_VMA, process, session::SubSession};
+use crate::{logln, process, session::SubSession};
 
 const CONSOLE_WRITE_SYSCALL: usize = 0x3000;
 const CONSOLE_WRITE_STR_SYSCALL: usize = 0x3001;
@@ -27,18 +27,10 @@ pub fn system_call(
             let c = (arg1 & 0xFF) as u8;
             console_session.write(&[c])
         }
-        CONSOLE_WRITE_STR_SYSCALL => {
-            if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
-                Err(error::Status::InvalidArgument)
-            } else {
-                let slice = unsafe { core::slice::from_raw_parts(arg1 as *const u8, arg2) };
-                let string = match alloc::str::from_utf8(slice) {
-                    Ok(str) => str,
-                    Err(_) => return usize::MAX,
-                };
-                console_session.write_str(string)
-            }
-        }
+        CONSOLE_WRITE_STR_SYSCALL => match super::to_str(arg1, arg2) {
+            Ok(str) => console_session.write_str(str),
+            Err(status) => Err(status),
+        },
         CONSOLE_CLEAR_SYSCALL => console_session.clear(),
         _ => {
             logln!("Invalid console system call: {}", code);
