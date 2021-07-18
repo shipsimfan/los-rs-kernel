@@ -80,7 +80,7 @@ fn startup_thread() -> usize {
 
     logln!("Starting shell . . . ");
 
-    let pid = match process::execute(":1/LOS/SHELL.APP") {
+    let pid = match process::execute(":1/LOS/SHELL.APP", alloc::vec::Vec::new()) {
         Ok(pid) => pid,
         Err(status) => {
             logln!("Error while starting shell: {}", status);

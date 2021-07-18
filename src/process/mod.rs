@@ -6,7 +6,7 @@ mod process;
 mod queue;
 mod thread;
 
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 use crate::{
     filesystem::{self, open_directory, DirectoryDescriptor},
@@ -21,6 +21,15 @@ pub type ThreadQueue = queue::ThreadQueue;
 
 pub type ThreadFunc = fn() -> usize;
 pub type ThreadFuncContext = fn(context: usize) -> usize;
+
+#[repr(C)]
+struct UserspaceContext {
+    argc: usize,
+    argv: *const *const u8,
+}
+
+const USERSPACE_CONTEXT_LOCATION: *const UserspaceContext =
+    0x700000000000 as *const UserspaceContext;
 
 static mut THREAD_CONTROL: control::ThreadControl = control::ThreadControl::new();
 
@@ -55,7 +64,7 @@ extern "C" fn switch_thread(next_thread: *mut Thread) {
     unsafe { THREAD_CONTROL.set_current_thread(next_thread) };
 }
 
-pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
+pub fn execute(filepath: &str, args: Vec<String>) -> Result<usize, crate::error::Status> {
     // Load the executable
     let buffer = filesystem::read(filepath)?;
 
@@ -89,7 +98,11 @@ pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
 
     unsafe { asm!("cli") };
     // Create a process
-    let pid = do_create_process(entry, Some(working_directory));
+    let pid = do_create_process(
+        entry,
+        USERSPACE_CONTEXT_LOCATION as usize,
+        Some(working_directory),
+    );
     let current_process = get_current_thread_mut().get_process_mut();
     let new_process = current_process
         .get_session_mut()
@@ -102,6 +115,37 @@ pub fn execute(filepath: &str) -> Result<usize, crate::error::Status> {
 
     // Copy the executable into the address space
     loader::load_executable(&buffer)?;
+
+    // Copy arguments into the address space
+    unsafe {
+        let context_location = USERSPACE_CONTEXT_LOCATION as usize;
+        let arg_list_start = context_location + core::mem::size_of::<UserspaceContext>();
+        let args_start = arg_list_start + (core::mem::size_of::<*mut u8>() * (args.len() + 1));
+        let mut arg_list = arg_list_start as *mut *mut u8;
+
+        let context = context_location as *mut UserspaceContext;
+        *context = UserspaceContext {
+            argc: args.len(),
+            argv: arg_list as *const *const u8,
+        };
+
+        // Copy arguments
+        let mut ptr = args_start as *mut u8;
+        for arg in args {
+            *arg_list = ptr;
+            arg_list = arg_list.add(1);
+
+            for byte in arg.as_bytes() {
+                *ptr = *byte;
+                ptr = ptr.add(1);
+            }
+
+            *ptr = 0;
+            ptr = ptr.add(1);
+        }
+
+        *arg_list = core::ptr::null_mut();
+    }
 
     // Return to current process address space
     current_process.set_address_space_as_current();
@@ -121,17 +165,21 @@ pub fn create_thread_raw(entry: usize) -> usize {
     current_process.create_thread(entry, 0)
 }
 
-fn do_create_process(entry: usize, working_directory: Option<DirectoryDescriptor>) -> usize {
+fn do_create_process(
+    entry: usize,
+    context: usize,
+    working_directory: Option<DirectoryDescriptor>,
+) -> usize {
     let current_thread = get_current_thread_mut();
     let current_process = current_thread.get_process_mut();
     match current_process.get_session_mut() {
         None => panic!("Creating daemon process!"),
-        Some(current_session) => current_session.create_process(entry, 0, working_directory),
+        Some(current_session) => current_session.create_process(entry, context, working_directory),
     }
 }
 
 pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> usize {
-    do_create_process(entry as usize, working_directory)
+    do_create_process(entry as usize, 0, working_directory)
 }
 
 pub fn queue_thread(thread: &mut Thread) {

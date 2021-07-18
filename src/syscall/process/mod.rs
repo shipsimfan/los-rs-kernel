@@ -1,4 +1,5 @@
 use crate::{filesystem, logln, memory::KERNEL_VMA, process};
+use alloc::{string::ToString, vec::Vec};
 
 const WAIT_PROCESS_SYSCALL: usize = 0x0000;
 const EXECUTE_SYSCALL: usize = 0x0001;
@@ -21,7 +22,22 @@ pub fn system_call(
                 Err(_) => return usize::MAX,
             };
 
-            match process::execute(filepath) {
+            let argv = match super::to_slice_null(arg2) {
+                Ok(argv) => argv,
+                Err(_) => return usize::MAX,
+            };
+
+            let mut args = Vec::with_capacity(argv.len());
+            for arg in argv {
+                let arg = match super::to_str(*arg) {
+                    Ok(arg) => arg,
+                    Err(_) => return usize::MAX,
+                };
+
+                args.push(arg.to_string());
+            }
+
+            match process::execute(filepath, args) {
                 Ok(pid) => pid,
                 Err(_) => usize::MAX,
             }

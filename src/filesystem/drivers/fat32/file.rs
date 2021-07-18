@@ -62,9 +62,18 @@ impl crate::filesystem::File for File {
         {
             let fat = self.fat.lock();
             let mut index = 0;
+            let mut current_cluster = 0;
             for cluster in cluster_chain {
+                if current_cluster < start_cluster {
+                    current_cluster += 1;
+                    continue;
+                } else if current_cluster >= end_cluster {
+                    break;
+                }
+
                 fat.read_cluster(cluster, &mut int_buffer[index..index + bytes_per_cluster])?;
                 index += bytes_per_cluster;
+                current_cluster += 1;
             }
         }
 
