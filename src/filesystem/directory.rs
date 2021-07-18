@@ -231,4 +231,12 @@ impl DirectoryContainer {
             }
         }
     }
+
+    pub fn get_sub_files(&self) -> &Vec<(String, FileMetadata, Option<FileBox>)> {
+        &self.sub_files
+    }
+
+    pub fn get_sub_directories(&self) -> &Vec<(String, Option<DirectoryBox>)> {
+        &self.sub_directories
+    }
 }

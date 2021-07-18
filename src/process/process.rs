@@ -1,7 +1,7 @@
 use super::{Thread, ThreadQueue};
 use crate::{
     error,
-    filesystem::{self, DirectoryDescriptor, FileDescriptor},
+    filesystem::{self, DirectoryDescriptor, DirectoryEntry, FileDescriptor},
     logln,
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
@@ -15,6 +15,7 @@ pub struct Process {
     session: Option<*mut Session>,
     exit_queue: ThreadQueue,
     file_descriptors: Map<FileDescriptor>,
+    directory_descriptors: Map<DirectoryDescriptor>,
     current_working_directory: Option<DirectoryDescriptor>,
 }
 
@@ -33,6 +34,7 @@ impl Process {
             },
             exit_queue: ThreadQueue::new(),
             file_descriptors: Map::new(),
+            directory_descriptors: Map::new(),
             current_working_directory,
         }
     }
@@ -104,6 +106,22 @@ impl Process {
 
     pub fn set_current_working_directory(&mut self, directory: DirectoryDescriptor) {
         self.current_working_directory = Some(directory);
+    }
+
+    pub fn open_directory(&mut self, path: &str) -> Result<usize, error::Status> {
+        let descriptor = filesystem::open_directory(path)?;
+        Ok(self.directory_descriptors.insert(descriptor))
+    }
+
+    pub fn read_directory(&mut self, dd: usize) -> Result<Option<DirectoryEntry>, error::Status> {
+        match self.directory_descriptors.get_mut(dd) {
+            Some(descriptor) => Ok(descriptor.next()),
+            None => Err(error::Status::NotFound),
+        }
+    }
+
+    pub fn close_directory(&mut self, dd: usize) {
+        self.directory_descriptors.remove(dd);
     }
 }
 

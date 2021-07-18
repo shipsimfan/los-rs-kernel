@@ -10,6 +10,7 @@ use core::ops::Deref;
 
 mod directory;
 mod directory_descriptor;
+mod directory_entry;
 pub mod drivers;
 mod file;
 mod file_descriptor;
@@ -18,6 +19,7 @@ mod filesystem;
 pub use directory::Directory;
 pub use directory::ParentDirectory;
 pub use directory_descriptor::DirectoryDescriptor;
+pub use directory_entry::DirectoryEntry;
 pub use file::File;
 pub use file::FileMetadata;
 pub use file_descriptor::FileDescriptor;
