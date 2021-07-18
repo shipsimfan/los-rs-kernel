@@ -7,7 +7,7 @@ const CONSOLE_CLEAR_SYSCALL: usize = 0x3002;
 pub fn system_call(
     code: usize,
     arg1: usize,
-    arg2: usize,
+    _arg2: usize,
     _arg3: usize,
     _arg4: usize,
     _arg5: usize,
@@ -27,7 +27,7 @@ pub fn system_call(
             let c = (arg1 & 0xFF) as u8;
             console_session.write(&[c])
         }
-        CONSOLE_WRITE_STR_SYSCALL => match super::to_str(arg1, arg2) {
+        CONSOLE_WRITE_STR_SYSCALL => match super::to_str(arg1) {
             Ok(str) => console_session.write_str(str),
             Err(status) => Err(status),
         },

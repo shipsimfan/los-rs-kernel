@@ -16,7 +16,7 @@ pub fn system_call(
     match code {
         WAIT_PROCESS_SYSCALL => process::wait_process(arg1),
         EXECUTE_SYSCALL => {
-            let filepath = match super::to_str(arg1, arg2) {
+            let filepath = match super::to_str(arg1) {
                 Ok(str) => str,
                 Err(_) => return usize::MAX,
             };
@@ -48,7 +48,7 @@ pub fn system_call(
             }
         }
         SET_CURRENT_WORKING_DIRECTORY => {
-            let path = match super::to_str(arg1, arg2) {
+            let path = match super::to_str(arg1) {
                 Ok(str) => str,
                 Err(_) => return usize::MAX,
             };

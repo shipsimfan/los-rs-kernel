@@ -15,7 +15,7 @@ pub fn system_call(
 ) -> usize {
     match code {
         OPEN_FILE_SYSCALL => {
-            let filepath = match super::to_str(arg1, arg2) {
+            let filepath = match super::to_str(arg1) {
                 Ok(str) => str,
                 Err(_) => return usize::MAX,
             };
