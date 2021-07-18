@@ -22,10 +22,11 @@ pub type ThreadQueue = queue::ThreadQueue;
 pub type ThreadFunc = fn() -> usize;
 pub type ThreadFuncContext = fn(context: usize) -> usize;
 
-#[repr(C)]
+#[repr(packed(1))]
 struct UserspaceContext {
     argc: usize,
     argv: *const *const u8,
+    envp: *const *const u8,
 }
 
 const USERSPACE_CONTEXT_LOCATION: *const UserspaceContext =
@@ -64,7 +65,11 @@ extern "C" fn switch_thread(next_thread: *mut Thread) {
     unsafe { THREAD_CONTROL.set_current_thread(next_thread) };
 }
 
-pub fn execute(filepath: &str, args: Vec<String>) -> Result<usize, crate::error::Status> {
+pub fn execute(
+    filepath: &str,
+    args: Vec<String>,
+    environment: Vec<String>,
+) -> Result<usize, crate::error::Status> {
     // Load the executable
     let buffer = filesystem::read(filepath)?;
 
@@ -116,17 +121,21 @@ pub fn execute(filepath: &str, args: Vec<String>) -> Result<usize, crate::error:
     // Copy the executable into the address space
     loader::load_executable(&buffer)?;
 
-    // Copy arguments into the address space
+    // Copy arguments and environment variables into the address space
     unsafe {
         let context_location = USERSPACE_CONTEXT_LOCATION as usize;
         let arg_list_start = context_location + core::mem::size_of::<UserspaceContext>();
-        let args_start = arg_list_start + (core::mem::size_of::<*mut u8>() * (args.len() + 1));
+        let env_list_start = arg_list_start + (core::mem::size_of::<*mut u8>() * (args.len() + 1));
+        let args_start =
+            env_list_start + (core::mem::size_of::<*mut u8>() * (environment.len() + 1));
         let mut arg_list = arg_list_start as *mut *mut u8;
+        let mut env_list = env_list_start as *mut *mut u8;
 
         let context = context_location as *mut UserspaceContext;
         *context = UserspaceContext {
             argc: args.len(),
             argv: arg_list as *const *const u8,
+            envp: env_list as *const *const u8,
         };
 
         // Copy arguments
@@ -145,6 +154,22 @@ pub fn execute(filepath: &str, args: Vec<String>) -> Result<usize, crate::error:
         }
 
         *arg_list = core::ptr::null_mut();
+
+        // Copy environment variables
+        for env in environment {
+            *env_list = ptr;
+            env_list = env_list.add(1);
+
+            for byte in env.as_bytes() {
+                *ptr = *byte;
+                ptr = ptr.add(1);
+            }
+
+            *ptr = 0;
+            ptr = ptr.add(1);
+        }
+
+        *env_list = core::ptr::null_mut();
     }
 
     // Return to current process address space

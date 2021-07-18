@@ -10,7 +10,7 @@ pub fn system_call(
     code: usize,
     arg1: usize,
     arg2: usize,
-    _arg3: usize,
+    arg3: usize,
     _arg4: usize,
     _arg5: usize,
 ) -> usize {
@@ -27,6 +27,11 @@ pub fn system_call(
                 Err(_) => return usize::MAX,
             };
 
+            let envp = match super::to_slice_null(arg3) {
+                Ok(envp) => envp,
+                Err(_) => return usize::MAX,
+            };
+
             let mut args = Vec::with_capacity(argv.len());
             for arg in argv {
                 let arg = match super::to_str(*arg) {
@@ -37,7 +42,17 @@ pub fn system_call(
                 args.push(arg.to_string());
             }
 
-            match process::execute(filepath, args) {
+            let mut environment = Vec::with_capacity(envp.len());
+            for env in envp {
+                let env = match super::to_str(*env) {
+                    Ok(env) => env,
+                    Err(_) => return usize::MAX,
+                };
+
+                environment.push(env.to_string());
+            }
+
+            match process::execute(filepath, args, environment) {
                 Ok(pid) => pid,
                 Err(_) => usize::MAX,
             }
