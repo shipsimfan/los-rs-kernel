@@ -14,12 +14,12 @@ struct Stack {
 }
 
 pub struct Thread {
-    id: usize,
+    id: isize,
     kernel_stack: Stack,
     floating_point_storage: *mut u8,
     process: *mut Process,
     queue: Option<*mut ThreadQueue>,
-    queue_data: usize,
+    queue_data: isize,
     exit_queue: ThreadQueue,
 }
 
@@ -139,11 +139,11 @@ impl Thread {
         self.process == other.process
     }
 
-    pub fn set_queue_data(&mut self, new_data: usize) {
+    pub fn set_queue_data(&mut self, new_data: isize) {
         self.queue_data = new_data;
     }
 
-    pub fn get_queue_data(&self) -> usize {
+    pub fn get_queue_data(&self) -> isize {
         self.queue_data
     }
 
@@ -151,7 +151,7 @@ impl Thread {
         self.exit_queue.push(thread);
     }
 
-    pub fn pre_exit(&mut self, exit_status: usize) {
+    pub fn pre_exit(&mut self, exit_status: isize) {
         while let Some(thread) = self.exit_queue.pop_mut() {
             thread.set_queue_data(exit_status);
             super::queue_thread(thread);
@@ -160,11 +160,11 @@ impl Thread {
 }
 
 impl Mappable for Thread {
-    fn id(&self) -> usize {
+    fn id(&self) -> isize {
         self.id
     }
 
-    fn set_id(&mut self, id: usize) {
+    fn set_id(&mut self, id: isize) {
         self.id = id
     }
 }

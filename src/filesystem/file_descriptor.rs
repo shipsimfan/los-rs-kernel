@@ -7,7 +7,7 @@ use super::FileBox;
 use alloc::sync::Arc;
 
 pub struct FileDescriptor {
-    id: usize,
+    id: isize,
     file: FileBox,
     current_offset: usize,
 }
@@ -48,11 +48,11 @@ impl FileDescriptor {
 }
 
 impl Mappable for FileDescriptor {
-    fn id(&self) -> usize {
+    fn id(&self) -> isize {
         self.id
     }
 
-    fn set_id(&mut self, id: usize) {
+    fn set_id(&mut self, id: isize) {
         self.id = id
     }
 }

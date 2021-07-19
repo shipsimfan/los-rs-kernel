@@ -18,7 +18,7 @@ pub trait Directory: Send {
 }
 
 pub enum ParentDirectory {
-    Root(usize),
+    Root(isize),
     Other(DirectoryBox),
 }
 
@@ -73,7 +73,7 @@ impl DirectoryContainer {
         Err(error::Status::NotFound)
     }
 
-    pub fn set_drive_number(&mut self, number: usize) {
+    pub fn set_drive_number(&mut self, number: isize) {
         self.parent = ParentDirectory::Root(number);
     }
 

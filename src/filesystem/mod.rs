@@ -252,7 +252,7 @@ fn register_filesystem(filesystem: Filesystem) {
     FILESYSTEMS.lock().insert(filesystem);
 }
 
-fn parse_filepath(filepath: &str, file: bool) -> Result<(Option<usize>, Vec<&str>), error::Status> {
+fn parse_filepath(filepath: &str, file: bool) -> Result<(Option<isize>, Vec<&str>), error::Status> {
     let filepath = if filepath.ends_with('/') {
         if file {
             return Err(error::Status::InvalidArgument);
@@ -267,8 +267,13 @@ fn parse_filepath(filepath: &str, file: bool) -> Result<(Option<usize>, Vec<&str
     // Parse drive number
     let drive_number = if filepath.starts_with(':') {
         match iter.next() {
-            Some(str) => match usize::from_str_radix(&str[1..], 10) {
-                Ok(value) => Some(value),
+            Some(str) => match isize::from_str_radix(&str[1..], 10) {
+                Ok(value) => {
+                    if value < 0 {
+                        return Err(error::Status::InvalidArgument);
+                    }
+                    Some(value)
+                }
                 Err(_) => return Err(error::Status::InvalidArgument),
             },
             None => return Err(error::Status::InvalidArgument),

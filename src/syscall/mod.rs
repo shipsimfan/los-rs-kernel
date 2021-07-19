@@ -21,7 +21,7 @@ extern "C" fn system_call(
     arg3: usize,
     arg4: usize,
     arg5: usize,
-) -> usize {
+) -> isize {
     if code <= 0x0FFF {
         process::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0x1000 && code <= 0x1FFF {
@@ -34,7 +34,7 @@ extern "C" fn system_call(
         event::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
-        usize::MAX
+        error::Status::InvalidSystemCall as isize
     }
 }
 

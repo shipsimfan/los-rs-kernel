@@ -1,4 +1,4 @@
-use crate::{filesystem, logln, memory::KERNEL_VMA, process};
+use crate::{error, filesystem, logln, memory::KERNEL_VMA, process};
 use alloc::{string::ToString, vec::Vec};
 
 const WAIT_PROCESS_SYSCALL: usize = 0x0000;
@@ -13,30 +13,30 @@ pub fn system_call(
     arg3: usize,
     _arg4: usize,
     _arg5: usize,
-) -> usize {
+) -> isize {
     match code {
-        WAIT_PROCESS_SYSCALL => process::wait_process(arg1),
+        WAIT_PROCESS_SYSCALL => process::wait_process((arg1 & 0x7FFFFFFFFFFF) as isize),
         EXECUTE_SYSCALL => {
             let filepath = match super::to_str(arg1) {
                 Ok(str) => str,
-                Err(_) => return usize::MAX,
+                Err(status) => return status as isize,
             };
 
             let argv = match super::to_slice_null(arg2) {
                 Ok(argv) => argv,
-                Err(_) => return usize::MAX,
+                Err(status) => return status as isize,
             };
 
             let envp = match super::to_slice_null(arg3) {
                 Ok(envp) => envp,
-                Err(_) => return usize::MAX,
+                Err(status) => return status as isize,
             };
 
             let mut args = Vec::with_capacity(argv.len());
             for arg in argv {
                 let arg = match super::to_str(*arg) {
                     Ok(arg) => arg,
-                    Err(_) => return usize::MAX,
+                    Err(status) => return status as isize,
                 };
 
                 args.push(arg.to_string());
@@ -46,7 +46,7 @@ pub fn system_call(
             for env in envp {
                 let env = match super::to_str(*env) {
                     Ok(env) => env,
-                    Err(_) => return usize::MAX,
+                    Err(status) => return status as isize,
                 };
 
                 environment.push(env.to_string());
@@ -54,19 +54,19 @@ pub fn system_call(
 
             match process::execute(filepath, args, environment) {
                 Ok(pid) => pid,
-                Err(_) => usize::MAX,
+                Err(status) => status as isize,
             }
         }
         GET_CURRENT_WORKING_DIRECTORY => {
             if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
-                usize::MAX
+                error::Status::InvalidArgument as isize
             } else {
                 let mut path = match process::get_current_thread_mut()
                     .get_process_mut()
                     .get_current_working_directory()
                 {
                     Some(dir) => dir.get_full_path(),
-                    None => return usize::MAX,
+                    None => return error::Status::NotFound as isize,
                 };
 
                 path.push(0 as char);
@@ -75,13 +75,13 @@ pub fn system_call(
 
                 unsafe { core::ptr::copy_nonoverlapping(path.as_ptr(), arg1 as *mut u8, copy_len) };
 
-                copy_len
+                (copy_len & 0x7FFFFFFFFFFF) as isize
             }
         }
         SET_CURRENT_WORKING_DIRECTORY => {
             let path = match super::to_str(arg1) {
                 Ok(str) => str,
-                Err(_) => return usize::MAX,
+                Err(status) => return status as isize,
             };
 
             match filesystem::open_directory(path) {
@@ -91,12 +91,12 @@ pub fn system_call(
                         .set_current_working_directory(directory);
                     0
                 }
-                Err(_) => usize::MAX,
+                Err(status) => status as isize,
             }
         }
         _ => {
             logln!("Invalid process system call: {}", code);
-            usize::MAX
+            error::Status::InvalidSystemCall as isize
         }
     }
 }

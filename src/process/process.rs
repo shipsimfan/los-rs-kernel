@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub struct Process {
-    id: usize,
+    id: isize,
     threads: Map<Thread>,
     address_space: AddressSpace,
     session: Option<*mut Session>,
@@ -39,19 +39,19 @@ impl Process {
         }
     }
 
-    pub fn create_thread(&mut self, entry: usize, context: usize) -> usize {
+    pub fn create_thread(&mut self, entry: usize, context: usize) -> isize {
         let thread = Thread::new(self, entry, context);
         let tid = self.threads.insert(thread);
         super::queue_thread(self.threads.get_mut(tid).unwrap());
         tid
     }
 
-    pub fn get_thread_mut(&mut self, tid: usize) -> Option<&mut Thread> {
+    pub fn get_thread_mut(&mut self, tid: isize) -> Option<&mut Thread> {
         self.threads.get_mut(tid)
     }
 
-    pub fn remove_thread(&mut self, id: usize) -> bool {
-        self.threads.remove(id);
+    pub fn remove_thread(&mut self, tid: isize) -> bool {
+        self.threads.remove(tid);
         self.threads.count() == 0
     }
 
@@ -70,7 +70,7 @@ impl Process {
         self.exit_queue.push(thread);
     }
 
-    pub fn pre_exit(&mut self, exit_status: usize) {
+    pub fn pre_exit(&mut self, exit_status: isize) {
         if self.threads.count() != 1 {
             return;
         }
@@ -81,16 +81,16 @@ impl Process {
         }
     }
 
-    pub fn open_file(&mut self, filepath: &str) -> Result<usize, error::Status> {
+    pub fn open_file(&mut self, filepath: &str) -> Result<isize, error::Status> {
         let file_descriptor = filesystem::open(filepath)?;
         Ok(self.file_descriptors.insert(file_descriptor))
     }
 
-    pub fn close_file(&mut self, fd: usize) {
+    pub fn close_file(&mut self, fd: isize) {
         self.file_descriptors.remove(fd);
     }
 
-    pub fn get_file(&mut self, fd: usize) -> Result<&mut FileDescriptor, error::Status> {
+    pub fn get_file(&mut self, fd: isize) -> Result<&mut FileDescriptor, error::Status> {
         match self.file_descriptors.get_mut(fd) {
             None => Err(error::Status::NotFound),
             Some(file_descriptor) => Ok(file_descriptor),
@@ -108,29 +108,29 @@ impl Process {
         self.current_working_directory = Some(directory);
     }
 
-    pub fn open_directory(&mut self, path: &str) -> Result<usize, error::Status> {
+    pub fn open_directory(&mut self, path: &str) -> Result<isize, error::Status> {
         let descriptor = filesystem::open_directory(path)?;
         Ok(self.directory_descriptors.insert(descriptor))
     }
 
-    pub fn read_directory(&mut self, dd: usize) -> Result<Option<DirectoryEntry>, error::Status> {
+    pub fn read_directory(&mut self, dd: isize) -> Result<Option<DirectoryEntry>, error::Status> {
         match self.directory_descriptors.get_mut(dd) {
             Some(descriptor) => Ok(descriptor.next()),
             None => Err(error::Status::NotFound),
         }
     }
 
-    pub fn close_directory(&mut self, dd: usize) {
+    pub fn close_directory(&mut self, dd: isize) {
         self.directory_descriptors.remove(dd);
     }
 }
 
 impl Mappable for Process {
-    fn id(&self) -> usize {
+    fn id(&self) -> isize {
         self.id
     }
 
-    fn set_id(&mut self, id: usize) {
+    fn set_id(&mut self, id: isize) {
         self.id = id
     }
 }

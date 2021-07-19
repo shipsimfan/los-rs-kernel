@@ -10,7 +10,7 @@ mod control;
 pub use console::CONSOLE_IOCTRL_CLEAR;
 
 pub struct Session {
-    _id: SID,
+    _id: isize,
     sub: SubSession,
     processes: Map<Process>,
 }
@@ -20,7 +20,6 @@ pub enum SubSession {
 }
 
 pub type SessionBox = Arc<Mutex<Session>>;
-type SID = usize;
 
 static SESSIONS: Mutex<control::SessionControl> = Mutex::new(control::SessionControl::new());
 
@@ -33,7 +32,7 @@ pub fn create_console_session(output_device_path: &str) -> Result<SessionBox, er
 }
 
 impl Session {
-    pub fn new(id: SID, sub: SubSession) -> Self {
+    pub fn new(id: isize, sub: SubSession) -> Self {
         Session {
             _id: id,
             sub,
@@ -46,7 +45,7 @@ impl Session {
         entry: usize,
         context: usize,
         working_directory: Option<DirectoryDescriptor>,
-    ) -> usize {
+    ) -> isize {
         let new_process = Process::new(Some(self), working_directory);
         let pid = self.processes.insert(new_process);
         self.processes
@@ -56,11 +55,11 @@ impl Session {
         pid
     }
 
-    pub fn get_process_mut(&mut self, pid: usize) -> Option<&mut Process> {
+    pub fn get_process_mut(&mut self, pid: isize) -> Option<&mut Process> {
         self.processes.get_mut(pid)
     }
 
-    pub fn remove_process(&mut self, id: usize) {
+    pub fn remove_process(&mut self, id: isize) {
         self.processes.remove(id);
     }
 

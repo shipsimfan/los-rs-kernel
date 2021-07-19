@@ -14,7 +14,7 @@ pub struct FilesystemStarter {
 }
 
 pub struct Filesystem {
-    number: usize,
+    number: isize,
     _volume_name: String,
     root_directory: DirectoryBox,
 }
@@ -37,11 +37,11 @@ impl Filesystem {
 }
 
 impl Mappable for Filesystem {
-    fn id(&self) -> usize {
+    fn id(&self) -> isize {
         self.number
     }
 
-    fn set_id(&mut self, id: usize) {
+    fn set_id(&mut self, id: isize) {
         self.number = id;
         self.root_directory.lock().set_drive_number(id);
     }

@@ -1,10 +1,10 @@
-use super::{Session, SessionBox, SubSession, SID};
+use super::{Session, SessionBox, SubSession};
 use crate::locks::Mutex;
 use alloc::{sync::Arc, vec::Vec};
 
 pub struct SessionControl {
     sessions: Vec<SessionBox>,
-    next_id: SID,
+    next_id: isize,
 }
 
 impl SessionControl {

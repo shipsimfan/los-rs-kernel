@@ -1,4 +1,4 @@
-use crate::{event::CEvent, logln, process};
+use crate::{error, event::CEvent, logln, process};
 
 const PEEK_EVENT_SYSCALL: usize = 0x4000;
 
@@ -9,7 +9,7 @@ pub fn system_call(
     _arg3: usize,
     _arg4: usize,
     _arg5: usize,
-) -> usize {
+) -> isize {
     match code {
         PEEK_EVENT_SYSCALL => match super::to_ptr_mut(arg1) {
             Ok(ptr) => {
@@ -28,11 +28,11 @@ pub fn system_call(
                     None => panic!("Attempting to peek event on daemon process!"),
                 }
             }
-            Err(_) => 0,
+            Err(status) => status as isize,
         },
         _ => {
             logln!("Invalid process system call: {}", code);
-            usize::MAX
+            error::Status::InvalidSystemCall as isize
         }
     }
 }

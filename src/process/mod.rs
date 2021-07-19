@@ -19,8 +19,8 @@ pub type Process = process::Process;
 
 pub type ThreadQueue = queue::ThreadQueue;
 
-pub type ThreadFunc = fn() -> usize;
-pub type ThreadFuncContext = fn(context: usize) -> usize;
+pub type ThreadFunc = fn() -> isize;
+pub type ThreadFuncContext = fn(context: usize) -> isize;
 
 #[repr(packed(1))]
 struct UserspaceContext {
@@ -69,7 +69,7 @@ pub fn execute(
     filepath: &str,
     args: Vec<String>,
     environment: Vec<String>,
-) -> Result<usize, crate::error::Status> {
+) -> Result<isize, crate::error::Status> {
     // Load the executable
     let buffer = filesystem::read(filepath)?;
 
@@ -180,11 +180,11 @@ pub fn execute(
     Ok(pid)
 }
 
-pub fn create_thread(entry: ThreadFunc) -> usize {
+pub fn create_thread(entry: ThreadFunc) -> isize {
     create_thread_raw(entry as usize)
 }
 
-pub fn create_thread_raw(entry: usize) -> usize {
+pub fn create_thread_raw(entry: usize) -> isize {
     let current_thread = get_current_thread_mut();
     let current_process = current_thread.get_process_mut();
     current_process.create_thread(entry, 0)
@@ -194,7 +194,7 @@ fn do_create_process(
     entry: usize,
     context: usize,
     working_directory: Option<DirectoryDescriptor>,
-) -> usize {
+) -> isize {
     let current_thread = get_current_thread_mut();
     let current_process = current_thread.get_process_mut();
     match current_process.get_session_mut() {
@@ -203,7 +203,7 @@ fn do_create_process(
     }
 }
 
-pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> usize {
+pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> isize {
     do_create_process(entry as usize, 0, working_directory)
 }
 
@@ -260,10 +260,10 @@ pub fn yield_thread() {
     }
 }
 
-pub fn wait_thread(tid: usize) -> usize {
+pub fn wait_thread(tid: isize) -> isize {
     let current_thread = get_current_thread_mut();
     match current_thread.get_process_mut().get_thread_mut(tid) {
-        None => return usize::MAX,
+        None => return isize::MIN,
         Some(thread) => thread.insert_into_exit_queue(current_thread),
     }
 
@@ -272,12 +272,12 @@ pub fn wait_thread(tid: usize) -> usize {
     current_thread.get_queue_data()
 }
 
-pub fn wait_process(pid: usize) -> usize {
+pub fn wait_process(pid: isize) -> isize {
     let current_thread = get_current_thread_mut();
     match current_thread.get_process_mut().get_session_mut() {
         None => panic!("Waiting on a daemon!"),
         Some(session) => match session.get_process_mut(pid) {
-            None => return usize::MAX,
+            None => return isize::MIN,
             Some(process) => process.insert_into_exit_queue(current_thread),
         },
     }
@@ -287,7 +287,7 @@ pub fn wait_process(pid: usize) -> usize {
     current_thread.get_queue_data()
 }
 
-pub fn exit_thread(exit_status: usize) -> ! {
+pub fn exit_thread(exit_status: isize) -> ! {
     let current_thread = get_current_thread_mut();
 
     current_thread.pre_exit(exit_status);

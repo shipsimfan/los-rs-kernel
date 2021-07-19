@@ -1,4 +1,4 @@
-use crate::{logln, process, session::SubSession};
+use crate::{error, logln, process, session::SubSession};
 
 const CONSOLE_WRITE_SYSCALL: usize = 0x3000;
 const CONSOLE_WRITE_STR_SYSCALL: usize = 0x3001;
@@ -11,7 +11,7 @@ pub fn system_call(
     _arg3: usize,
     _arg4: usize,
     _arg5: usize,
-) -> usize {
+) -> isize {
     let console_session = match process::get_current_thread_mut()
         .get_process_mut()
         .get_session_mut()
@@ -19,7 +19,7 @@ pub fn system_call(
         Some(session) => match session.get_sub_session_mut() {
             SubSession::Console(console) => console,
         },
-        None => return usize::MAX,
+        None => return error::Status::NoSession as isize,
     };
 
     match match code {
@@ -34,10 +34,10 @@ pub fn system_call(
         CONSOLE_CLEAR_SYSCALL => console_session.clear(),
         _ => {
             logln!("Invalid console system call: {}", code);
-            Ok(())
+            Err(error::Status::InvalidSystemCall)
         }
     } {
         Ok(()) => 0,
-        Err(_) => usize::MAX,
+        Err(status) => status as isize,
     }
 }

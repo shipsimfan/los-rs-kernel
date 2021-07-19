@@ -9,7 +9,7 @@ enum IterStage {
 }
 
 pub struct DirectoryDescriptor {
-    id: usize,
+    id: isize,
     directory: DirectoryBox,
     stage: IterStage,
     iter: usize,
@@ -66,11 +66,11 @@ impl DirectoryDescriptor {
 }
 
 impl Mappable for DirectoryDescriptor {
-    fn id(&self) -> usize {
+    fn id(&self) -> isize {
         self.id
     }
 
-    fn set_id(&mut self, id: usize) {
+    fn set_id(&mut self, id: isize) {
         self.id = id;
     }
 }
