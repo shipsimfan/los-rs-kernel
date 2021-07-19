@@ -87,6 +87,12 @@ impl Directory {
                     continue;
                 }
 
+                for byte in &mut entry.filename {
+                    if *byte >= b'A' && *byte <= b'Z' {
+                        *byte = *byte - b'A' + b'a';
+                    }
+                }
+
                 let filename = if entry.attributes & ATTRIBUTE_DIRECTORY != 0 {
                     String::from_utf8_lossy(&entry.filename).trim().to_string()
                 } else {
@@ -160,6 +166,13 @@ impl filesystem::Directory for Directory {
                     continue;
                 }
 
+                // Change filename to lower case
+                for byte in &mut entry.filename {
+                    if *byte >= b'A' && *byte <= b'Z' {
+                        *byte = *byte - b'A' + b'a';
+                    }
+                }
+
                 // Check if the entry is the right type of entry
                 if entry.attributes & ATTRIBUTE_DIRECTORY == 0 {
                     let mut filename = String::new();
@@ -230,6 +243,13 @@ impl filesystem::Directory for Directory {
                 // Ignore volume ID entry
                 if entry.attributes & ATTRIBUTE_VOLUME_ID != 0 {
                     continue;
+                }
+
+                // Change filename to lowercase
+                for byte in &mut entry.filename {
+                    if *byte >= b'A' && *byte <= b'Z' {
+                        *byte = *byte - b'A' + b'a';
+                    }
                 }
 
                 // Check if the entry is the right type of entry

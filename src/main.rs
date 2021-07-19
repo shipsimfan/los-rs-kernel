@@ -81,7 +81,7 @@ fn startup_thread() -> usize {
     logln!("Starting shell . . . ");
 
     let pid = match process::execute(
-        ":1/LOS/BIN/SHELL.APP",
+        ":1/los/bin/shell.app",
         alloc::vec::Vec::new(),
         alloc::vec::Vec::new(),
     ) {
