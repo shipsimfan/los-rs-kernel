@@ -2,7 +2,6 @@ use super::{Thread, ThreadQueue};
 use crate::{
     error,
     filesystem::{self, DirectoryDescriptor, DirectoryEntry, FileDescriptor},
-    logln,
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
     session::Session,
@@ -142,8 +141,6 @@ impl Drop for Process {
         }
 
         self.address_space.free();
-
-        logln!("Dropping process!");
     }
 }
 

@@ -2,7 +2,6 @@ use core::ffi::c_void;
 
 use super::{exit_thread, Process, ThreadFuncContext, ThreadQueue};
 use crate::{
-    logln,
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
 };
@@ -181,8 +180,6 @@ impl Drop for Thread {
         unsafe {
             alloc::alloc::dealloc(self.floating_point_storage, FLOATING_POINT_STORAGE_LAYOUT)
         };
-
-        logln!("Dropping Thread");
     }
 }
 

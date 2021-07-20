@@ -28,6 +28,8 @@ mod time;
 
 extern crate alloc;
 
+use alloc::string::ToString;
+
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[no_mangle]
@@ -80,10 +82,23 @@ fn startup_thread() -> usize {
 
     logln!("Starting shell . . . ");
 
+    match process::get_current_thread_mut()
+        .get_process_mut()
+        .get_session_mut()
+    {
+        None => panic!("Starting process is a daemon!"),
+        Some(session) => match session.get_sub_session_mut() {
+            session::SubSession::Console(console) => match console.clear() {
+                Ok(()) => {}
+                Err(status) => panic!("Unable to clear console! {}", status),
+            },
+        },
+    }
+
     let pid = match process::execute(
         ":1/los/bin/shell.app",
         alloc::vec::Vec::new(),
-        alloc::vec::Vec::new(),
+        alloc::vec!["PATH=:1/los/bin".to_string()],
     ) {
         Ok(pid) => pid,
         Err(status) => {
