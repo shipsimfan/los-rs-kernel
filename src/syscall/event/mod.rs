@@ -17,7 +17,7 @@ pub fn system_call(
                     .get_process_mut()
                     .get_session_mut()
                 {
-                    Some(session) => match session.peek_event() {
+                    Some(session) => match session.lock().peek_event() {
                         None => 0,
                         Some(event) => {
                             let cevent = CEvent::from(event);

@@ -39,7 +39,7 @@ pub extern "C" fn kmain(
     rsdp: *const core::ffi::c_void,
 ) -> ! {
     interrupts::exceptions::initialize();
-    memory::initialize(mmap, gmode);
+    unsafe { memory::initialize(mmap, gmode) };
     device::drivers::uefi::initialize(gmode); // Also initializes the UEFI console as logger output
 
     logln!("Booting Lance OS version {} . . . ", VERSION);
@@ -61,7 +61,7 @@ pub extern "C" fn kmain(
     log!("Creating startup process . . . ");
     first_session
         .lock()
-        .create_process(startup_thread as usize, 0, None);
+        .create_process(startup_thread as usize, 0, None, first_session.clone());
     logln!("\x1B2A2]OK\x1B]!");
     process::yield_thread();
 
@@ -87,7 +87,7 @@ fn startup_thread() -> usize {
         .get_session_mut()
     {
         None => panic!("Starting process is a daemon!"),
-        Some(session) => match session.get_sub_session_mut() {
+        Some(session) => match session.lock().get_sub_session_mut() {
             session::SubSession::Console(console) => match console.clear() {
                 Ok(()) => {}
                 Err(status) => panic!("Unable to clear console! {}", status),

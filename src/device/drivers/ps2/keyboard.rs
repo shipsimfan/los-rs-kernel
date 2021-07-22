@@ -2,13 +2,13 @@ use crate::{
     device::{inb, outb, Device},
     error,
     event::{Event, KeyState, Keycode},
-    session::Session,
+    session::{Session, SessionBox},
 };
 
 use super::controller;
 
 pub struct Keyboard {
-    session: *mut Session,
+    session: &'static mut Session,
     key_state: KeyState,
     ignore_next_irq: bool,
 }
@@ -17,7 +17,7 @@ impl Keyboard {
     pub fn new(
         controller: &mut controller::Controller,
         port: usize,
-        session: *mut Session,
+        session: SessionBox,
     ) -> Result<Self, error::Status> {
         // Set scancode set to 1
         controller.write_and_wait(port, 0xF0)?;
@@ -28,9 +28,11 @@ impl Keyboard {
         controller.write_and_wait(port, controller::DEVICE_COMMAND_ENABLE_SCAN)?;
         controller.stop_initializing(port);
 
+        let session_ptr = (&mut *session.lock()) as *mut Session;
+
         // Return keyboard
         Ok(Keyboard {
-            session,
+            session: unsafe { &mut *session_ptr },
             key_state: KeyState::new(),
             ignore_next_irq: false,
         })
@@ -114,12 +116,11 @@ impl Keyboard {
         if self.ignore_next_irq {
             self.ignore_next_irq = false;
         } else {
-            unsafe { (*self.session).push_event(self.scancode_to_event(data)) };
+            let event = self.scancode_to_event(data);
+            self.session.push_event(event);
         }
     }
 }
-
-unsafe impl Send for Keyboard {}
 
 impl Device for Keyboard {
     fn read(&self, _: usize, _: &mut [u8]) -> error::Result {

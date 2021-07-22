@@ -45,8 +45,8 @@ extern "C" {
 }
 
 #[no_mangle]
-extern "C" fn switch_thread(next_thread: *mut Thread) {
-    match unsafe { THREAD_CONTROL.get_current_thread_mut() } {
+unsafe extern "C" fn switch_thread(next_thread: *mut Thread) {
+    match THREAD_CONTROL.get_current_thread_mut() {
         None => {}
         Some(current_thread) => {
             if !current_thread.in_queue() {
@@ -55,14 +55,14 @@ extern "C" fn switch_thread(next_thread: *mut Thread) {
                     let current_process_id = current_process.id();
                     match current_process.get_session_mut() {
                         None => {} // TODO: Remove from daemon
-                        Some(session) => session.remove_process(current_process_id),
+                        Some(session) => (*session.as_ptr()).remove_process(current_process_id),
                     }
                 }
             }
         }
     }
 
-    unsafe { THREAD_CONTROL.set_current_thread(next_thread) };
+    THREAD_CONTROL.set_current_thread(next_thread);
 }
 
 pub fn execute(
@@ -101,19 +101,20 @@ pub fn execute(
         Some(working_directory) => DirectoryDescriptor::new(working_directory.get_directory()),
     };
 
-    unsafe { asm!("cli") };
     // Create a process
     let pid = do_create_process(
         entry,
         USERSPACE_CONTEXT_LOCATION as usize,
         Some(working_directory),
     );
+
+    // Lock session
     let current_process = get_current_thread_mut().get_process_mut();
-    let new_process = current_process
-        .get_session_mut()
-        .unwrap()
-        .get_process_mut(pid)
-        .unwrap();
+    let session_lock = current_process.get_session_mut().unwrap();
+    let mut session = session_lock.lock();
+
+    unsafe { asm!("cli") };
+    let new_process = session.get_process_mut(pid).unwrap();
 
     // Switch to new process address space
     new_process.set_address_space_as_current();
@@ -199,7 +200,12 @@ fn do_create_process(
     let current_process = current_thread.get_process_mut();
     match current_process.get_session_mut() {
         None => panic!("Creating daemon process!"),
-        Some(current_session) => current_session.create_process(entry, context, working_directory),
+        Some(current_session) => current_session.lock().create_process(
+            entry,
+            context,
+            working_directory,
+            current_session.clone(),
+        ),
     }
 }
 
@@ -207,14 +213,15 @@ pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDesc
     do_create_process(entry as usize, 0, working_directory)
 }
 
+pub unsafe fn queue_thread_cli(thread: &mut Thread) {
+    THREAD_CONTROL.queue_execution(thread);
+}
+
 pub fn queue_thread(thread: &mut Thread) {
     unsafe {
-        let return_interrupts = get_rflags() & (1 << 9) != 0;
         asm!("cli");
-        THREAD_CONTROL.queue_execution(thread);
-        if return_interrupts {
-            asm!("sti");
-        }
+        queue_thread_cli(thread);
+        asm!("sti");
     }
 }
 
@@ -276,7 +283,7 @@ pub fn wait_process(pid: isize) -> isize {
     let current_thread = get_current_thread_mut();
     match current_thread.get_process_mut().get_session_mut() {
         None => panic!("Waiting on a daemon!"),
-        Some(session) => match session.get_process_mut(pid) {
+        Some(session) => match session.lock().get_process_mut(pid) {
             None => return isize::MIN,
             Some(process) => process.insert_into_exit_queue(current_thread),
         },

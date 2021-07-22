@@ -12,14 +12,17 @@ pub fn system_call(
     _arg4: usize,
     _arg5: usize,
 ) -> isize {
-    let console_session = match process::get_current_thread_mut()
+    let session_lock = match process::get_current_thread_mut()
         .get_process_mut()
         .get_session_mut()
     {
-        Some(session) => match session.get_sub_session_mut() {
-            SubSession::Console(console) => console,
-        },
+        Some(session) => session,
         None => return error::Status::NoSession as isize,
+    };
+
+    let mut session = session_lock.lock();
+    let console_session = match session.get_sub_session_mut() {
+            SubSession::Console(console) => console,
     };
 
     match match code {

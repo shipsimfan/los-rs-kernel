@@ -46,7 +46,6 @@ impl<T> Mutex<T> {
         match process::get_current_thread_mut_option() {
             None => {}
             Some(current_thread) => {
-                let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
                 unsafe { asm!("cli") };
                 if self
                     .lock
@@ -63,10 +62,7 @@ impl<T> Mutex<T> {
                     }
                     process::yield_thread();
                 }
-
-                if return_interrupts {
-                    unsafe { asm!("sti") };
-                }
+                unsafe { asm!("sti") };
             }
         }
 
@@ -81,9 +77,7 @@ impl<T> Mutex<T> {
         match process::get_current_thread_mut_option() {
             None => None,
             Some(current_thread) => {
-                let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
-                unsafe { asm!("cli") };
-                let ret = if self
+                if self
                     .lock
                     .compare_exchange(
                         null_mut(),
@@ -99,13 +93,7 @@ impl<T> Mutex<T> {
                     })
                 } else {
                     None
-                };
-
-                if return_interrupts {
-                    unsafe { asm!("sti") };
                 }
-
-                ret
             }
         }
     }
@@ -124,6 +112,10 @@ impl<T> Mutex<T> {
 
     pub fn matching_data(&self, other: *const T) -> bool {
         self.data.get() as *const _ == other
+    }
+
+    pub unsafe fn as_ptr(&self) -> *mut T {
+        self.data.get()
     }
 }
 
@@ -153,7 +145,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
                 mutex
                     .lock
                     .store(next_thread as *const _ as *mut _, Ordering::Relaxed);
-                process::queue_thread(next_thread);
+                unsafe { process::queue_thread_cli(next_thread) };
             }
         }
 

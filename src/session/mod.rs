@@ -45,8 +45,9 @@ impl Session {
         entry: usize,
         context: usize,
         working_directory: Option<DirectoryDescriptor>,
+        self_box: SessionBox,
     ) -> isize {
-        let new_process = Process::new(Some(self), working_directory);
+        let new_process = Process::new(Some(self_box), working_directory);
         let pid = self.processes.insert(new_process);
         self.processes
             .get_mut(pid)

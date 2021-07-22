@@ -1,4 +1,3 @@
-use crate::locks;
 use core::alloc::{GlobalAlloc, Layout};
 
 use super::KERNEL_VMA;
@@ -7,18 +6,17 @@ struct Heap;
 
 #[global_allocator]
 static HEAP: Heap = Heap;
-static TOP: locks::Mutex<usize> = locks::Mutex::new(KERNEL_VMA as usize + 0x100000000000);
+static mut TOP: usize = KERNEL_VMA as usize + 0x100000000000;
 
 unsafe impl GlobalAlloc for Heap {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let mut top = TOP.lock();
-        if *top % layout.align() != 0 {
-            *top -= *top % layout.align();
-            *top += layout.align();
+        if TOP % layout.align() != 0 {
+            TOP -= TOP % layout.align();
+            TOP += layout.align();
         }
 
-        let ret = *top as *mut u8;
-        *top += layout.size();
+        let ret = TOP as *mut u8;
+        TOP += layout.size();
 
         ret
     }

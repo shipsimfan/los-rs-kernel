@@ -27,7 +27,7 @@ struct DeviceLogger {
 }
 
 pub fn initialize(gmode: *const bootloader::GraphicsMode) {
-    let framebuffer = Framebuffer::new(gmode);
+    let mut framebuffer = Framebuffer::new(gmode);
     framebuffer.clear(Color(0));
 
     let console: DeviceBox = Arc::new(Mutex::new(Box::new(UEFIConsole {
@@ -50,7 +50,7 @@ pub fn initialize(gmode: *const bootloader::GraphicsMode) {
 }
 
 impl UEFIConsole {
-    fn render_character(&self, c: char) {
+    fn render_character(&mut self, c: char) {
         const MASK: [u8; 8] = [128, 64, 32, 16, 8, 4, 2, 1];
         let glyph = (c as u32) * 16;
 

@@ -11,7 +11,10 @@ pub type AddressSpace = virtual_mem::AddressSpace;
 pub const PAGE_SIZE: usize = 4096;
 pub const KERNEL_VMA: usize = 0xFFFF800000000000;
 
-pub fn initialize(mmap: *const bootloader::MemoryMap, gmode: *const bootloader::GraphicsMode) {
+pub unsafe fn initialize(
+    mmap: *const bootloader::MemoryMap,
+    gmode: *const bootloader::GraphicsMode,
+) {
     physical::initialize(mmap);
     virtual_mem::initialize(mmap, gmode);
 }

@@ -75,3 +75,5 @@ impl<T: PartialEq> Queue<T> {
         self.length
     }
 }
+
+unsafe impl<T: PartialEq> Send for Queue<T> {}

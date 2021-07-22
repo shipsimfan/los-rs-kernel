@@ -11,7 +11,7 @@ use crate::{
 use super::{physical, PhysicalAddress, VirtualAddress, KERNEL_VMA, PAGE_SIZE};
 
 trait PhysicalDrop {
-    fn physical_drop(&mut self);
+    unsafe fn physical_drop(&mut self);
 }
 
 #[repr(C)]
@@ -48,37 +48,30 @@ extern "C" {
     fn get_current_address_space() -> AddressSpace;
 }
 
-pub fn initialize(mmap: *const bootloader::MemoryMap, gmode: *const bootloader::GraphicsMode) {
+pub unsafe fn initialize(
+    mmap: *const bootloader::MemoryMap,
+    gmode: *const bootloader::GraphicsMode,
+) {
     // Allocate the PDPTs
     let mut kernel_space = AddressSpace::new();
     let kernel_pml4 = (kernel_space.get() + KERNEL_VMA) as *mut PML4;
     let mut i = 256;
     while i < 512 {
         let pdpt = PDPT::new();
-        unsafe {
-            (*kernel_pml4).set_entry(i, pdpt, true);
-        }
+        (*kernel_pml4).set_entry(i, pdpt, true);
 
         i += 1;
     }
 
     // Allocate pages from memory map
-    let mut desc;
-    let top;
-    let desc_size;
-    unsafe {
-        desc = (*mmap).address;
-        top = desc as usize + (*mmap).size;
-        desc_size = (*mmap).desc_size;
-    }
+    let mut desc = (*mmap).address;
+    let top = desc as usize + (*mmap).size;
+    let desc_size = (*mmap).desc_size;
+
     let mut ptr = desc as usize;
     while ptr < top {
-        let mut paddr;
-        let num_pages;
-        unsafe {
-            paddr = (*desc).physical_address;
-            num_pages = (*desc).num_pages
-        }
+        let mut paddr = (*desc).physical_address;
+        let num_pages = (*desc).num_pages;
 
         let mut i = 0;
         while i < num_pages {
@@ -93,12 +86,8 @@ pub fn initialize(mmap: *const bootloader::MemoryMap, gmode: *const bootloader::
     }
 
     // Allocate framebuffer
-    let mut paddr;
-    let top;
-    unsafe {
-        paddr = ((*gmode).framebuffer as usize) & !(PAGE_SIZE - 1);
-        top = paddr + (*gmode).framebuffer_size;
-    }
+    let mut paddr = ((*gmode).framebuffer as usize) & !(PAGE_SIZE - 1);
+    let top = paddr + (*gmode).framebuffer_size;
 
     while paddr < top {
         kernel_space.allocate(paddr + KERNEL_VMA, paddr);
@@ -106,10 +95,8 @@ pub fn initialize(mmap: *const bootloader::MemoryMap, gmode: *const bootloader::
     }
 
     // Set current address space
-    unsafe {
-        KERNEL_ADDRESS_SPACE = kernel_space;
-        KERNEL_ADDRESS_SPACE.set_as_current();
-    }
+    KERNEL_ADDRESS_SPACE = kernel_space;
+    KERNEL_ADDRESS_SPACE.set_as_current();
 
     // Set the page fault handler
     install_exception_handler(0xE, page_fault_handler);
@@ -120,15 +107,15 @@ pub fn allocate(virtual_address: VirtualAddress, physical_address: PhysicalAddre
     current_address_space.allocate(virtual_address, physical_address)
 }
 
-fn page_fault_handler(_registers: Registers, info: ExceptionInfo) {
-    let cr2 = unsafe { get_cr2() };
+unsafe fn page_fault_handler(_registers: Registers, info: ExceptionInfo) {
+    let cr2 = get_cr2();
 
     if (info.error_code & 1) == 0 {
         if cr2 < PAGE_SIZE {
             let rip = info.rip;
             panic!("Null pointer exception at {:#X}", rip);
         } else {
-            let mut current_address_space = unsafe { get_current_address_space() };
+            let mut current_address_space = get_current_address_space();
             current_address_space.allocate(cr2, physical::allocate());
         }
     } else {
@@ -140,7 +127,7 @@ fn page_fault_handler(_registers: Registers, info: ExceptionInfo) {
 
 impl AddressSpace {
     pub fn new() -> Self {
-        let phys = PML4::new();
+        let phys = unsafe { PML4::new() };
         let new_pml4 = (phys + KERNEL_VMA) as *mut PML4;
         let kernel_pml4 = (unsafe { KERNEL_ADDRESS_SPACE.0 } + KERNEL_VMA) as *mut PML4;
         let mut i = 256;
@@ -204,14 +191,14 @@ impl AddressSpace {
         }
     }
 
-    pub fn free(&mut self) {
+    pub unsafe fn free(&mut self) {
         let pml4 = (self.0 + KERNEL_VMA) as *mut PML4;
 
         let mut i = 0;
         while i < 256 {
-            let entry = unsafe { (*pml4).get_entry(i) };
+            let entry = (*pml4).get_entry(i);
             if entry != null_mut() {
-                unsafe { (*entry).physical_drop() };
+                (*entry).physical_drop();
             }
 
             i += 1;
@@ -222,15 +209,13 @@ impl AddressSpace {
 }
 
 impl<T: PhysicalDrop> Table<T> {
-    pub fn new() -> PhysicalAddress {
+    pub unsafe fn new() -> PhysicalAddress {
         let phys = physical::allocate();
         let new_table = (phys + KERNEL_VMA) as *mut Table<T>;
 
         let mut i = 0;
         while i < 512 {
-            unsafe {
-                (*new_table).clear_entry(i);
-            }
+            (*new_table).clear_entry(i);
 
             i += 1;
         }
@@ -276,14 +261,12 @@ impl<T: PhysicalDrop> IndexMut<usize> for Table<T> {
 }
 
 impl<T: PhysicalDrop> PhysicalDrop for Table<T> {
-    fn physical_drop(&mut self) {
+    unsafe fn physical_drop(&mut self) {
         let mut i = 0;
         while i < 512 {
             if self.entries[i] != 0 {
                 let entry = self.get_entry(i);
-                unsafe {
-                    (*entry).physical_drop();
-                }
+                (*entry).physical_drop();
 
                 self.clear_entry(i);
             }
@@ -296,7 +279,7 @@ impl<T: PhysicalDrop> PhysicalDrop for Table<T> {
 }
 
 impl PhysicalDrop for Page {
-    fn physical_drop(&mut self) {
+    unsafe fn physical_drop(&mut self) {
         let addr = self as *const _ as usize - KERNEL_VMA;
         for i in self {
             *i = 0;

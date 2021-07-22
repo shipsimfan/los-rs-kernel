@@ -4,7 +4,7 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::mem::size_of;
+use core::{sync::atomic::{AtomicPtr, Ordering}, mem::size_of};
 
 pub trait Table {
     fn verify(&self) -> Result<(), String>;
@@ -136,7 +136,7 @@ pub struct Address {
     pub address: u64,
 }
 
-pub struct TablePointer(*const Header);
+pub struct TablePointer(AtomicPtr<Header>);
 
 pub fn from_ptr<T: Table>(ptr: usize) -> Result<&'static T, String> {
     let ptr = if ptr < KERNEL_VMA {
@@ -267,7 +267,7 @@ impl RSDT {
             if table < KERNEL_VMA {
                 table += KERNEL_VMA;
             }
-            ret.push(TablePointer(table as *const Header));
+            ret.push(TablePointer(AtomicPtr::new(table as *mut Header)));
             i += 1;
         }
 
@@ -303,7 +303,7 @@ impl XSDT {
             if table < KERNEL_VMA {
                 table += KERNEL_VMA;
             }
-            ret.push(TablePointer(table as *const Header));
+            ret.push(TablePointer(AtomicPtr::new(table as *mut Header)));
             i += 1;
         }
 
@@ -327,11 +327,9 @@ impl Table for XSDT {
 
 impl TablePointer {
     pub fn get(&self) -> *const Header {
-        self.0
+        self.0.load(Ordering::Acquire)
     }
 }
-
-unsafe impl Send for TablePointer {}
 
 impl RootTable {
     pub fn get_tables(&self) -> Vec<TablePointer> {

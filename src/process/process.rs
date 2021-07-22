@@ -4,14 +4,14 @@ use crate::{
     filesystem::{self, DirectoryDescriptor, DirectoryEntry, FileDescriptor},
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
-    session::Session,
+    session::SessionBox,
 };
 
 pub struct Process {
     id: isize,
     threads: Map<Thread>,
     address_space: AddressSpace,
-    session: Option<*mut Session>,
+    session: Option<SessionBox>,
     exit_queue: ThreadQueue,
     file_descriptors: Map<FileDescriptor>,
     directory_descriptors: Map<DirectoryDescriptor>,
@@ -20,17 +20,14 @@ pub struct Process {
 
 impl Process {
     pub fn new(
-        session: Option<&mut Session>,
+        session: Option<SessionBox>,
         current_working_directory: Option<DirectoryDescriptor>,
     ) -> Self {
         Process {
             id: INVALID_ID,
             threads: Map::new(),
             address_space: AddressSpace::new(),
-            session: match session {
-                Some(session) => Some(session),
-                None => None,
-            },
+            session,
             exit_queue: ThreadQueue::new(),
             file_descriptors: Map::new(),
             directory_descriptors: Map::new(),
@@ -58,9 +55,9 @@ impl Process {
         self.address_space.set_as_current()
     }
 
-    pub fn get_session_mut(&mut self) -> Option<&mut Session> {
-        match self.session {
-            Some(session) => Some(unsafe { &mut *session }),
+    pub fn get_session_mut(&mut self) -> Option<SessionBox> {
+        match &self.session {
+            Some(session) => Some(session.clone()),
             None => None,
         }
     }
@@ -140,8 +137,6 @@ impl Drop for Process {
             panic!("Dropping process while it still has threads!");
         }
 
-        self.address_space.free();
+        unsafe { self.address_space.free() };
     }
 }
-
-unsafe impl Send for Process {}

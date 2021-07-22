@@ -33,7 +33,7 @@ pub struct ExceptionInfo {
     pub ss: u64,
 }
 
-pub type Handler = fn(Registers, ExceptionInfo);
+pub type Handler = unsafe fn(Registers, ExceptionInfo);
 
 extern "C" {
     fn exception_handler_0();
@@ -108,8 +108,8 @@ const EXCEPTION_STRINGS: [&str; 32] = [
 static mut EXCEPTION_HANDLERS: [Option<Handler>; 32] = [None; 32];
 
 #[no_mangle]
-extern "C" fn common_exception_handler(registers: Registers, info: ExceptionInfo) {
-    match unsafe { EXCEPTION_HANDLERS[info.interrupt as usize] } {
+unsafe extern "C" fn common_exception_handler(registers: Registers, info: ExceptionInfo) {
+    match EXCEPTION_HANDLERS[info.interrupt as usize] {
         Some(handler) => handler(registers, info),
         None => match EXCEPTION_STRINGS.get(info.interrupt as usize) {
             Some(str) => panic!("{} has occurred", str),

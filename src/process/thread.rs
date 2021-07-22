@@ -5,9 +5,10 @@ use crate::{
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
 };
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 struct Stack {
-    stack: *mut u8,
+    stack: &'static mut [u8],
     top: usize,
     pointer: usize,
 }
@@ -15,9 +16,9 @@ struct Stack {
 pub struct Thread {
     id: isize,
     kernel_stack: Stack,
-    floating_point_storage: *mut u8,
-    process: *mut Process,
-    queue: Option<*mut ThreadQueue>,
+    floating_point_storage: &'static mut [u8],
+    process: AtomicPtr<Process>,
+    queue: Option<AtomicPtr<ThreadQueue>>,
     queue_data: isize,
     exit_queue: ThreadQueue,
 }
@@ -82,24 +83,25 @@ impl Thread {
         }
 
         let fps = unsafe { alloc::alloc::alloc_zeroed(FLOATING_POINT_STORAGE_LAYOUT) };
+        let fps = unsafe {core::slice::from_raw_parts_mut(fps, FLOATING_POINT_STORAGE_LAYOUT.size())};
 
         Thread {
             id: INVALID_ID,
             kernel_stack: kernel_stack,
             floating_point_storage: fps,
-            process: process,
+            process: AtomicPtr::new(process),
             queue: None,
             queue_data: 0,
             exit_queue: ThreadQueue::new(),
         }
     }
 
-    pub fn save_float(&self) {
-        unsafe { float_save(self.floating_point_storage) };
+    pub fn save_float(&mut self) {
+        unsafe { float_save(self.floating_point_storage.as_mut_ptr()) };
     }
 
-    pub fn load_float(&self) {
-        unsafe { float_load(self.floating_point_storage) };
+    pub fn load_float(&mut self) {
+        unsafe { float_load(self.floating_point_storage.as_mut_ptr()) };
     }
 
     pub fn set_interrupt_stack(&self) {
@@ -107,7 +109,7 @@ impl Thread {
     }
 
     pub fn set_queue(&mut self, queue: &mut ThreadQueue) {
-        self.queue = Some(queue);
+        self.queue = Some(AtomicPtr::new(queue));
     }
 
     pub fn clear_queue(&mut self) {
@@ -127,15 +129,15 @@ impl Thread {
     }
 
     pub fn get_process(&self) -> &'static Process {
-        unsafe { &*self.process }
+        unsafe { &*self.process.load(Ordering::Acquire)}
     }
 
     pub fn get_process_mut(&mut self) -> &'static mut Process {
-        unsafe { &mut *self.process }
+        unsafe { &mut *self.process.load(Ordering::Acquire) }
     }
 
     pub fn compare_process(&self, other: &Thread) -> bool {
-        self.process == other.process
+        self.process.load(Ordering::Acquire) == other.process.load(Ordering::Acquire)
     }
 
     pub fn set_queue_data(&mut self, new_data: isize) {
@@ -172,13 +174,13 @@ impl Drop for Thread {
     fn drop(&mut self) {
         self.pre_exit(0);
 
-        match self.queue {
-            Some(queue) => unsafe { (*queue).remove(self) },
+        match &self.queue {
+            Some(queue) => unsafe { (*queue.load(Ordering::Acquire)).remove(self) },
             None => {}
         }
 
         unsafe {
-            alloc::alloc::dealloc(self.floating_point_storage, FLOATING_POINT_STORAGE_LAYOUT)
+            alloc::alloc::dealloc(self.floating_point_storage.as_mut_ptr(), FLOATING_POINT_STORAGE_LAYOUT)
         };
     }
 }
@@ -186,9 +188,10 @@ impl Drop for Thread {
 impl Stack {
     pub fn new() -> Self {
         let stack = unsafe { alloc::alloc::alloc_zeroed(KERNEL_STACK_LAYOUT) };
+        let stack = unsafe {core::slice::from_raw_parts_mut(stack, KERNEL_STACK_LAYOUT.size())};
 
         // Set the kernel stack pointer appropriately
-        let top = stack as usize + KERNEL_STACK_SIZE;
+        let top = stack.as_ptr() as usize + KERNEL_STACK_SIZE;
         Stack {
             stack: stack,
             top: top,
@@ -204,6 +207,6 @@ impl Stack {
 
 impl Drop for Stack {
     fn drop(&mut self) {
-        unsafe { alloc::alloc::dealloc(self.stack, KERNEL_STACK_LAYOUT) };
+        unsafe { alloc::alloc::dealloc(self.stack.as_mut_ptr(), KERNEL_STACK_LAYOUT) };
     }
 }

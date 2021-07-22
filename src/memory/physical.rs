@@ -1,5 +1,5 @@
 use super::{PhysicalAddress, PAGE_SIZE};
-use crate::{bootloader, locks};
+use crate::bootloader;
 
 struct Bitmap {
     map: [usize; BITMAP_SIZE as usize],
@@ -12,13 +12,13 @@ struct Bitmap {
 const MAXIMUM_MEMORY: usize = 128 * (1024 * 1024 * 1024); // 128 Gigabytes
 const BITMAP_SIZE: usize = MAXIMUM_MEMORY / (super::PAGE_SIZE * 64);
 
-static BITMAP: locks::Mutex<Bitmap> = locks::Mutex::new(Bitmap {
+static mut BITMAP: Bitmap = Bitmap {
     map: [0xFFFFFFFFFFFFFFFF; BITMAP_SIZE as usize],
     size: 0,
     free_pages: 0,
     total_pages: 0,
     next_free_page: 0xFFFFFFFFFFFFFFFF,
-});
+};
 
 extern "C" {
     static __KERNEL_TOP: usize;
@@ -26,32 +26,18 @@ extern "C" {
     static __KERNEL_LMA: usize;
 }
 
-pub fn initialize(mmap: *const bootloader::MemoryMap) {
-    let mut bm = BITMAP.lock();
-
+pub unsafe fn initialize(mmap: *const bootloader::MemoryMap) {
     // Scan through descriptors
-    let mut desc;
-    unsafe {
-        desc = (*mmap).address;
-    }
+    let mut desc = (*mmap).address;
     let mut ptr = desc as usize;
-    let top;
-
-    unsafe {
-        top = ptr + (*mmap).size;
-    }
+    let top = ptr + (*mmap).size;
 
     while ptr < top {
-        let class;
-        let num_pages;
-        let mut physical_address;
-        unsafe {
-            class = (*desc).class;
-            num_pages = (*desc).num_pages;
-            physical_address = (*desc).physical_address;
-        }
+        let class = (*desc).class;
+        let num_pages = (*desc).num_pages;
+        let mut physical_address = (*desc).physical_address;
 
-        bm.total_pages += num_pages;
+        BITMAP.total_pages += num_pages;
 
         match class {
             bootloader::MemoryClass::LoaderCode
@@ -64,13 +50,13 @@ pub fn initialize(mmap: *const bootloader::MemoryMap) {
                     panic!("Physical memory found too high!");
                 }
 
-                if ((physical_address / PAGE_SIZE) + num_pages) / 64 >= bm.size {
-                    bm.size = ((physical_address / PAGE_SIZE) + num_pages) / 64;
+                if ((physical_address / PAGE_SIZE) + num_pages) / 64 >= BITMAP.size {
+                    BITMAP.size = ((physical_address / PAGE_SIZE) + num_pages) / 64;
                 }
 
                 let mut i = 0;
                 while i < num_pages {
-                    bm.free(physical_address);
+                    BITMAP.free(physical_address);
 
                     i += 1;
                     physical_address += PAGE_SIZE;
@@ -79,36 +65,29 @@ pub fn initialize(mmap: *const bootloader::MemoryMap) {
             _ => {}
         }
 
-        unsafe {
-            ptr += (*mmap).desc_size;
-        }
+        ptr += (*mmap).desc_size;
         desc = ptr as *const bootloader::MemoryDescriptor;
     }
 
     // Calculate the kernel size
-    let kernel_top;
-    let kernel_bottom;
-    let kernel_lma;
-    unsafe {
-        kernel_top = (&__KERNEL_TOP) as *const usize as usize;
-        kernel_bottom = (&__KERNEL_BOTTOM) as *const usize as usize;
-        kernel_lma = (&__KERNEL_LMA) as *const usize as usize;
-    }
+    let kernel_top = (&__KERNEL_TOP) as *const usize as usize;
+    let kernel_bottom = (&__KERNEL_BOTTOM) as *const usize as usize;
+    let kernel_lma = (&__KERNEL_LMA) as *const usize as usize;
 
     let kernel_size = kernel_top - kernel_bottom;
 
     // Allocate the kernel
     let mut addr = kernel_lma;
     while addr < kernel_lma + kernel_size {
-        bm.allocate_page(addr);
+        BITMAP.allocate_page(addr);
         addr += PAGE_SIZE;
     }
 
     // Find first free page
     let mut i = 0;
-    while i < bm.size * 64 * PAGE_SIZE {
-        if bm.is_page_free(i) {
-            bm.next_free_page = i;
+    while i < BITMAP.size * 64 * PAGE_SIZE {
+        if BITMAP.is_page_free(i) {
+            BITMAP.next_free_page = i;
             break;
         }
 
@@ -116,21 +95,20 @@ pub fn initialize(mmap: *const bootloader::MemoryMap) {
     }
 }
 
-pub fn allocate() -> PhysicalAddress {
-    let mut bm = BITMAP.lock();
-    bm.allocate()
+pub unsafe fn allocate() -> PhysicalAddress {
+    BITMAP.allocate()
 }
 
-pub fn free(address: PhysicalAddress) {
-    (*BITMAP.lock()).free(address);
+pub unsafe fn free(address: PhysicalAddress) {
+    BITMAP.free(address);
 }
 
 pub fn get_num_free_pages() -> usize {
-    (*BITMAP.lock()).free_pages
+    unsafe { BITMAP.free_pages }
 }
 
 pub fn get_num_total_pages() -> usize {
-    (*BITMAP.lock()).total_pages
+    unsafe { BITMAP.total_pages }
 }
 
 impl Bitmap {

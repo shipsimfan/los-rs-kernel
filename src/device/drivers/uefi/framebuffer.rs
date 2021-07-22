@@ -1,39 +1,34 @@
+use alloc::vec::Vec;
+
 use crate::{bootloader, session::color::Color};
 
 pub struct Framebuffer {
     width: u32,
     height: u32,
     pixels_per_scanline: u32,
-    front_buffer: *mut Color,
-    back_buffer: *mut Color,
-    back_buffer_layout: alloc::alloc::Layout,
-    size: usize,
+    front_buffer: &'static mut [Color],
+    back_buffer: Vec<Color>,
 }
 
 impl Framebuffer {
     pub fn new(gmode: *const bootloader::GraphicsMode) -> Self {
-        let framebuffer = unsafe {
-            if ((*gmode).framebuffer as usize) < crate::memory::KERNEL_VMA {
-                (*gmode).framebuffer as usize + crate::memory::KERNEL_VMA
-            } else {
-                (*gmode).framebuffer as usize
-            }
-        } as *mut Color;
+        let framebuffer = unsafe {(*gmode).framebuffer} as usize;
+        let framebuffer_size_bytes = unsafe {(*gmode).framebuffer_size};
+        let framebuffer_size = framebuffer_size_bytes / core::mem::size_of::<Color>();
+
+        let framebuffer = if framebuffer < crate::memory::KERNEL_VMA {
+                framebuffer + crate::memory::KERNEL_VMA
+        } else {
+                framebuffer
+        } as *mut Color; 
+        let framebuffer = unsafe {core::slice::from_raw_parts_mut(framebuffer, framebuffer_size)};
 
         // Create back buffer
-        let back_buffer_layout = unsafe {
-            alloc::alloc::Layout::from_size_align_unchecked((*gmode).framebuffer_size, 8)
-        };
-        let back_buffer = unsafe { alloc::alloc::alloc(back_buffer_layout) } as *mut Color;
+        let mut back_buffer = Vec::with_capacity(framebuffer_size);
 
         // Copy front buffer
-        let mut i: isize = 0;
-        let top: isize =
-            unsafe { (*gmode).framebuffer_size / core::mem::size_of::<Color>() } as isize;
-        while i < top {
-            unsafe { *back_buffer.offset(i) = *framebuffer.offset(i) };
-
-            i += 1;
+        for i in 0..framebuffer_size {
+            back_buffer.push(framebuffer[i]);
         }
 
         unsafe {
@@ -42,55 +37,40 @@ impl Framebuffer {
                 height: (*gmode).vertical_resolution,
                 pixels_per_scanline: (*gmode).pixels_per_scanline,
                 front_buffer: framebuffer,
-                back_buffer: back_buffer as *mut _,
-                back_buffer_layout: back_buffer_layout,
-                size: (*gmode).framebuffer_size,
+                back_buffer: back_buffer,
             }
         }
     }
 
-    pub fn put_pixel(&self, x: u32, y: u32, color: Color) {
-        if x >= self.width
-            || y >= self.height
-            || self.front_buffer.is_null()
-            || self.back_buffer.is_null()
+    pub fn put_pixel(&mut self, x: u32, y: u32, color: Color) {
+        if x >= self.width || y >= self.height
         {
             return;
         }
 
-        unsafe {
-            *(self
-                .front_buffer
-                .offset((x + y * self.pixels_per_scanline) as isize)) = color;
-            *(self
-                .back_buffer
-                .offset((x + y * self.pixels_per_scanline) as isize)) = color;
-        }
+        let idx = (x + y * self.pixels_per_scanline) as usize;
+    
+        self.front_buffer[idx] = color;
+        self.back_buffer[idx] = color;
     }
 
-    pub fn clear(&self, color: Color) {
-        if self.front_buffer.is_null() || self.back_buffer.is_null() {
-            return;
-        }
-
-        let mut i: isize = 0;
-        while i < (self.size / core::mem::size_of::<Color>()) as isize {
-            unsafe {
-                *(self.front_buffer.offset(i)) = color;
-                *(self.back_buffer.offset(i)) = color;
-            }
+    pub fn clear(&mut self, color: Color) {
+        let mut i: usize = 0;
+        for value in &mut self.back_buffer {
+            *value = color;
+            self.front_buffer[i] = color;
 
             i += 1;
         }
     }
 
-    pub fn scroll_up(&self, amount: usize) {
+    pub fn scroll_up(&mut self, amount: usize) {
         let amount = amount / 2;
 
-        let front_buffer = self.front_buffer as *mut usize;
-        let back_buffer = self.back_buffer as *mut usize;
+        let front_buffer = self.front_buffer.as_mut_ptr() as *mut usize;
+        let back_buffer = self.back_buffer.as_mut_ptr() as *mut usize;
         let diff = amount * self.pixels_per_scanline as usize;
-        let buffer_size = self.size / core::mem::size_of::<usize>();
+        let buffer_size = self.front_buffer.len() / 2;
 
         let mut i = 0isize;
         while i < (buffer_size - diff) as isize {
@@ -119,14 +99,5 @@ impl Framebuffer {
 
     pub fn height(&self) -> u32 {
         self.height
-    }
-}
-
-unsafe impl Send for Framebuffer {}
-unsafe impl Sync for Framebuffer {}
-
-impl Drop for Framebuffer {
-    fn drop(&mut self) {
-        unsafe { alloc::alloc::dealloc(self.back_buffer as *mut _, self.back_buffer_layout) };
     }
 }
