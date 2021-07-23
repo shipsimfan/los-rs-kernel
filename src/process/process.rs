@@ -67,7 +67,7 @@ impl Process {
     }
 
     pub unsafe fn kill_threads(&mut self, exception: isize) {
-        self.threads.remove_all_but_one(exception);
+        self.threads.remove_all_except(exception);
     }
 
     pub fn pre_exit(&mut self, exit_status: isize) {

@@ -96,10 +96,14 @@ impl<T: Mappable> Map<T> {
         self.count -= decrement;
     }
 
-    pub fn remove_all_but_one(&mut self, key: isize) {
+    pub fn remove_all_except(&mut self, key: isize) {
+        let mut new_count = 0;
         for hash in 0..HASH_SIZE as usize {
             self.data[hash].retain(|val| -> bool { val.id() == key });
+            new_count += self.data[hash].len();
         }
+
+        self.count = new_count;
     }
 
     pub fn _get(&self, key: isize) -> Option<&T> {

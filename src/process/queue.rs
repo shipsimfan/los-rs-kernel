@@ -35,7 +35,7 @@ impl ThreadQueue {
     }
 
     // Called from thread on dropping
-    pub fn remove(&mut self, thread: &mut Thread) {
+    pub unsafe fn remove(&mut self, thread: &mut Thread) {
         self.0.remove(thread);
     }
 }

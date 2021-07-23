@@ -49,17 +49,21 @@ impl<T: PartialEq> Queue<T> {
         }
     }
 
-    pub fn remove(&mut self, value: T) {
+    pub unsafe fn remove(&mut self, value: T) {
         let mut none: Option<Box<Node<T>>> = None;
 
         let mut current_node: *mut Option<Box<Node<T>>> = &mut self.head;
         let mut previous_node: *mut Option<Box<Node<T>>> = &mut none;
-        while let Some(node) = unsafe { &mut *current_node } {
+        while let Some(node) = &mut *current_node {
             if node.data == value {
-                match unsafe { &mut *previous_node } {
+                match &mut *previous_node {
                     Some(previous_node) => previous_node.next = node.next.take(),
                     None => self.head = node.next.take(),
                 }
+
+                self.length -= 1;
+
+                return;
             }
 
             previous_node = current_node;

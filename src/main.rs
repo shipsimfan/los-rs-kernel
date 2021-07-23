@@ -95,8 +95,6 @@ fn startup_thread() -> usize {
         },
     }
 
-    // Thread test
-
     let pid = match process::execute(
         ":1/los/bin/shell.app",
         alloc::vec::Vec::new(),

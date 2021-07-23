@@ -7,7 +7,7 @@ const CREATE_THREAD_SYSCALL: usize = 0x1002;
 pub fn system_call(
     code: usize,
     arg1: usize,
-    _arg2: usize,
+    arg2: usize,
     _arg3: usize,
     _arg4: usize,
     _arg5: usize,
@@ -19,7 +19,7 @@ pub fn system_call(
             if arg1 >= KERNEL_VMA {
                 error::Status::InvalidArgument as isize
             } else {
-                process::create_thread_raw(arg1)
+                process::create_thread_raw(arg1, arg2)
             }
         }
         _ => {

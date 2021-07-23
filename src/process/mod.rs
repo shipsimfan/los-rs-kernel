@@ -6,6 +6,8 @@ mod process;
 mod queue;
 mod thread;
 
+use core::usize;
+
 use alloc::{string::String, vec::Vec};
 
 use crate::{
@@ -181,13 +183,13 @@ pub fn execute(
 }
 
 pub fn create_thread(entry: ThreadFunc) -> isize {
-    create_thread_raw(entry as usize)
+    create_thread_raw(entry as usize, 0)
 }
 
-pub fn create_thread_raw(entry: usize) -> isize {
+pub fn create_thread_raw(entry: usize, context: usize) -> isize {
     get_current_thread_mut()
         .get_process_mut()
-        .create_thread(entry, 0)
+        .create_thread(entry, context)
 }
 
 fn do_create_process(
