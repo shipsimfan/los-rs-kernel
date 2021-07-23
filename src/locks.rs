@@ -27,10 +27,6 @@ pub struct MutexGuard<'a, T: ?Sized + 'a> {
     data: &'a mut T,
 }
 
-extern "C" {
-    fn get_rflags() -> usize;
-}
-
 impl<T> Mutex<T> {
     #[inline(always)]
     pub const fn new(data: T) -> Self {
@@ -43,10 +39,10 @@ impl<T> Mutex<T> {
 
     #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T> {
-        match process::get_current_thread_mut_option() {
+        unsafe { asm!("cli") };
+        match unsafe { process::get_current_thread_mut_option_cli() } {
             None => {}
             Some(current_thread) => {
-                unsafe { asm!("cli") };
                 if self
                     .lock
                     .compare_exchange(
@@ -62,9 +58,10 @@ impl<T> Mutex<T> {
                     }
                     process::yield_thread();
                 }
-                unsafe { asm!("sti") };
             }
         }
+
+        unsafe { asm!("sti") };
 
         MutexGuard {
             lock: &self,
@@ -98,18 +95,6 @@ impl<T> Mutex<T> {
         }
     }
 
-    #[inline(always)]
-    pub fn _is_locked(&self) -> bool {
-        let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
-        unsafe { asm!("cli") };
-        let ret = self.lock.load(Ordering::Relaxed) != null_mut();
-        if return_interrupts {
-            unsafe { asm!("sti") };
-        };
-
-        ret
-    }
-
     pub fn matching_data(&self, other: *const T) -> bool {
         self.data.get() as *const _ == other
     }
@@ -135,8 +120,6 @@ impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T> {
 impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
-        let return_interrupts = unsafe { get_rflags() } & (1 << 9) != 0;
-        unsafe { asm!("cli") };
         let mutex = unsafe { &mut *(self.lock as *const _ as *mut Mutex<T>) };
 
         match mutex.queue.pop_mut() {
@@ -146,12 +129,6 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
                     .lock
                     .store(next_thread as *const _ as *mut _, Ordering::Relaxed);
                 unsafe { process::queue_thread_cli(next_thread) };
-            }
-        }
-
-        if return_interrupts {
-            unsafe {
-                asm!("sti");
             }
         }
     }

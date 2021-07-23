@@ -61,12 +61,6 @@ perform_yield:
     sti
     ret
 
-GLOBAL get_rflags
-get_rflags:
-    pushf
-    pop rax
-    ret
-
 GLOBAL thread_enter_user
 thread_enter_user:
     o64 sysret

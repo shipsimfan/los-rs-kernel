@@ -22,7 +22,7 @@ pub fn system_call(
 
     let mut session = session_lock.lock();
     let console_session = match session.get_sub_session_mut() {
-            SubSession::Console(console) => console,
+        SubSession::Console(console) => console,
     };
 
     match match code {

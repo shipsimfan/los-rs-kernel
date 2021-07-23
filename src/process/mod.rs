@@ -41,7 +41,6 @@ extern "C" {
         load_location: *const usize,
         next_thread: *mut Thread,
     );
-    fn get_rflags() -> usize;
 }
 
 #[no_mangle]
@@ -186,9 +185,9 @@ pub fn create_thread(entry: ThreadFunc) -> isize {
 }
 
 pub fn create_thread_raw(entry: usize) -> isize {
-    let current_thread = get_current_thread_mut();
-    let current_process = current_thread.get_process_mut();
-    current_process.create_thread(entry, 0)
+    get_current_thread_mut()
+        .get_process_mut()
+        .create_thread(entry, 0)
 }
 
 fn do_create_process(
@@ -305,36 +304,47 @@ pub fn exit_thread(exit_status: isize) -> ! {
     panic!("Returned to thread after exit!");
 }
 
-pub fn get_current_thread() -> &'static Thread {
-    get_current_thread_option().expect("No current thread when one required!")
+pub unsafe fn get_current_thread_cli() -> &'static Thread {
+    get_current_thread_option_cli().expect("No current thread when one required!")
+}
+
+pub unsafe fn get_current_thread_option_cli() -> Option<&'static Thread> {
+    THREAD_CONTROL.get_current_thread()
 }
 
 pub fn get_current_thread_option() -> Option<&'static Thread> {
     unsafe {
-        let return_interrupts = get_rflags() & (1 << 9) != 0;
         asm!("cli");
-        let ret = THREAD_CONTROL.get_current_thread();
-        if return_interrupts {
-            asm!("sti");
-        }
+        let ret = get_current_thread_option_cli();
+        asm!("sti");
         ret
     }
 }
 
 pub fn get_current_thread_mut() -> &'static mut Thread {
-    get_current_thread_mut_option().expect("No current thread when one required!")
+    unsafe {
+        asm!("cli");
+        let ret = get_current_thread_mut_cli();
+        asm!("sti");
+        ret
+    }
+}
+
+pub unsafe fn get_current_thread_mut_cli() -> &'static mut Thread {
+    get_current_thread_mut_option_cli().expect("No current thread when one required!")
 }
 
 pub fn get_current_thread_mut_option() -> Option<&'static mut Thread> {
     unsafe {
-        let return_interrupts = get_rflags() & (1 << 9) != 0;
         asm!("cli");
-        let ret = THREAD_CONTROL.get_current_thread_mut();
-        if return_interrupts {
-            asm!("sti");
-        }
+        let ret = get_current_thread_mut_option_cli();
+        asm!("sti");
         ret
     }
+}
+
+pub unsafe fn get_current_thread_mut_option_cli() -> Option<&'static mut Thread> {
+    THREAD_CONTROL.get_current_thread_mut()
 }
 
 pub fn preempt() {
@@ -343,7 +353,7 @@ pub fn preempt() {
             return;
         }
 
-        if get_current_thread_option().is_none() {
+        if get_current_thread_option_cli().is_none() {
             return;
         }
     }
