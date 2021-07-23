@@ -1,3 +1,5 @@
+use crate::process;
+
 use super::idt::install_interrupt_handler;
 
 #[repr(packed(1))]
@@ -111,12 +113,15 @@ static mut EXCEPTION_HANDLERS: [Option<Handler>; 32] = [None; 32];
 unsafe extern "C" fn common_exception_handler(registers: Registers, info: ExceptionInfo) {
     match EXCEPTION_HANDLERS[info.interrupt as usize] {
         Some(handler) => handler(registers, info),
-        None => match EXCEPTION_STRINGS.get(info.interrupt as usize) {
-            Some(str) => panic!("{} has occurred", str),
-            None => {
-                let interrupt = info.interrupt;
-                panic!("Exception handler called on non-exception! ({})", interrupt);
-            }
+        None => match process::get_current_thread_mut_option_cli() {
+            Some(_) => process::exit_process(129 + (info.interrupt as isize)),
+            None => match EXCEPTION_STRINGS.get(info.interrupt as usize) {
+                Some(str) => panic!("{} has occurred", str),
+                None => {
+                    let interrupt = info.interrupt as isize;
+                    panic!("Exception handler called on non-exception! ({})", interrupt);
+                }
+            },
         },
     }
 }

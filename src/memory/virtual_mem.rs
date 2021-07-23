@@ -6,6 +6,7 @@ use core::{
 use crate::{
     bootloader::{self, MemoryDescriptor},
     interrupts::exceptions::{install_exception_handler, ExceptionInfo, Registers},
+    process,
 };
 
 use super::{physical, PhysicalAddress, VirtualAddress, KERNEL_VMA, PAGE_SIZE};
@@ -112,16 +113,19 @@ unsafe fn page_fault_handler(_registers: Registers, info: ExceptionInfo) {
 
     if (info.error_code & 1) == 0 {
         if cr2 < PAGE_SIZE {
-            let rip = info.rip;
-            panic!("Null pointer exception at {:#X}", rip);
+            match process::get_current_thread_mut_option_cli() {
+                Some(_) => process::exit_process(129 + 32),
+                None => {
+                    let rip = info.rip;
+                    panic!("Null pointer exception at {:#X}", rip);
+                }
+            }
         } else {
             let mut current_address_space = get_current_address_space();
             current_address_space.allocate(cr2, physical::allocate());
         }
     } else {
-        let rip = info.rip;
-        let error_code = info.error_code;
-        panic!("Page protection fault!\n\tFault address: {:#X}\n\tInstruction address: {:#X}\n\tError code: {:#X}", cr2, rip, error_code);
+        process::exit_process(129 + 33);
     }
 }
 
