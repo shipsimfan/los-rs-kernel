@@ -106,22 +106,6 @@ impl<T: Mappable> Map<T> {
         self.count = new_count;
     }
 
-    pub fn _get(&self, key: isize) -> Option<&T> {
-        if key == INVALID_ID {
-            logln!("Invalid key while getting from map!");
-            return None;
-        }
-
-        let hash = (key % HASH_SIZE) as usize;
-        for value in &self.data[hash] {
-            if value.id() == key {
-                return Some(value);
-            }
-        }
-
-        None
-    }
-
     pub fn get_mut(&mut self, key: isize) -> Option<&mut T> {
         if key == INVALID_ID {
             logln!("Invalid key while getting from map!");

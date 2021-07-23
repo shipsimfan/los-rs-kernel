@@ -12,7 +12,7 @@ use alloc::{string::String, vec::Vec};
 
 use crate::{
     filesystem::{self, open_directory, DirectoryDescriptor},
-    map::Mappable,
+    map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
 };
 
@@ -337,6 +337,37 @@ pub fn kill_thread(tid: isize) {
             }
             None => {}
         }
+        asm!("sti");
+    }
+}
+
+pub fn kill_process(pid: isize) {
+    let current_process = get_current_thread_mut().get_process_mut();
+    let session_lock = match current_process.get_session_mut() {
+        Some(session) => session,
+        None => panic!("Killing process on daemon session!"),
+    };
+    let mut session = session_lock.lock();
+
+    unsafe {
+        asm!("cli");
+
+        let remove = match session.get_process_mut(pid) {
+            Some(process) => {
+                if process as *const _ == current_process as *const _ {
+                    exit_process(128);
+                } else {
+                    process.kill_threads(INVALID_ID);
+                    true
+                }
+            }
+            None => false,
+        };
+
+        if remove {
+            session.remove_process(pid);
+        }
+
         asm!("sti");
     }
 }
