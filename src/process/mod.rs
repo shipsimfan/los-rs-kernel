@@ -294,14 +294,49 @@ pub fn wait_process(pid: isize) -> isize {
 }
 
 pub fn exit_thread(exit_status: isize) -> ! {
-    let current_thread = get_current_thread_mut();
+    unsafe {
+        asm!("cli");
+        let current_thread = get_current_thread_mut_cli();
 
-    current_thread.pre_exit(exit_status);
-    current_thread.get_process_mut().pre_exit(exit_status);
+        current_thread.pre_exit(exit_status);
+        current_thread.get_process_mut().pre_exit(exit_status);
 
-    current_thread.clear_queue();
-    yield_thread();
-    panic!("Returned to thread after exit!");
+        current_thread.clear_queue();
+        yield_thread();
+        panic!("Returned to thread after exit!");
+    }
+}
+
+pub fn exit_process(exit_status: isize) -> ! {
+    unsafe {
+        asm!("cli");
+        let current_thread = get_current_thread_mut_cli();
+        let current_process = current_thread.get_process_mut();
+
+        current_process.kill_threads(current_thread.id());
+
+        exit_thread(exit_status);
+    }
+}
+
+pub fn kill_thread(tid: isize) {
+    unsafe {
+        asm!("cli");
+        let current_thread = get_current_thread_mut_cli();
+        let current_process = current_thread.get_process_mut();
+
+        match current_process.get_thread_mut(tid) {
+            Some(thread) => {
+                if thread as *mut _ == current_thread as *mut _ {
+                    exit_thread(128);
+                } else {
+                    current_process.remove_thread(tid);
+                }
+            }
+            None => {}
+        }
+        asm!("sti");
+    }
 }
 
 pub unsafe fn get_current_thread_cli() -> &'static Thread {

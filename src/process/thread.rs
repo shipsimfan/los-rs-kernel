@@ -83,7 +83,8 @@ impl Thread {
         }
 
         let fps = unsafe { alloc::alloc::alloc_zeroed(FLOATING_POINT_STORAGE_LAYOUT) };
-        let fps = unsafe {core::slice::from_raw_parts_mut(fps, FLOATING_POINT_STORAGE_LAYOUT.size())};
+        let fps =
+            unsafe { core::slice::from_raw_parts_mut(fps, FLOATING_POINT_STORAGE_LAYOUT.size()) };
 
         Thread {
             id: INVALID_ID,
@@ -129,7 +130,7 @@ impl Thread {
     }
 
     pub fn get_process(&self) -> &'static Process {
-        unsafe { &*self.process.load(Ordering::Acquire)}
+        unsafe { &*self.process.load(Ordering::Acquire) }
     }
 
     pub fn get_process_mut(&mut self) -> &'static mut Process {
@@ -152,10 +153,10 @@ impl Thread {
         self.exit_queue.push(thread);
     }
 
-    pub fn pre_exit(&mut self, exit_status: isize) {
+    pub unsafe fn pre_exit(&mut self, exit_status: isize) {
         while let Some(thread) = self.exit_queue.pop_mut() {
             thread.set_queue_data(exit_status);
-            super::queue_thread(thread);
+            super::queue_thread_cli(thread);
         }
     }
 }
@@ -172,7 +173,7 @@ impl Mappable for Thread {
 
 impl Drop for Thread {
     fn drop(&mut self) {
-        self.pre_exit(0);
+        unsafe { self.pre_exit(128) };
 
         match &self.queue {
             Some(queue) => unsafe { (*queue.load(Ordering::Acquire)).remove(self) },
@@ -180,7 +181,10 @@ impl Drop for Thread {
         }
 
         unsafe {
-            alloc::alloc::dealloc(self.floating_point_storage.as_mut_ptr(), FLOATING_POINT_STORAGE_LAYOUT)
+            alloc::alloc::dealloc(
+                self.floating_point_storage.as_mut_ptr(),
+                FLOATING_POINT_STORAGE_LAYOUT,
+            )
         };
     }
 }
@@ -188,7 +192,7 @@ impl Drop for Thread {
 impl Stack {
     pub fn new() -> Self {
         let stack = unsafe { alloc::alloc::alloc_zeroed(KERNEL_STACK_LAYOUT) };
-        let stack = unsafe {core::slice::from_raw_parts_mut(stack, KERNEL_STACK_LAYOUT.size())};
+        let stack = unsafe { core::slice::from_raw_parts_mut(stack, KERNEL_STACK_LAYOUT.size()) };
 
         // Set the kernel stack pointer appropriately
         let top = stack.as_ptr() as usize + KERNEL_STACK_SIZE;

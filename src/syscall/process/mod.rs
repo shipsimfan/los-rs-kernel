@@ -5,6 +5,7 @@ const WAIT_PROCESS_SYSCALL: usize = 0x0000;
 const EXECUTE_SYSCALL: usize = 0x0001;
 const GET_CURRENT_WORKING_DIRECTORY: usize = 0x0002;
 const SET_CURRENT_WORKING_DIRECTORY: usize = 0x0003;
+const EXIT_PROCESS_SYSCALL: usize = 0x0004;
 
 pub fn system_call(
     code: usize,
@@ -93,6 +94,9 @@ pub fn system_call(
                 }
                 Err(status) => status as isize,
             }
+        }
+        EXIT_PROCESS_SYSCALL => {
+            process::exit_process((arg1 & 0x7FFFFFFFFFFF) as isize);
         }
         _ => {
             logln!("Invalid process system call: {}", code);

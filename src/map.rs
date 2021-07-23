@@ -96,6 +96,12 @@ impl<T: Mappable> Map<T> {
         self.count -= decrement;
     }
 
+    pub fn remove_all_but_one(&mut self, key: isize) {
+        for hash in 0..HASH_SIZE as usize {
+            self.data[hash].retain(|val| -> bool { val.id() == key });
+        }
+    }
+
     pub fn _get(&self, key: isize) -> Option<&T> {
         if key == INVALID_ID {
             logln!("Invalid key while getting from map!");

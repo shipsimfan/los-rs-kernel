@@ -46,7 +46,7 @@ impl Process {
         self.threads.get_mut(tid)
     }
 
-    pub fn remove_thread(&mut self, tid: isize) -> bool {
+    pub unsafe fn remove_thread(&mut self, tid: isize) -> bool {
         self.threads.remove(tid);
         self.threads.count() == 0
     }
@@ -64,6 +64,10 @@ impl Process {
 
     pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
         self.exit_queue.push(thread);
+    }
+
+    pub unsafe fn kill_threads(&mut self, exception: isize) {
+        self.threads.remove_all_but_one(exception);
     }
 
     pub fn pre_exit(&mut self, exit_status: isize) {
