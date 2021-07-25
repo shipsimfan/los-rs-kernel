@@ -31,7 +31,7 @@ pub fn initialize(rsdp: *const c_void) -> Result<(), String> {
     }
     drop(lock);
 
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
 
     Ok(())
 }

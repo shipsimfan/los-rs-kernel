@@ -205,7 +205,7 @@ pub fn initialize() {
         }
     }
 
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
 }
 
 impl TryFrom<u8> for Register {

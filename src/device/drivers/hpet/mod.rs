@@ -94,7 +94,7 @@ pub fn initialize() {
         *address.offset(timer_compare_reg(0)) = timer_val;
     }
 
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
 }
 
 fn irq_handler(_context: usize) {

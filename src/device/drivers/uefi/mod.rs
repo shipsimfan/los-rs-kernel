@@ -3,7 +3,7 @@ use crate::{
     device::{Device, DeviceBox},
     error,
     locks::Mutex,
-    session::{color::Color, CONSOLE_IOCTRL_CLEAR},
+    session::console::{self, Color},
 };
 use alloc::{boxed::Box, str, sync::Arc};
 use core::fmt;
@@ -20,6 +20,9 @@ struct UEFIConsole {
     cy: u32,
     foreground: Color,
     background: Color,
+    dim: bool,
+    strikethrough: bool,
+    underline: bool,
 }
 
 struct DeviceLogger {
@@ -28,7 +31,7 @@ struct DeviceLogger {
 
 pub fn initialize(gmode: *const bootloader::GraphicsMode) {
     let mut framebuffer = Framebuffer::new(gmode);
-    framebuffer.clear(Color(0));
+    framebuffer.clear(0);
 
     let console: DeviceBox = Arc::new(Mutex::new(Box::new(UEFIConsole {
         width: framebuffer.width() / 8,
@@ -37,7 +40,10 @@ pub fn initialize(gmode: *const bootloader::GraphicsMode) {
         cx: 0,
         cy: 0,
         foreground: Color::new(0xFF, 0xFF, 0xFF),
-        background: Color(0),
+        background: Color::new(0x00, 0x00, 0x00),
+        dim: false,
+        strikethrough: false,
+        underline: false,
     })));
 
     let logger = Box::new(DeviceLogger {
@@ -57,27 +63,34 @@ impl UEFIConsole {
         let bx = self.cx * 8;
         let by = self.cy * 16;
 
-        let mut cy = 0;
-        while cy < 16 {
-            let mut cx = 0;
-            while cx < 8 {
+        for cy in 0..16 {
+            for cx in 0..8 {
                 let color = if font::FONT[(glyph + cy) as usize] & MASK[cx as usize] == 0 {
-                    self.background
+                    if self.strikethrough && cy == 8 && c != ' ' {
+                        &self.foreground
+                    } else if self.underline && cy == 15 && c != ' ' {
+                        &self.foreground
+                    } else {
+                        &self.background
+                    }
                 } else {
-                    self.foreground
+                    &self.foreground
                 };
 
-                self.framebuffer.put_pixel(bx + cx, by + cy, color);
+                let color = if self.dim {
+                    Color::average(color, &self.background)
+                } else {
+                    color.clone()
+                };
 
-                cx += 1;
+                self.framebuffer
+                    .put_pixel(bx + cx, by + cy, color.as_usize() as u32);
             }
-
-            cy += 1;
         }
     }
 
     fn clear_screen(&mut self) {
-        self.framebuffer.clear(self.background);
+        self.framebuffer.clear(self.background.as_usize() as u32);
     }
 
     pub fn print(&mut self, string: &str) {
@@ -112,81 +125,6 @@ impl UEFIConsole {
                         }
                     }
                 }
-                '\x1B' => {
-                    // Control character
-                    let mut i = 0;
-                    let mut chars: [char; 6] = ['\0', '\0', '\0', '\0', '\0', '\0'];
-                    while let Some(c) = iter.next() {
-                        if c == ']' {
-                            match i {
-                                0 => {
-                                    self.set_color(Color::new(0xFF, 0xFF, 0xFF));
-                                }
-                                3 => {
-                                    let mut j = 0;
-                                    let mut color: [u8; 3] = [0, 0, 0];
-                                    while j < 3 {
-                                        if chars[j] >= 'a' && chars[j] <= 'f' {
-                                            color[j] = chars[j] as u8 - 'a' as u8 + 10;
-                                        } else if chars[j] >= 'A' && chars[j] <= 'F' {
-                                            color[j] = chars[j] as u8 - 'A' as u8 + 10;
-                                        } else {
-                                            color[j] = chars[j] as u8 - '0' as u8;
-                                        }
-
-                                        color[j] *= 0x10;
-
-                                        j += 1;
-                                    }
-
-                                    self.set_color(Color::new(color[0], color[1], color[2]));
-                                }
-                                6 => {
-                                    let mut j = 0;
-                                    let mut color: [u8; 3] = [0, 0, 0];
-                                    while j < 3 {
-                                        if chars[j * 2] >= 'a' && chars[j * 2] <= 'f' {
-                                            color[j] = chars[j * 2] as u8 - 'a' as u8 + 10;
-                                        } else if chars[j * 2] >= 'A' && chars[j * 2] <= 'F' {
-                                            color[j] = chars[j * 2] as u8 - 'A' as u8 + 10;
-                                        } else {
-                                            color[j] = chars[j * 2] as u8 - '0' as u8;
-                                        }
-
-                                        color[j] *= 0x10;
-
-                                        if chars[j * 2 + 1] >= 'a' && chars[j * 2 + 1] <= 'f' {
-                                            color[j] += chars[j * 2 + 1] as u8 - 'a' as u8 + 10;
-                                        } else if chars[j * 2 + 1] >= 'A' && chars[j * 2 + 1] <= 'F'
-                                        {
-                                            color[j] += chars[j * 2 + 1] as u8 - 'A' as u8 + 10;
-                                        } else {
-                                            color[j] += chars[j * 2 + 1] as u8 - '0' as u8;
-                                        }
-
-                                        j += 1;
-                                    }
-
-                                    self.set_color(Color::new(color[0], color[1], color[2]));
-                                }
-                                _ => break,
-                            }
-
-                            break;
-                        }
-
-                        if i > 6
-                            || !((c >= 'a' && c <= 'f')
-                                || (c >= 'A' || c <= 'F')
-                                || (c >= '0' || c <= '9'))
-                        {
-                            break;
-                        }
-
-                        chars[i] = c;
-                        i += 1;
-                    }
-                }
                 _ => {
                     self.render_character(c);
                     self.cx += 1;
@@ -203,10 +141,6 @@ impl UEFIConsole {
                 self.cy -= 1;
             }
         }
-    }
-
-    pub fn set_color(&mut self, color: Color) {
-        self.foreground = color;
     }
 }
 
@@ -232,14 +166,63 @@ impl Device for UEFIConsole {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, code: usize, _: usize) -> error::Result<usize> {
+    fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result<usize> {
         match code {
-            CONSOLE_IOCTRL_CLEAR => {
+            console::IOCTRL_CLEAR => {
                 self.cx = 0;
                 self.cy = 0;
                 self.clear_screen();
                 Ok(0)
             }
+            console::IOCTRL_SET_ATTRIBUTE => {
+                if argument == console::STYLE_RESET {
+                    self.dim = false;
+                    self.strikethrough = false;
+                    self.underline = false;
+                }
+
+                if argument & console::STYLE_DIM != 0 {
+                    self.dim = true;
+                }
+
+                if argument & console::STYLE_STRIKETRHOUGH != 0 {
+                    self.strikethrough = true;
+                }
+
+                if argument & console::STYLE_UNDERLINE != 0 {
+                    self.underline = true;
+                }
+
+                Ok(0)
+            }
+            console::IOCTRL_SET_FOREGROUND_COLOR => {
+                self.foreground = Color::from_usize(argument);
+                Ok(0)
+            }
+            console::IOCTRL_SET_BACKGROUND_COLOR => {
+                self.background = Color::from_usize(argument);
+                Ok(0)
+            }
+            console::IOCTRL_SET_CURSOR_X => {
+                let argument = (argument & 0xFFFFFFFF) as u32;
+                if argument < self.width {
+                    self.cx = argument;
+                    Ok(argument as usize)
+                } else {
+                    Err(error::Status::OutOfRange)
+                }
+            }
+            console::IOCTRL_SET_CURSOR_Y => {
+                let argument = (argument & 0xFFFFFFFF) as u32;
+                if argument < self.height {
+                    self.cy = argument;
+                    Ok(argument as usize)
+                } else {
+                    Err(error::Status::OutOfRange)
+                }
+            }
+            console::IOCTRL_GET_WIDTH => Ok(self.width as usize),
+            console::IOCTRL_GET_HEIGHT => Ok(self.height as usize),
             _ => Err(error::Status::InvalidIOCtrl),
         }
     }

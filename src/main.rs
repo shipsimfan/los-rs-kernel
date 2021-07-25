@@ -57,12 +57,12 @@ pub extern "C" fn kmain(
     log!("Creating first session . . . ");
     let first_session =
         session::create_console_session("/uefi_console").expect("Failed to create first session");
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
     log!("Creating startup process . . . ");
     first_session
         .lock()
         .create_process(startup_thread as usize, 0, None, first_session.clone());
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
     process::yield_thread();
 
     loop {}
@@ -71,7 +71,7 @@ pub extern "C" fn kmain(
 fn startup_thread() -> usize {
     log!("Loading filesystem drivers . . .");
     filesystem::register_filesystem_driver(filesystem::drivers::fat32::detect_fat32_filesystem);
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
 
     logln!("Loading device drivers . . . ");
 
@@ -118,10 +118,9 @@ fn startup_thread() -> usize {
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    log!("\x1BD22]");
     match info.message() {
         Some(msg) => {
-            logln!("Fatal Error:\x1B] {}", msg);
+            logln!("Fatal Error: {}", msg);
             match info.location() {
                 Some(location) => logln!("\tLocated at {}", location),
                 None => {}

@@ -66,8 +66,8 @@ pub fn initialize() {
     };
     let mut controller = ide_controller_lock.lock();
     match controller.ioctrl(controller::IOCTRL_ENUMERATE, 0) {
-        Ok(_) => logln!("\x1B2A2]OK\x1B]!"),
-        Err(status) => logln!("\x1BA22]Error\x1B]: {}!", status),
+        Ok(_) => logln!("OK!"),
+        Err(status) => logln!("Error: {}!", status),
     }
 
     // Register drives

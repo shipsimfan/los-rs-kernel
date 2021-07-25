@@ -204,7 +204,7 @@ pub fn initialize() {
     outb(MASTER_PIC_DATA, 0);
     outb(SLAVE_PIC_DATA, 0);
 
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
 }
 
 #[no_mangle]

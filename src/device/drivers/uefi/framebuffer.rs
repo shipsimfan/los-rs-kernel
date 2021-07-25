@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 
-use crate::{bootloader, session::color::Color};
+use crate::bootloader;
+
+pub type Color = u32;
 
 pub struct Framebuffer {
     width: u32,
@@ -12,16 +14,16 @@ pub struct Framebuffer {
 
 impl Framebuffer {
     pub fn new(gmode: *const bootloader::GraphicsMode) -> Self {
-        let framebuffer = unsafe {(*gmode).framebuffer} as usize;
-        let framebuffer_size_bytes = unsafe {(*gmode).framebuffer_size};
+        let framebuffer = unsafe { (*gmode).framebuffer } as usize;
+        let framebuffer_size_bytes = unsafe { (*gmode).framebuffer_size };
         let framebuffer_size = framebuffer_size_bytes / core::mem::size_of::<Color>();
 
         let framebuffer = if framebuffer < crate::memory::KERNEL_VMA {
-                framebuffer + crate::memory::KERNEL_VMA
+            framebuffer + crate::memory::KERNEL_VMA
         } else {
-                framebuffer
-        } as *mut Color; 
-        let framebuffer = unsafe {core::slice::from_raw_parts_mut(framebuffer, framebuffer_size)};
+            framebuffer
+        } as *mut Color;
+        let framebuffer = unsafe { core::slice::from_raw_parts_mut(framebuffer, framebuffer_size) };
 
         // Create back buffer
         let mut back_buffer = Vec::with_capacity(framebuffer_size);
@@ -43,13 +45,12 @@ impl Framebuffer {
     }
 
     pub fn put_pixel(&mut self, x: u32, y: u32, color: Color) {
-        if x >= self.width || y >= self.height
-        {
+        if x >= self.width || y >= self.height {
             return;
         }
 
         let idx = (x + y * self.pixels_per_scanline) as usize;
-    
+
         self.front_buffer[idx] = color;
         self.back_buffer[idx] = color;
     }

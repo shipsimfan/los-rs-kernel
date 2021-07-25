@@ -36,5 +36,5 @@ pub fn initialize() {
         Err(status) => return logln!("Failed to enumerate PS/2 devices: {}", status),
     }
 
-    logln!("\x1B2A2]OK\x1B]!");
+    logln!("OK!");
 }

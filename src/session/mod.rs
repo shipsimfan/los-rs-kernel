@@ -3,11 +3,8 @@ use crate::{
 };
 use alloc::sync::Arc;
 
-pub mod color;
-mod console;
+pub mod console;
 mod control;
-
-pub use console::CONSOLE_IOCTRL_CLEAR;
 
 pub struct Session {
     _id: isize,
