@@ -56,7 +56,7 @@ pub extern "C" fn kmain(
 
     log!("Creating first session . . . ");
     let first_session =
-        session::create_console_session("/uefi_console").expect("Failed to create first session");
+        session::create_console_session("/boot_video").expect("Failed to create first session");
     logln!("OK!");
     log!("Creating startup process . . . ");
     first_session

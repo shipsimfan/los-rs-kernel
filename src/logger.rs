@@ -1,18 +1,34 @@
-use crate::locks::Mutex;
-use alloc::boxed::Box;
-use core::fmt;
+use crate::{
+    device::{get_device, DeviceBox},
+    locks::Mutex,
+};
+use core::fmt::{self, Write};
 
-pub trait LoggerOutput {}
+struct BootVideoLogger(DeviceBox);
 
-static LOGGER: Mutex<Option<Box<dyn Send + fmt::Write>>> = Mutex::new(None);
+static BOOT_VIDEO_LOGGER: Mutex<Option<BootVideoLogger>> = Mutex::new(None);
 
-pub fn set_logger(new_logger: Box<dyn Send + fmt::Write>) {
-    (*LOGGER.lock()) = Some(new_logger);
+pub fn enable_boot_video_logging() {
+    let boot_video_device = match get_device("/boot_video") {
+        Ok(device) => device,
+        Err(status) => panic!("Unable to get boot video device: {}", status),
+    };
+
+    (*BOOT_VIDEO_LOGGER.lock()) = Some(BootVideoLogger(boot_video_device));
+}
+
+impl Write for BootVideoLogger {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        match self.0.lock().write(0, s.as_bytes()) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(fmt::Error),
+        }
+    }
 }
 
 #[doc(hidden)]
 pub fn _log(args: fmt::Arguments) {
-    let mut lock = LOGGER.lock();
+    let mut lock = BOOT_VIDEO_LOGGER.lock();
     match &mut *lock {
         None => {}
         Some(logger) => logger.write_fmt(args).unwrap(),

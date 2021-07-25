@@ -6,7 +6,6 @@ use crate::{
     session::console::{self, Color},
 };
 use alloc::{boxed::Box, str, sync::Arc};
-use core::fmt;
 use framebuffer::Framebuffer;
 
 mod font;
@@ -23,10 +22,6 @@ struct UEFIConsole {
     dim: bool,
     strikethrough: bool,
     underline: bool,
-}
-
-struct DeviceLogger {
-    output: DeviceBox,
 }
 
 pub fn initialize(gmode: *const bootloader::GraphicsMode) {
@@ -46,13 +41,9 @@ pub fn initialize(gmode: *const bootloader::GraphicsMode) {
         underline: false,
     })));
 
-    let logger = Box::new(DeviceLogger {
-        output: console.clone(),
-    });
-
-    crate::device::register_device("/uefi_console", console)
-        .expect("Failed to register UEFI console!");
-    crate::logger::set_logger(logger);
+    crate::device::register_device("/boot_video", console)
+        .expect("Failed to register UEFI boot video console!");
+    crate::logger::enable_boot_video_logging();
 }
 
 impl UEFIConsole {
@@ -224,15 +215,6 @@ impl Device for UEFIConsole {
             console::IOCTRL_GET_WIDTH => Ok(self.width as usize),
             console::IOCTRL_GET_HEIGHT => Ok(self.height as usize),
             _ => Err(error::Status::InvalidIOCtrl),
-        }
-    }
-}
-
-impl fmt::Write for DeviceLogger {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        match self.output.lock().write(0, s.as_bytes()) {
-            Err(_) => Err(fmt::Error {}),
-            Ok(()) => Ok(()),
         }
     }
 }
