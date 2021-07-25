@@ -20,14 +20,14 @@ pub fn system_call(
         OPEN_FILE_SYSCALL => {
             let filepath = match super::to_str(arg1) {
                 Ok(str) => str,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
             match process::get_current_thread_mut()
                 .get_process_mut()
                 .open_file(filepath)
             {
                 Ok(fd) => fd,
-                Err(status) => status as isize,
+                Err(status) => status.to_return_code(),
             }
         }
         CLOSE_FILE_SYSCALL => {
@@ -42,7 +42,7 @@ pub fn system_call(
                 .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
             {
                 Ok(file) => file,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             (file.seek(arg2, SeekFrom::from(arg3)) & 0x7FFFFFFFFFFF) as isize
@@ -53,30 +53,30 @@ pub fn system_call(
                 .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
             {
                 Ok(file) => file,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             let buffer = match super::to_slice_mut(arg2, arg3) {
                 Ok(slice) => slice,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             match file.read(buffer) {
                 Ok(bytes_read) => (bytes_read & 0x7FFFFFFFFFFF) as isize,
-                Err(status) => status as isize,
+                Err(status) => status.to_return_code(),
             }
         }
         OPEN_DIRECTORY_SYSCALL => {
             let path = match super::to_str(arg1) {
                 Ok(str) => str,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
             match process::get_current_thread_mut()
                 .get_process_mut()
                 .open_directory(path)
             {
                 Ok(dd) => dd,
-                Err(status) => status as isize,
+                Err(status) => status.to_return_code(),
             }
         }
         CLOSE_DIRECTORY_SYSCALL => {
@@ -88,7 +88,7 @@ pub fn system_call(
         READ_DIRECTORY_SYSCALL => {
             let desintation = match super::to_ptr_mut(arg2) {
                 Ok(ptr) => ptr,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             match process::get_current_thread_mut()
@@ -102,12 +102,12 @@ pub fn system_call(
                     }
                     None => 0,
                 },
-                Err(status) => status as isize,
+                Err(status) => status.to_return_code(),
             }
         }
         _ => {
             logln!("Invalid filesystem system call: {}", code);
-            error::Status::InvalidSystemCall as isize
+            error::Status::InvalidRequestCode as isize
         }
     }
 }

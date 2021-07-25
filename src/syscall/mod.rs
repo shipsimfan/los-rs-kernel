@@ -1,7 +1,4 @@
-use crate::{
-    error, logln,
-    memory::{KERNEL_VMA, PAGE_SIZE},
-};
+use crate::{error, logln, memory::KERNEL_VMA};
 
 mod console;
 mod event;
@@ -34,22 +31,22 @@ extern "C" fn system_call(
         event::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
-        error::Status::InvalidSystemCall as isize
+        error::Status::InvalidRequestCode as isize
     }
 }
 
 // Argument translation functions
-fn to_slice_mut(ptr: usize, len: usize) -> Result<&'static mut [u8], error::Status> {
-    if ptr < PAGE_SIZE || ptr >= KERNEL_VMA || ptr + len >= KERNEL_VMA {
-        Err(error::Status::InvalidArgument)
+fn to_slice_mut(ptr: usize, len: usize) -> error::Result<&'static mut [u8]> {
+    if ptr >= KERNEL_VMA || ptr + len >= KERNEL_VMA {
+        Err(error::Status::ArgumentSecurity)
     } else {
         Ok(unsafe { core::slice::from_raw_parts_mut(ptr as *mut u8, len) })
     }
 }
 
-fn to_slice_null<T: NullTerminator>(ptr: usize) -> Result<&'static [T], error::Status> {
+fn to_slice_null<T: NullTerminator>(ptr: usize) -> error::Result<&'static [T]> {
     if ptr >= KERNEL_VMA {
-        return Err(error::Status::InvalidArgument);
+        return Err(error::Status::ArgumentSecurity);
     }
 
     let mut p = ptr as *const T;
@@ -62,17 +59,17 @@ fn to_slice_null<T: NullTerminator>(ptr: usize) -> Result<&'static [T], error::S
     Ok(unsafe { core::slice::from_raw_parts(ptr as *const T, len) })
 }
 
-fn to_str(str: usize) -> Result<&'static str, error::Status> {
+fn to_str(str: usize) -> error::Result<&'static str> {
     let slice = to_slice_null(str)?;
     match core::str::from_utf8(slice) {
         Ok(str) => Ok(str),
-        Err(_) => Err(error::Status::InvalidArgument),
+        Err(_) => Err(error::Status::InvalidUTF8),
     }
 }
 
-fn to_ptr_mut<T>(ptr: usize) -> Result<*mut T, error::Status> {
-    if ptr < PAGE_SIZE || ptr >= KERNEL_VMA || ptr + core::mem::size_of::<T>() >= KERNEL_VMA {
-        Err(error::Status::InvalidArgument)
+fn to_ptr_mut<T>(ptr: usize) -> error::Result<*mut T> {
+    if ptr >= KERNEL_VMA || ptr + core::mem::size_of::<T>() >= KERNEL_VMA {
+        Err(error::Status::ArgumentSecurity)
     } else {
         Ok(ptr as *mut T)
     }

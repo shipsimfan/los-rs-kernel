@@ -17,7 +17,7 @@ pub fn system_call(
         .get_session_mut()
     {
         Some(session) => session,
-        None => return error::Status::NoSession as isize,
+        None => return error::Status::InvalidSession as isize,
     };
 
     let mut session = session_lock.lock();
@@ -37,10 +37,10 @@ pub fn system_call(
         CONSOLE_CLEAR_SYSCALL => console_session.clear(),
         _ => {
             logln!("Invalid console system call: {}", code);
-            Err(error::Status::InvalidSystemCall)
+            Err(error::Status::InvalidRequestCode)
         }
     } {
         Ok(()) => 0,
-        Err(status) => status as isize,
+        Err(status) => status.to_return_code(),
     }
 }

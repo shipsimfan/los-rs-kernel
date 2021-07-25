@@ -21,24 +21,24 @@ pub fn system_call(
         EXECUTE_SYSCALL => {
             let filepath = match super::to_str(arg1) {
                 Ok(str) => str,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             let argv = match super::to_slice_null(arg2) {
                 Ok(argv) => argv,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             let envp = match super::to_slice_null(arg3) {
                 Ok(envp) => envp,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             let mut args = Vec::with_capacity(argv.len());
             for arg in argv {
                 let arg = match super::to_str(*arg) {
                     Ok(arg) => arg,
-                    Err(status) => return status as isize,
+                    Err(status) => return status.to_return_code(),
                 };
 
                 args.push(arg.to_string());
@@ -48,7 +48,7 @@ pub fn system_call(
             for env in envp {
                 let env = match super::to_str(*env) {
                     Ok(env) => env,
-                    Err(status) => return status as isize,
+                    Err(status) => return status.to_return_code(),
                 };
 
                 environment.push(env.to_string());
@@ -56,19 +56,19 @@ pub fn system_call(
 
             match process::execute(filepath, args, environment) {
                 Ok(pid) => pid,
-                Err(status) => status as isize,
+                Err(status) => status.to_return_code(),
             }
         }
         GET_CURRENT_WORKING_DIRECTORY => {
             if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
-                error::Status::InvalidArgument as isize
+                error::Status::ArgumentSecurity as isize
             } else {
                 let mut path = match process::get_current_thread_mut()
                     .get_process_mut()
                     .get_current_working_directory()
                 {
                     Some(dir) => dir.get_full_path(),
-                    None => return error::Status::NotFound as isize,
+                    None => return error::Status::NotSupported as isize,
                 };
 
                 path.push(0 as char);
@@ -83,7 +83,7 @@ pub fn system_call(
         SET_CURRENT_WORKING_DIRECTORY => {
             let path = match super::to_str(arg1) {
                 Ok(str) => str,
-                Err(status) => return status as isize,
+                Err(status) => return status.to_return_code(),
             };
 
             match filesystem::open_directory(path) {
@@ -93,7 +93,7 @@ pub fn system_call(
                         .set_current_working_directory(directory);
                     0
                 }
-                Err(status) => status as isize,
+                Err(status) => status.to_return_code(),
             }
         }
         EXIT_PROCESS_SYSCALL => process::exit_process((arg1 & 0x7FFFFFFFFFFF) as isize),
@@ -103,7 +103,7 @@ pub fn system_call(
         }
         _ => {
             logln!("Invalid process system call: {}", code);
-            error::Status::InvalidSystemCall as isize
+            error::Status::InvalidRequestCode as isize
         }
     }
 }

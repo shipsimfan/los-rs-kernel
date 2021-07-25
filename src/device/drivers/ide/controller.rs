@@ -47,7 +47,7 @@ impl IDEController {
         }
     }
 
-    fn enumerate_drives(&mut self) -> Result<usize, error::Status> {
+    fn enumerate_drives(&mut self) -> error::Result<usize> {
         // Install IRQ handlers
         crate::interrupts::irq::install_irq_handler(
             14,
@@ -160,7 +160,7 @@ impl IDEController {
         Ok(0)
     }
 
-    fn polling(&mut self, channel: u8, advanced_check: bool) -> Result<usize, error::Status> {
+    fn polling(&mut self, channel: u8, advanced_check: bool) -> error::Result<usize> {
         let channel = (channel as usize) << 8;
 
         let mut i = 0;
@@ -187,7 +187,7 @@ impl IDEController {
         }
     }
 
-    fn read_buffer(&self, channel: Channel, register: u16, buffer: &mut [u8]) -> error::Result {
+    fn read_buffer(&self, channel: Channel, register: u16, buffer: &mut [u8]) -> error::Result<()> {
         let channel = channel as usize;
 
         if register > 0x07 && register < 0x0C {
@@ -206,7 +206,7 @@ impl IDEController {
         } else if register < 0x16 {
             self.channels[channel].bus_master + register - 0x0E
         } else {
-            return Err(error::Status::InvalidArgument);
+            return Err(error::Status::BadAddress);
         };
 
         let mut i = 0;
@@ -234,18 +234,18 @@ impl IDEController {
 }
 
 impl Device for IDEController {
-    fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result {
+    fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result<()> {
         let register: u16 = (address & 0xFF) as u16;
         let channel = Channel::from(address.wrapping_shr(8) & 1);
 
         self.read_buffer(channel, register, buffer)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result {
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, address: usize) -> Result<usize, error::Status> {
+    fn read_register(&mut self, address: usize) -> error::Result<usize> {
         let reg: u16 = (address & 0xFF) as u16;
         let channel = address.wrapping_shr(8) & 1;
 
@@ -265,7 +265,7 @@ impl Device for IDEController {
         } else if reg < 0x16 {
             self.channels[channel].bus_master + reg - 0x0E
         } else {
-            return Err(error::Status::InvalidArgument);
+            return Err(error::Status::BadAddress);
         });
 
         if reg > 0x07 && reg < 0x0C {
@@ -278,7 +278,7 @@ impl Device for IDEController {
         Ok(result as usize)
     }
 
-    fn write_register(&mut self, address: usize, value: usize) -> error::Result {
+    fn write_register(&mut self, address: usize, value: usize) -> error::Result<()> {
         let reg: u16 = (address & 0xFF) as u16;
         let channel = address.wrapping_shr(8) & 1;
         let value: u8 = (value & 0xFF) as u8;
@@ -300,7 +300,7 @@ impl Device for IDEController {
             } else if reg < 0x16 {
                 self.channels[channel].bus_master + reg - 0x0E
             } else {
-                return Err(error::Status::InvalidArgument);
+                return Err(error::Status::BadAddress);
             },
             value,
         );
@@ -315,14 +315,14 @@ impl Device for IDEController {
         Ok(())
     }
 
-    fn ioctrl(&mut self, code: usize, argument: usize) -> Result<usize, error::Status> {
+    fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result<usize> {
         match code {
             IOCTRL_ENUMERATE => self.enumerate_drives(),
             IOCTRL_POLL => self.polling((argument & 1) as u8, false),
             IOCTRL_ADVANCED_POLL => self.polling((argument & 1) as u8, true),
             IOCTRL_SET_CHANNEL_INTERRUPT => {
                 if argument >= 2 {
-                    Err(error::Status::InvalidArgument)
+                    Err(error::Status::InvalidRequestCode)
                 } else {
                     self.channels[argument].n_ien = 0;
                     Ok(0)
@@ -330,13 +330,13 @@ impl Device for IDEController {
             }
             IOCTRL_CLEAR_CHANNEL_INTERRUPT => {
                 if argument >= 2 {
-                    Err(error::Status::InvalidArgument)
+                    Err(error::Status::InvalidRequestCode)
                 } else {
                     self.channels[argument].n_ien = 2;
                     Ok(0)
                 }
             }
-            _ => Err(error::Status::NotSupported),
+            _ => Err(error::Status::InvalidIOCtrl),
         }
     }
 }

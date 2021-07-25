@@ -18,7 +18,7 @@ mod controller;
 
 fn get_base_address_registers(
     pci_device: &mut Box<dyn Device>,
-) -> Result<(usize, usize, usize, usize, usize), error::Status> {
+) -> error::Result<(usize, usize, usize, usize, usize)> {
     let bar0 = pci_device.read_register(pci::Register::BAR0 as usize)?;
     let bar1 = pci_device.read_register(pci::Register::BAR1 as usize)?;
     let bar2 = pci_device.read_register(pci::Register::BAR2 as usize)?;
@@ -75,28 +75,28 @@ pub fn initialize() {
 
     match filesystem::register_drive("/ide/primary_master") {
         Err(status) => match status {
-            error::Status::NotFound => {}
+            error::Status::NoDevice => {}
             _ => logln!("Error while registering primary master: {}", status),
         },
         Ok(()) => {}
     }
     match filesystem::register_drive("/ide/primary_slave") {
         Err(status) => match status {
-            error::Status::NotFound => {}
+            error::Status::NoDevice => {}
             _ => logln!("Error while registering primary slave: {}", status),
         },
         Ok(()) => {}
     }
     match filesystem::register_drive("/ide/secondary_master") {
         Err(status) => match status {
-            error::Status::NotFound => {}
+            error::Status::NoDevice => {}
             _ => logln!("Error while registering secondary master: {}", status),
         },
         Ok(()) => {}
     }
     match filesystem::register_drive("/ide/secondary_slave") {
         Err(status) => match status {
-            error::Status::NotFound => {}
+            error::Status::NoDevice => {}
             _ => logln!("Error while registering secondary slave: {}", status),
         },
         Ok(()) => {}

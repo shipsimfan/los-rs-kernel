@@ -40,7 +40,7 @@ pub fn register_filesystem_driver(detect_function: DetectFilesystemFunction) {
     FILESYSTEM_DRIVERS.lock().push(detect_function);
 }
 
-pub fn register_drive(drive_path: &str) -> error::Result {
+pub fn register_drive(drive_path: &str) -> error::Result<()> {
     // Get the drive
     let drive_lock = device::get_device(drive_path)?;
     let mut drive = drive_lock.lock();
@@ -60,7 +60,7 @@ pub fn register_drive(drive_path: &str) -> error::Result {
     detect_filesystem(drive_lock, 0, size)
 }
 
-pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
+pub fn open(filepath: &str) -> error::Result<FileDescriptor> {
     // Parse filepath
     let (fs_number, path) = parse_filepath(filepath, true)?;
     if path.len() == 0 {
@@ -73,7 +73,7 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
             let mut filesystems = FILESYSTEMS.lock();
             match filesystems.get_mut(fs_number) {
                 Some(filesystem) => filesystem.root_directory().clone(),
-                None => return Err(error::Status::NotFound),
+                None => return Err(error::Status::NoFilesystem),
             }
         }
         None => {
@@ -82,7 +82,7 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
                 .get_current_working_directory()
             {
                 Some(dir) => dir.get_directory(),
-                None => return Err(error::Status::InvalidArgument),
+                None => return Err(error::Status::NotSupported),
             }
         }
     };
@@ -121,7 +121,7 @@ pub fn open(filepath: &str) -> Result<FileDescriptor, error::Status> {
     Ok(FileDescriptor::new(file))
 }
 
-pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> {
+pub fn open_directory(path: &str) -> error::Result<DirectoryDescriptor> {
     // Parse filepath
     let (fs_number, path) = parse_filepath(path, false)?;
 
@@ -131,7 +131,7 @@ pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> 
             let mut filesystems = FILESYSTEMS.lock();
             match filesystems.get_mut(fs_number) {
                 Some(filesystem) => filesystem.root_directory().clone(),
-                None => return Err(error::Status::NotFound),
+                None => return Err(error::Status::NoFilesystem),
             }
         }
         None => {
@@ -140,7 +140,7 @@ pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> 
                 .get_current_working_directory()
             {
                 Some(dir) => dir.get_directory(),
-                None => return Err(error::Status::InvalidArgument),
+                None => return Err(error::Status::NotSupported),
             }
         }
     };
@@ -167,7 +167,7 @@ pub fn open_directory(path: &str) -> Result<DirectoryDescriptor, error::Status> 
     Ok(DirectoryDescriptor::new(current_directory))
 }
 
-pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
+pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
     // Parse filepath
     let (fs_number, path) = parse_filepath(filepath, true)?;
 
@@ -177,7 +177,7 @@ pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
             let mut filesystems = FILESYSTEMS.lock();
             match filesystems.get_mut(fs_number) {
                 Some(filesystem) => filesystem.root_directory().clone(),
-                None => return Err(error::Status::NotFound),
+                None => return Err(error::Status::NoFilesystem),
             }
         }
         None => {
@@ -186,7 +186,7 @@ pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
                 .get_current_working_directory()
             {
                 Some(dir) => dir.get_directory(),
-                None => return Err(error::Status::InvalidArgument),
+                None => return Err(error::Status::NotSupported),
             }
         }
     };
@@ -235,7 +235,7 @@ pub fn read(filepath: &str) -> Result<Vec<u8>, error::Status> {
     Ok(buffer)
 }
 
-fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result {
+fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result<()> {
     let drivers = FILESYSTEM_DRIVERS.lock();
 
     for filesystem in drivers.deref() {
@@ -252,7 +252,7 @@ fn register_filesystem(filesystem: Filesystem) {
     FILESYSTEMS.lock().insert(filesystem);
 }
 
-fn parse_filepath(filepath: &str, file: bool) -> Result<(Option<isize>, Vec<&str>), error::Status> {
+fn parse_filepath(filepath: &str, file: bool) -> error::Result<(Option<isize>, Vec<&str>)> {
     let filepath = if filepath.ends_with('/') {
         if file {
             return Err(error::Status::InvalidArgument);

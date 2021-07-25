@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
-
 use super::fat::FATBox;
+use crate::error;
+use alloc::vec::Vec;
 
 pub struct File {
     first_cluster: u32,
@@ -19,11 +19,11 @@ impl File {
 }
 
 impl crate::filesystem::File for File {
-    fn write(&mut self, _: usize, _: &[u8]) -> crate::error::Result {
-        Err(crate::error::Status::NotSupported)
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 
-    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> Result<usize, crate::error::Status> {
+    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<usize> {
         // Get info from fat
         let (bytes_per_cluster, cluster_chain) = {
             let fat = self.fat.lock();
@@ -103,8 +103,8 @@ impl crate::filesystem::File for File {
         }
     }
 
-    fn set_length(&mut self, _: usize) -> crate::error::Result {
-        Err(crate::error::Status::NotSupported)
+    fn set_length(&mut self, _: usize) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 
     fn get_length(&self) -> usize {

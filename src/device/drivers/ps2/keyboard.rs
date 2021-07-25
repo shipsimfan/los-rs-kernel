@@ -18,7 +18,7 @@ impl Keyboard {
         controller: &mut controller::Controller,
         port: usize,
         session: SessionBox,
-    ) -> Result<Self, error::Status> {
+    ) -> error::Result<Self> {
         // Set scancode set to 1
         controller.write_and_wait(port, 0xF0)?;
 
@@ -123,29 +123,29 @@ impl Keyboard {
 }
 
 impl Device for Keyboard {
-    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result {
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, _: usize) -> Result<usize, error::Status> {
+    fn read_register(&mut self, _: usize) -> error::Result<usize> {
         Err(error::Status::NotSupported)
     }
 
-    fn write_register(&mut self, _: usize, _: usize) -> error::Result {
+    fn write_register(&mut self, _: usize, _: usize) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, code: usize, argument: usize) -> Result<usize, error::Status> {
+    fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result<usize> {
         match code {
             0 => {
                 self.irq(argument as u8);
                 Ok(0)
             }
-            _ => Err(error::Status::NotSupported),
+            _ => Err(error::Status::InvalidIOCtrl),
         }
     }
 }

@@ -2,11 +2,8 @@ use super::{Directory, DirectoryBox, DirectoryContainer, ParentDirectory};
 use crate::{device::DeviceBox, error, locks::Mutex, map::*};
 use alloc::{boxed::Box, string::String, sync::Arc};
 
-pub type DetectFilesystemFunction = fn(
-    drive: DeviceBox,
-    start: usize,
-    size: usize,
-) -> Result<Option<FilesystemStarter>, error::Status>;
+pub type DetectFilesystemFunction =
+    fn(drive: DeviceBox, start: usize, size: usize) -> error::Result<Option<FilesystemStarter>>;
 
 pub struct FilesystemStarter {
     volume_name: String,
@@ -20,7 +17,7 @@ pub struct Filesystem {
 }
 
 impl Filesystem {
-    pub fn new(filesystem_starter: FilesystemStarter) -> Result<Self, error::Status> {
+    pub fn new(filesystem_starter: FilesystemStarter) -> error::Result<Self> {
         Ok(Filesystem {
             number: INVALID_ID,
             root_directory: Arc::new(Mutex::new(DirectoryContainer::new(

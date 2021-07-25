@@ -81,7 +81,7 @@ impl Process {
         }
     }
 
-    pub fn open_file(&mut self, filepath: &str) -> Result<isize, error::Status> {
+    pub fn open_file(&mut self, filepath: &str) -> error::Result<isize> {
         let file_descriptor = filesystem::open(filepath)?;
         Ok(self.file_descriptors.insert(file_descriptor))
     }
@@ -90,9 +90,9 @@ impl Process {
         self.file_descriptors.remove(fd);
     }
 
-    pub fn get_file(&mut self, fd: isize) -> Result<&mut FileDescriptor, error::Status> {
+    pub fn get_file(&mut self, fd: isize) -> error::Result<&mut FileDescriptor> {
         match self.file_descriptors.get_mut(fd) {
-            None => Err(error::Status::NotFound),
+            None => Err(error::Status::BadDescriptor),
             Some(file_descriptor) => Ok(file_descriptor),
         }
     }
@@ -108,15 +108,15 @@ impl Process {
         self.current_working_directory = Some(directory);
     }
 
-    pub fn open_directory(&mut self, path: &str) -> Result<isize, error::Status> {
+    pub fn open_directory(&mut self, path: &str) -> error::Result<isize> {
         let descriptor = filesystem::open_directory(path)?;
         Ok(self.directory_descriptors.insert(descriptor))
     }
 
-    pub fn read_directory(&mut self, dd: isize) -> Result<Option<DirectoryEntry>, error::Status> {
+    pub fn read_directory(&mut self, dd: isize) -> error::Result<Option<DirectoryEntry>> {
         match self.directory_descriptors.get_mut(dd) {
             Some(descriptor) => Ok(descriptor.next()),
-            None => Err(error::Status::NotFound),
+            None => Err(error::Status::BadDescriptor),
         }
     }
 

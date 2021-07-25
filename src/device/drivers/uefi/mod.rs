@@ -211,28 +211,28 @@ impl UEFIConsole {
 }
 
 impl Device for UEFIConsole {
-    fn write(&mut self, _address: usize, buffer: &[u8]) -> error::Result {
+    fn write(&mut self, _address: usize, buffer: &[u8]) -> error::Result<()> {
         self.print(match str::from_utf8(buffer) {
-            Err(_) => return Err(error::Status::InvalidArgument),
+            Err(_) => return Err(error::Status::InvalidUTF8),
             Ok(str) => str,
         });
 
         Ok(())
     }
 
-    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, _: usize) -> Result<usize, error::Status> {
+    fn read_register(&mut self, _: usize) -> error::Result<usize> {
         Err(error::Status::NotSupported)
     }
 
-    fn write_register(&mut self, _: usize, _: usize) -> error::Result {
+    fn write_register(&mut self, _: usize, _: usize) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, code: usize, _: usize) -> Result<usize, error::Status> {
+    fn ioctrl(&mut self, code: usize, _: usize) -> error::Result<usize> {
         match code {
             CONSOLE_IOCTRL_CLEAR => {
                 self.cx = 0;
@@ -240,7 +240,7 @@ impl Device for UEFIConsole {
                 self.clear_screen();
                 Ok(0)
             }
-            _ => Err(error::Status::NotSupported),
+            _ => Err(error::Status::InvalidIOCtrl),
         }
     }
 }

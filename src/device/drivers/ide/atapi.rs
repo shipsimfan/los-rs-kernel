@@ -23,7 +23,7 @@ impl ATAPI {
         capabilities: u16,
         size: usize,
         _model: String,
-    ) -> error::Result {
+    ) -> error::Result<()> {
         let controller = device::get_device(super::IDE_PATH)?;
 
         let path = format!("/ide/{}_{}", channel, drive);
@@ -43,26 +43,26 @@ impl ATAPI {
 }
 
 impl Device for ATAPI {
-    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
+    }
+
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
+    }
+
+    fn read_register(&mut self, _: usize) -> error::Result<usize> {
         Err(error::Status::NotSupported)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result {
+    fn write_register(&mut self, _: usize, _: usize) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, _: usize) -> Result<usize, error::Status> {
-        Err(error::Status::NotSupported)
-    }
-
-    fn write_register(&mut self, _: usize, _: usize) -> error::Result {
-        Err(error::Status::NotSupported)
-    }
-
-    fn ioctrl(&mut self, code: usize, _: usize) -> Result<usize, error::Status> {
+    fn ioctrl(&mut self, code: usize, _: usize) -> error::Result<usize> {
         match code {
             0 => Ok(self.size),
-            _ => Err(error::Status::NotSupported),
+            _ => Err(error::Status::InvalidIOCtrl),
         }
     }
 }

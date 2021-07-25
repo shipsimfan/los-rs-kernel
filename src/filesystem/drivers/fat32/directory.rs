@@ -50,7 +50,7 @@ impl Directory {
         }
     }
 
-    fn open(&self, name: &str) -> Result<DirectoryEntry, error::Status> {
+    fn open(&self, name: &str) -> error::Result<DirectoryEntry> {
         // Lock the FAT
         let fat = self.fat.lock();
 
@@ -117,12 +117,12 @@ impl Directory {
             }
         }
 
-        Err(error::Status::NotFound)
+        Err(error::Status::NoEntry)
     }
 }
 
 impl filesystem::Directory for Directory {
-    fn get_sub_files(&self) -> Result<Vec<(String, FileMetadata)>, error::Status> {
+    fn get_sub_files(&self) -> error::Result<Vec<(String, FileMetadata)>> {
         // Lock the FAT
         let fat = self.fat.lock();
 
@@ -201,7 +201,7 @@ impl filesystem::Directory for Directory {
         Ok(files)
     }
 
-    fn get_sub_directories(&self) -> Result<Vec<String>, error::Status> {
+    fn get_sub_directories(&self) -> error::Result<Vec<String>> {
         // Lock the FAT
         let fat = self.fat.lock();
 
@@ -262,7 +262,7 @@ impl filesystem::Directory for Directory {
         Ok(directories)
     }
 
-    fn open_file(&self, filename: &str) -> Result<Box<dyn File>, error::Status> {
+    fn open_file(&self, filename: &str) -> error::Result<Box<dyn File>> {
         let entry = self.open(filename)?;
 
         let first_cluster =
@@ -277,7 +277,7 @@ impl filesystem::Directory for Directory {
     fn open_directory(
         &self,
         directory_name: &str,
-    ) -> Result<Box<dyn filesystem::Directory>, error::Status> {
+    ) -> error::Result<Box<dyn filesystem::Directory>> {
         let entry = self.open(directory_name)?;
 
         let first_cluster =
@@ -285,27 +285,27 @@ impl filesystem::Directory for Directory {
         Ok(Box::new(Directory::new(first_cluster, self.fat.clone())))
     }
 
-    fn make_file(&self, _: &str) -> error::Result {
-        Err(error::Status::NotSupported)
+    fn make_file(&self, _: &str) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 
-    fn make_directory(&self, _: &str) -> error::Result {
-        Err(error::Status::NotSupported)
+    fn make_directory(&self, _: &str) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 
-    fn rename_file(&self, _: &str, _: &str) -> error::Result {
-        Err(error::Status::NotSupported)
+    fn rename_file(&self, _: &str, _: &str) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 
-    fn rename_directory(&self, _: &str, _: &str) -> error::Result {
-        Err(error::Status::NotSupported)
+    fn rename_directory(&self, _: &str, _: &str) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 
-    fn remove_file(&self, _: &str) -> error::Result {
-        Err(error::Status::NotSupported)
+    fn remove_file(&self, _: &str) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 
-    fn remove_directory(&self, _: &str) -> error::Result {
-        Err(error::Status::NotSupported)
+    fn remove_directory(&self, _: &str) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
     }
 }

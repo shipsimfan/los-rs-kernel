@@ -2,7 +2,7 @@ use core::convert::{TryFrom, TryInto};
 
 use alloc::{boxed::Box, sync::Arc};
 
-use crate::{locks::Mutex, log, logln};
+use crate::{error, locks::Mutex, log, logln};
 
 const ADDRESS_PORT: u16 = 0xCF8;
 const DATA_PORT: u16 = 0xCFC;
@@ -209,7 +209,7 @@ pub fn initialize() {
 }
 
 impl TryFrom<u8> for Register {
-    type Error = crate::error::Status;
+    type Error = error::Status;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -234,7 +234,7 @@ impl TryFrom<u8> for Register {
             0x3C => Ok(Register::InterruptLine),
             0x3D => Ok(Register::InterruptPin),
             0x1A => Ok(Register::SecondaryBusNumber),
-            _ => Err(crate::error::Status::InvalidArgument),
+            _ => Err(error::Status::OutOfRange),
         }
     }
 }
@@ -250,15 +250,15 @@ impl PCIDevice {
 }
 
 impl crate::device::Device for PCIDevice {
-    fn read(&self, _: usize, _: &mut [u8]) -> crate::error::Result {
-        Err(crate::error::Status::NotSupported)
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result<()> {
+        Err(error::Status::NotSupported)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> crate::error::Result {
-        Err(crate::error::Status::NotSupported)
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
+        Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, address: usize) -> Result<usize, crate::error::Status> {
+    fn read_register(&mut self, address: usize) -> error::Result<usize> {
         let register = ((address & 0xFF) as u8).try_into()?;
         match register {
             Register::Class
@@ -288,7 +288,7 @@ impl crate::device::Device for PCIDevice {
         }
     }
 
-    fn write_register(&mut self, address: usize, value: usize) -> crate::error::Result {
+    fn write_register(&mut self, address: usize, value: usize) -> error::Result<()> {
         let register = ((address & 0xFF) as u8).try_into()?;
         match register {
             Register::Class
@@ -332,29 +332,29 @@ impl crate::device::Device for PCIDevice {
         }
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, crate::error::Status> {
-        Err(crate::error::Status::NotSupported)
+    fn ioctrl(&mut self, _: usize, _: usize) -> error::Result<usize> {
+        Err(error::Status::NotSupported)
     }
 }
 
 impl crate::device::Device for PCIBus {
-    fn read(&self, _: usize, _: &mut [u8]) -> crate::error::Result {
-        Err(crate::error::Status::NotSupported)
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result<()> {
+        Err(error::Status::NotSupported)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> crate::error::Result {
-        Err(crate::error::Status::NotSupported)
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
+        Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, _: usize) -> Result<usize, crate::error::Status> {
-        Err(crate::error::Status::NotSupported)
+    fn read_register(&mut self, _: usize) -> error::Result<usize> {
+        Err(error::Status::NotSupported)
     }
 
-    fn write_register(&mut self, _: usize, _: usize) -> crate::error::Result {
-        Err(crate::error::Status::NotSupported)
+    fn write_register(&mut self, _: usize, _: usize) -> error::Result<()> {
+        Err(error::Status::NotSupported)
     }
 
-    fn ioctrl(&mut self, _: usize, _: usize) -> Result<usize, crate::error::Status> {
-        Err(crate::error::Status::NotSupported)
+    fn ioctrl(&mut self, _: usize, _: usize) -> error::Result<usize> {
+        Err(error::Status::NotSupported)
     }
 }

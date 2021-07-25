@@ -35,7 +35,7 @@ impl FAT {
         }
     }
 
-    pub fn get_cluster_chain(&self, first_cluster: u32) -> Result<Vec<u32>, error::Status> {
+    pub fn get_cluster_chain(&self, first_cluster: u32) -> error::Result<Vec<u32>> {
         let mut cluster_chain = Vec::new();
 
         let mut buffer = Vec::with_capacity(self.bytes_per_sector);
@@ -68,7 +68,7 @@ impl FAT {
         Ok(cluster_chain)
     }
 
-    pub fn read_cluster(&self, cluster: u32, buffer: &mut [u8]) -> error::Result {
+    pub fn read_cluster(&self, cluster: u32, buffer: &mut [u8]) -> error::Result<()> {
         self.drive
             .lock()
             .read(self.cluster_to_sector(cluster), buffer)

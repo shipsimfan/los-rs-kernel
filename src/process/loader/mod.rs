@@ -2,12 +2,12 @@ use crate::error;
 
 mod elf;
 
-pub fn verify_executable(buffer: &[u8]) -> Result<usize, error::Status> {
+pub fn verify_executable(buffer: &[u8]) -> error::Result<usize> {
     let header = elf::Elf64_Ehdr::from_slice(buffer);
     header.verify()
 }
 
-pub fn load_executable(buffer: &[u8]) -> Result<(), error::Status> {
+pub fn load_executable(buffer: &[u8]) -> error::Result<()> {
     // Get the header
     let header = elf::Elf64_Ehdr::from_slice(buffer);
 

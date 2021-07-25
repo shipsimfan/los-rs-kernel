@@ -23,7 +23,7 @@ pub type SessionBox = Arc<Mutex<Session>>;
 
 static SESSIONS: Mutex<control::SessionControl> = Mutex::new(control::SessionControl::new());
 
-pub fn create_console_session(output_device_path: &str) -> Result<SessionBox, error::Status> {
+pub fn create_console_session(output_device_path: &str) -> error::Result<SessionBox> {
     let output_device = crate::device::get_device(output_device_path)?;
     Ok(
         (*SESSIONS.lock())

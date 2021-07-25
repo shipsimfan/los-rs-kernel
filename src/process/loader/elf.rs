@@ -117,14 +117,14 @@ impl Elf64_Ehdr {
         }
     }
 
-    pub fn verify(&self) -> Result<usize, error::Status> {
+    pub fn verify(&self) -> error::Result<usize> {
         // Verify MAG
         if self.e_ident[EI_MAG0] != ELFMAG0
             || self.e_ident[EI_MAG1] != ELFMAG1
             || self.e_ident[EI_MAG2] != ELFMAG2
             || self.e_ident[EI_MAG3] != ELFMAG3
         {
-            return Err(error::Status::InvalidArgument);
+            return Err(error::Status::InvalidExecutableFormat);
         }
 
         // Verify class
@@ -139,12 +139,12 @@ impl Elf64_Ehdr {
 
         // Verify version
         if self.e_ident[EI_VERSION] < EV_CURRENT as u8 || self.e_version < EV_CURRENT {
-            return Err(error::Status::InvalidArgument);
+            return Err(error::Status::InvalidExecutableFormat);
         }
 
         // Verify type
         if self.e_type != ET_EXEC {
-            return Err(error::Status::InvalidArgument);
+            return Err(error::Status::InvalidExecutableFormat);
         }
 
         // Verify machine

@@ -15,7 +15,7 @@ pub fn detect_fat32_filesystem(
     drive_lock: DeviceBox,
     start: usize,
     _: usize,
-) -> Result<Option<FilesystemStarter>, error::Status> {
+) -> error::Result<Option<FilesystemStarter>> {
     let drive = drive_lock.lock();
 
     // Get BPB

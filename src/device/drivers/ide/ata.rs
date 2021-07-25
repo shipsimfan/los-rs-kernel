@@ -25,7 +25,7 @@ impl ATA {
         capabilities: u16,
         size: usize,
         _model: String,
-    ) -> error::Result {
+    ) -> error::Result<()> {
         let controller = device::get_device(super::IDE_PATH)?;
 
         let path = format!("/ide/{}_{}", channel, drive);
@@ -45,7 +45,7 @@ impl ATA {
 }
 
 impl Device for ATA {
-    fn read(&self, lba: usize, buffer: &mut [u8]) -> error::Result {
+    fn read(&self, lba: usize, buffer: &mut [u8]) -> error::Result<()> {
         let lba_mode;
         let lba_io;
         let channel = self.channel.clone();
@@ -144,7 +144,7 @@ impl Device for ATA {
                 self.channel.clone() as usize,
             )? != 0
             {
-                return Err(error::Status::DeviceError);
+                return Err(error::Status::IOError);
             }
 
             controller.read(
@@ -156,22 +156,22 @@ impl Device for ATA {
         Ok(())
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result {
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
+    }
+
+    fn read_register(&mut self, _: usize) -> error::Result<usize> {
         Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, _: usize) -> Result<usize, error::Status> {
+    fn write_register(&mut self, _: usize, _: usize) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn write_register(&mut self, _: usize, _: usize) -> error::Result {
-        Err(error::Status::NotSupported)
-    }
-
-    fn ioctrl(&mut self, code: usize, _: usize) -> Result<usize, error::Status> {
+    fn ioctrl(&mut self, code: usize, _: usize) -> error::Result<usize> {
         match code {
             0 => Ok(self.size),
-            _ => Err(error::Status::NotSupported),
+            _ => Err(error::Status::InvalidIOCtrl),
         }
     }
 }

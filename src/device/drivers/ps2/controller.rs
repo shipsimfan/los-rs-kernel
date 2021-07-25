@@ -112,14 +112,14 @@ impl Controller {
         }
     }
 
-    pub fn write_and_wait(&mut self, port: usize, data: u8) -> error::Result {
+    pub fn write_and_wait(&mut self, port: usize, data: u8) -> error::Result<()> {
         self.port_irq[port] = false;
         self.write_register(port, data as usize)?;
 
         let start = time::current_time_millis();
         while !self.port_irq[port] {
             if time::current_time_millis() > start + TIMEOUT {
-                return Err(error::Status::Timeout);
+                return Err(error::Status::TimedOut);
             }
         }
 
@@ -130,7 +130,7 @@ impl Controller {
         self.initializing[port] = false;
     }
 
-    fn enumerate_devices(&mut self) -> Result<usize, error::Status> {
+    fn enumerate_devices(&mut self) -> error::Result<usize> {
         // Install interrupt handlers
         interrupts::irq::install_irq_handler(1, first_port_irq, self as *mut _ as usize);
         interrupts::irq::install_irq_handler(12, second_port_irq, self as *mut _ as usize);
@@ -157,7 +157,7 @@ impl Controller {
         let response = read_data();
         if response != 0x55 {
             logln!("\nError during self test");
-            return Err(error::Status::DeviceError);
+            return Err(error::Status::IOError);
         }
 
         // Rewrite configuration byte
@@ -220,7 +220,7 @@ impl Controller {
         Ok(0)
     }
 
-    fn ident_port(&mut self, port: usize) -> error::Result {
+    fn ident_port(&mut self, port: usize) -> error::Result<()> {
         // Reset
         match self.write_and_wait(port, DEVICE_COMMAND_RESET) {
             Ok(()) => {}
@@ -232,7 +232,7 @@ impl Controller {
 
         if self.port_data[port] != DEVICE_ACK {
             self.port_exists[port] = false;
-            return Err(error::Status::DeviceError);
+            return Err(error::Status::IOError);
         }
 
         // Identify device
@@ -258,7 +258,7 @@ impl Controller {
 
         if self.port_data[port] != DEVICE_ACK {
             self.port_exists[port] = false;
-            return Err(error::Status::DeviceError);
+            return Err(error::Status::IOError);
         }
 
         self.port_irq[port] = false;
@@ -323,25 +323,25 @@ impl Controller {
 }
 
 impl Device for Controller {
-    fn read(&self, _: usize, _: &mut [u8]) -> error::Result {
+    fn read(&self, _: usize, _: &mut [u8]) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result {
+    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
         Err(error::Status::NotSupported)
     }
 
-    fn read_register(&mut self, _: usize) -> Result<usize, error::Status> {
+    fn read_register(&mut self, _: usize) -> error::Result<usize> {
         Err(error::Status::NotSupported)
     }
 
-    fn write_register(&mut self, address: usize, value: usize) -> error::Result {
+    fn write_register(&mut self, address: usize, value: usize) -> error::Result<()> {
         if address > 1 {
-            return Err(error::Status::InvalidArgument);
+            return Err(error::Status::BadAddress);
         }
 
         if !self.port_exists[address] {
-            return Err(error::Status::InvalidArgument);
+            return Err(error::Status::BadAddress);
         }
 
         if address == 1 {
@@ -351,7 +351,7 @@ impl Device for Controller {
         let start = time::current_time_millis();
         while inb(REGISTER_STATUS) & 2 != 0 {
             if time::current_time_millis() > start + TIMEOUT {
-                return Err(error::Status::Timeout);
+                return Err(error::Status::TimedOut);
             }
         }
 
@@ -360,10 +360,10 @@ impl Device for Controller {
         Ok(())
     }
 
-    fn ioctrl(&mut self, code: usize, _: usize) -> Result<usize, error::Status> {
+    fn ioctrl(&mut self, code: usize, _: usize) -> error::Result<usize> {
         match code {
             0 => self.enumerate_devices(),
-            _ => Err(error::Status::NotSupported),
+            _ => Err(error::Status::InvalidIOCtrl),
         }
     }
 }

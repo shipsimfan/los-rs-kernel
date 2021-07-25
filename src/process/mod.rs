@@ -11,6 +11,7 @@ use core::usize;
 use alloc::{string::String, vec::Vec};
 
 use crate::{
+    error,
     filesystem::{self, open_directory, DirectoryDescriptor},
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
@@ -70,14 +71,14 @@ pub fn execute(
     filepath: &str,
     args: Vec<String>,
     environment: Vec<String>,
-) -> Result<isize, crate::error::Status> {
+) -> error::Result<isize> {
     // Load the executable
     let buffer = filesystem::read(filepath)?;
 
     // Parse the elf header
     let entry = loader::verify_executable(&buffer)?;
     if entry >= KERNEL_VMA {
-        return Err(crate::error::Status::InvalidArgument);
+        return Err(error::Status::ArgumentSecurity);
     }
 
     // Figure out working directory

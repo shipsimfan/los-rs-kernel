@@ -16,15 +16,15 @@ impl Console {
         }
     }
 
-    pub fn write(&mut self, buffer: &[u8]) -> Result<(), error::Status> {
+    pub fn write(&mut self, buffer: &[u8]) -> error::Result<()> {
         self.output_device.lock().write(0, buffer)
     }
 
-    pub fn write_str(&mut self, string: &str) -> Result<(), error::Status> {
+    pub fn write_str(&mut self, string: &str) -> error::Result<()> {
         self.write(string.as_bytes())
     }
 
-    pub fn clear(&mut self) -> Result<(), error::Status> {
+    pub fn clear(&mut self) -> error::Result<()> {
         self.output_device.lock().ioctrl(CONSOLE_IOCTRL_CLEAR, 0)?;
         Ok(())
     }

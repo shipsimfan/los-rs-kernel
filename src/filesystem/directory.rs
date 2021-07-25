@@ -5,16 +5,16 @@ use alloc::{boxed::Box, format, string::String, sync::Arc, vec::Vec};
 pub type DirectoryBox = Arc<Mutex<DirectoryContainer>>;
 
 pub trait Directory: Send {
-    fn get_sub_files(&self) -> Result<Vec<(String, FileMetadata)>, error::Status>; // Used to get sub files on initialization
-    fn get_sub_directories(&self) -> Result<Vec<String>, error::Status>; // Used to get sub directories on initialization
-    fn open_file(&self, filename: &str) -> Result<Box<dyn File>, error::Status>;
-    fn open_directory(&self, directory_name: &str) -> Result<Box<dyn Directory>, error::Status>;
-    fn make_file(&self, filename: &str) -> error::Result;
-    fn make_directory(&self, directory_name: &str) -> error::Result;
-    fn rename_file(&self, old_name: &str, new_name: &str) -> error::Result;
-    fn rename_directory(&self, old_name: &str, new_name: &str) -> error::Result;
-    fn remove_file(&self, filename: &str) -> error::Result;
-    fn remove_directory(&self, directory_name: &str) -> error::Result;
+    fn get_sub_files(&self) -> error::Result<Vec<(String, FileMetadata)>>; // Used to get sub files on initialization
+    fn get_sub_directories(&self) -> error::Result<Vec<String>>; // Used to get sub directories on initialization
+    fn open_file(&self, filename: &str) -> error::Result<Box<dyn File>>;
+    fn open_directory(&self, directory_name: &str) -> error::Result<Box<dyn Directory>>;
+    fn make_file(&self, filename: &str) -> error::Result<()>;
+    fn make_directory(&self, directory_name: &str) -> error::Result<()>;
+    fn rename_file(&self, old_name: &str, new_name: &str) -> error::Result<()>;
+    fn rename_directory(&self, old_name: &str, new_name: &str) -> error::Result<()>;
+    fn remove_file(&self, filename: &str) -> error::Result<()>;
+    fn remove_directory(&self, directory_name: &str) -> error::Result<()>;
 }
 
 pub enum ParentDirectory {
@@ -34,7 +34,7 @@ impl DirectoryContainer {
     pub fn new(
         directory: Box<dyn Directory>,
         parent_directory: ParentDirectory,
-    ) -> Result<Self, error::Status> {
+    ) -> error::Result<Self> {
         let sub_file_names = directory.get_sub_files()?;
         let mut sub_files = Vec::with_capacity(sub_file_names.len());
         for (sub_file_name, sub_file_metadata) in sub_file_names {
@@ -63,14 +63,14 @@ impl DirectoryContainer {
         }
     }
 
-    pub fn get_file_metadata(&self, name: &str) -> Result<FileMetadata, error::Status> {
+    pub fn get_file_metadata(&self, name: &str) -> error::Result<FileMetadata> {
         for (sub_name, sub_metadata, _) in &self.sub_files {
             if sub_name == name {
                 return Ok(sub_metadata.clone());
             }
         }
 
-        Err(error::Status::NotFound)
+        Err(error::Status::NoEntry)
     }
 
     pub fn set_drive_number(&mut self, number: isize) {
@@ -109,7 +109,7 @@ impl DirectoryContainer {
         &mut self,
         name: &str,
         self_box: &DirectoryBox,
-    ) -> Result<DirectoryBox, error::Status> {
+    ) -> error::Result<DirectoryBox> {
         for (sub_name, sub_dir) in &mut self.sub_directories {
             if sub_name != name {
                 continue;
@@ -130,14 +130,10 @@ impl DirectoryContainer {
             }
         }
 
-        Err(error::Status::NotFound)
+        Err(error::Status::NoEntry)
     }
 
-    pub fn open_file(
-        &mut self,
-        name: &str,
-        self_box: &DirectoryBox,
-    ) -> Result<FileBox, error::Status> {
+    pub fn open_file(&mut self, name: &str, self_box: &DirectoryBox) -> error::Result<FileBox> {
         for (sub_name, _, sub_file) in &mut self.sub_files {
             if sub_name != name {
                 continue;
@@ -156,7 +152,7 @@ impl DirectoryContainer {
             }
         }
 
-        Err(error::Status::NotFound)
+        Err(error::Status::NoEntry)
     }
 
     pub fn open(&mut self) {

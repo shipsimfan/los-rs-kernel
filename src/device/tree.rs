@@ -12,7 +12,7 @@ pub struct Tree {
     root_devices: Vec<Container>,
 }
 
-fn parse_path(path: &str) -> Result<(Vec<String>, String), error::Status> {
+fn parse_path(path: &str) -> error::Result<(Vec<String>, String)> {
     let mut parts = Vec::new();
     let mut current_part = String::new();
     let mut first = true;
@@ -45,7 +45,7 @@ impl Tree {
         }
     }
 
-    pub fn register_device(&mut self, path: &str, device: DeviceBox) -> error::Result {
+    pub fn register_device(&mut self, path: &str, device: DeviceBox) -> error::Result<()> {
         match parse_path(path) {
             Err(err) => Err(err),
             Ok((path_parts, name)) => {
@@ -65,7 +65,7 @@ impl Tree {
 
                 for device in not_mut_vec {
                     if device.name == name {
-                        return Err(error::Status::AlreadyExists);
+                        return Err(error::Status::Exists);
                     }
                 }
 
@@ -101,7 +101,7 @@ impl Tree {
         }
     }
 
-    pub fn get_device(&mut self, path: &str) -> Result<DeviceBox, error::Status> {
+    pub fn get_device(&mut self, path: &str) -> error::Result<DeviceBox> {
         let (path_parts, name) = parse_path(path)?;
 
         let mut current_device = &self.root_devices;
@@ -113,7 +113,7 @@ impl Tree {
                 }
             }
 
-            return Err(error::Status::NotFound);
+            return Err(error::Status::NoDevice);
         }
 
         for device in current_device {
@@ -122,6 +122,6 @@ impl Tree {
             }
         }
 
-        Err(error::Status::NotFound)
+        Err(error::Status::NoDevice)
     }
 }

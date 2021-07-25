@@ -17,14 +17,14 @@ pub fn system_call(
         WAIT_THREAD_SYSCALL => process::wait_thread((arg1 & 0x7FFFFFFFFFFF) as isize),
         CREATE_THREAD_SYSCALL => {
             if arg1 >= KERNEL_VMA {
-                error::Status::InvalidArgument as isize
+                error::Status::ArgumentSecurity as isize
             } else {
                 process::create_thread_raw(arg1, arg2)
             }
         }
         _ => {
             logln!("Invalid thread system call: {}", code);
-            error::Status::InvalidSystemCall as isize
+            error::Status::InvalidRequestCode as isize
         }
     }
 }

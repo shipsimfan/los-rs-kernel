@@ -6,20 +6,20 @@ pub mod drivers;
 mod tree;
 
 pub trait Device: Send {
-    fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result;
-    fn write(&mut self, address: usize, buffer: &[u8]) -> error::Result;
+    fn read(&self, address: usize, buffer: &mut [u8]) -> error::Result<()>;
+    fn write(&mut self, address: usize, buffer: &[u8]) -> error::Result<()>;
 
-    fn read_register(&mut self, address: usize) -> Result<usize, error::Status>;
-    fn write_register(&mut self, address: usize, value: usize) -> error::Result;
+    fn read_register(&mut self, address: usize) -> error::Result<usize>;
+    fn write_register(&mut self, address: usize, value: usize) -> error::Result<()>;
 
-    fn ioctrl(&mut self, code: usize, argument: usize) -> Result<usize, error::Status>;
+    fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result<usize>;
 }
 
 pub type DeviceBox = Arc<Mutex<Box<dyn Device>>>;
 
 static DEVICE_TREE: Mutex<tree::Tree> = Mutex::new(tree::Tree::new());
 
-pub fn register_device(path: &str, device: DeviceBox) -> error::Result {
+pub fn register_device(path: &str, device: DeviceBox) -> error::Result<()> {
     DEVICE_TREE.lock().register_device(path, device)
 }
 
@@ -27,7 +27,7 @@ pub fn remove_device(path: &str) {
     DEVICE_TREE.lock()._remove_device(path)
 }
 
-pub fn get_device(path: &str) -> Result<DeviceBox, error::Status> {
+pub fn get_device(path: &str) -> error::Result<DeviceBox> {
     DEVICE_TREE.lock().get_device(path)
 }
 

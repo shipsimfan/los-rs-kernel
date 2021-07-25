@@ -28,7 +28,7 @@ impl FileDescriptor {
         }
     }
 
-    pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, error::Status> {
+    pub fn read(&mut self, buffer: &mut [u8]) -> error::Result<usize> {
         let ret = self.file.lock().read(self.current_offset, buffer)?;
 
         self.current_offset += ret;
