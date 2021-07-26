@@ -17,6 +17,7 @@ pub unsafe fn initialize(
 ) {
     physical::initialize(mmap);
     virtual_mem::initialize(mmap, gmode);
+    heap::initialize();
 }
 
 pub fn get_free_memory() -> usize {
