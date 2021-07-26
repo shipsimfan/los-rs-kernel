@@ -17,6 +17,10 @@ pub fn enable_boot_video_logging() {
     (*BOOT_VIDEO_LOGGER.lock()) = Some(BootVideoLogger(boot_video_device));
 }
 
+pub fn disable_boot_video_logging() {
+    (*BOOT_VIDEO_LOGGER.lock()) = None;
+}
+
 impl Write for BootVideoLogger {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         match self.0.lock().write(0, s.as_bytes()) {

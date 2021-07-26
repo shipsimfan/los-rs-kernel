@@ -28,8 +28,6 @@ mod time;
 
 extern crate alloc;
 
-use alloc::string::ToString;
-
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[no_mangle]
@@ -39,6 +37,7 @@ pub extern "C" fn kmain(
     rsdp: *const core::ffi::c_void,
 ) -> ! {
     interrupts::exceptions::initialize();
+    interrupts::initialize_system_calls();
     unsafe { memory::initialize(mmap, gmode) };
     device::drivers::uefi::initialize(gmode); // Also initializes the UEFI console as logger output
 
@@ -54,62 +53,34 @@ pub extern "C" fn kmain(
 
     interrupts::irq::initialize();
 
-    log!("Creating first session . . . ");
-    let first_session =
-        session::create_console_session("/boot_video").expect("Failed to create first session");
-    logln!("OK!");
-    log!("Creating startup process . . . ");
-    first_session
-        .lock()
-        .create_process(startup_thread as usize, 0, None, first_session.clone());
+    log!("Creating kinit process . . . ");
+    process::create_process(kinit, None);
     logln!("OK!");
     process::yield_thread();
 
     loop {}
 }
 
-fn startup_thread() -> usize {
-    log!("Loading filesystem drivers . . .");
+fn kinit() -> isize {
+    logln!("Loading filesystem drivers . . .");
     filesystem::register_filesystem_driver(filesystem::drivers::fat32::detect_fat32_filesystem);
-    logln!("OK!");
 
-    logln!("Loading device drivers . . . ");
-
+    logln!("Loading boot device drivers . . . ");
     device::drivers::hpet::initialize();
     device::drivers::pci::initialize();
     device::drivers::ide::initialize();
-    device::drivers::ps2::initialize();
 
-    logln!("Starting shell . . . ");
-
-    match process::get_current_thread_mut()
-        .get_process_mut()
-        .get_session_mut()
-    {
-        None => panic!("Starting process is a daemon!"),
-        Some(session) => match session.lock().get_sub_session_mut() {
-            session::SubSession::Console(console) => match console.clear() {
-                Ok(()) => {}
-                Err(status) => panic!("Unable to clear console! {}", status),
-            },
-        },
+    if device::get_device("/boot_video").is_ok() {
+        logln!("Starting boot video session . . . ");
+        logger::disable_boot_video_logging();
+        match session::create_console_session("/boot_video") {
+            Ok(_) => {}
+            Err(status) => panic!("Failed to create boot video session: {}", status),
+        }
     }
 
-    let pid = match process::execute(
-        ":1/los/bin/shell.app",
-        alloc::vec::Vec::new(),
-        alloc::vec!["PATH=:1/los/bin".to_string()],
-    ) {
-        Ok(pid) => pid,
-        Err(status) => {
-            logln!("Error while starting shell: {}", status);
-            loop {
-                unsafe { asm!("hlt") }
-            }
-        }
-    };
-    let status = process::wait_process(pid);
-    logln!("Shell exited with status: {}", status);
+    logln!("Loading device drivers . . . ");
+    device::drivers::ps2::initialize();
 
     loop {
         unsafe { asm!("sti;hlt") };

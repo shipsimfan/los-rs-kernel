@@ -4,7 +4,7 @@ use crate::{
     device::{self, inb, outb, Device, DeviceBox},
     error, interrupts,
     locks::Mutex,
-    logln, process, time,
+    logln, process, session, time,
 };
 
 use super::keyboard;
@@ -292,11 +292,14 @@ impl Controller {
                 .get_process_mut()
                 .get_session_mut()
             {
-                None => {
-                    logln!("Unable to register keyboard without session!");
-                    self.port_exists[port] = false;
-                    return Ok(());
-                }
+                None => match session::get_session_mut(1) {
+                    Some(session) => session,
+                    None => {
+                        logln!("Unable to register keyboard without session!");
+                        self.port_exists[port] = false;
+                        return Ok(());
+                    }
+                },
                 Some(session) => session,
             };
 

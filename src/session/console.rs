@@ -30,11 +30,13 @@ pub const IOCTRL_GET_WIDTH: usize = 6;
 pub const IOCTRL_GET_HEIGHT: usize = 7;
 
 impl Console {
-    pub fn new(output_device: DeviceBox) -> Self {
-        Console {
+    pub fn new(output_device: DeviceBox) -> error::Result<Self> {
+        output_device.lock().ioctrl(IOCTRL_CLEAR, 0)?;
+
+        Ok(Console {
             output_device,
             event_queue: Queue::new(),
-        }
+        })
     }
 
     pub fn write(&mut self, buffer: &[u8]) -> error::Result<()> {

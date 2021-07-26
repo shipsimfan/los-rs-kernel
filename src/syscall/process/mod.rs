@@ -61,14 +61,14 @@ pub fn system_call(
         }
         GET_CURRENT_WORKING_DIRECTORY => {
             if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
-                error::Status::ArgumentSecurity as isize
+                error::Status::ArgumentSecurity.to_return_code()
             } else {
                 let mut path = match process::get_current_thread_mut()
                     .get_process_mut()
                     .get_current_working_directory()
                 {
                     Some(dir) => dir.get_full_path(),
-                    None => return error::Status::NotSupported as isize,
+                    None => return error::Status::NotSupported.to_return_code(),
                 };
 
                 path.push(0 as char);
@@ -103,7 +103,7 @@ pub fn system_call(
         }
         _ => {
             logln!("Invalid process system call: {}", code);
-            error::Status::InvalidRequestCode as isize
+            error::Status::InvalidRequestCode.to_return_code()
         }
     }
 }

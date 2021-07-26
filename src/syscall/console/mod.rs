@@ -28,7 +28,7 @@ pub fn system_call(
         .get_session_mut()
     {
         Some(session) => session,
-        None => return error::Status::InvalidSession as isize,
+        None => return error::Status::InvalidSession.to_return_code(),
     };
 
     let mut session = session_lock.lock();

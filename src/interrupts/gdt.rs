@@ -47,7 +47,6 @@ static mut TSS: TSS = TSS::null();
 
 extern "C" {
     fn install_gdt(gdtr: *const c_void, data0: u16, tss: u16, code0: u16);
-    fn init_system_calls();
 }
 
 pub fn initialize() {
@@ -61,7 +60,7 @@ pub fn initialize() {
         // CODE 3
         GDT.0[4] = Entry::new(true, true, false, true);
 
-        // DATA 0
+        // DATA 3
         GDT.0[3] = Entry::new(false, true, true, false);
 
         // TSS
@@ -103,9 +102,6 @@ pub fn initialize() {
             0x28,
             0x8,
         );
-
-        // Enable system calls
-        init_system_calls();
     }
 }
 

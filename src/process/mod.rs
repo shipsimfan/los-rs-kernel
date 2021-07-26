@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod control;
+mod daemon;
 mod loader;
 mod process;
 mod queue;
@@ -15,6 +16,7 @@ use crate::{
     filesystem::{self, open_directory, DirectoryDescriptor},
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
+    session::{self, SessionBox},
 };
 
 pub type Thread = thread::Thread;
@@ -59,7 +61,7 @@ unsafe extern "C" fn switch_thread(next_thread: *mut Thread) {
                 if current_process.remove_thread(current_thread.id()) {
                     let current_process_id = current_process.id();
                     match current_process.get_session_mut() {
-                        None => {} // TODO: Remove from daemon
+                        None => daemon::remove_process(current_process_id),
                         Some(session) => (*session.as_ptr()).remove_process(current_process_id),
                     }
                 }
@@ -70,10 +72,11 @@ unsafe extern "C" fn switch_thread(next_thread: *mut Thread) {
     THREAD_CONTROL.set_current_thread(next_thread);
 }
 
-pub fn execute(
+fn do_execute(
     filepath: &str,
     args: Vec<String>,
     environment: Vec<String>,
+    session_lock: Option<SessionBox>,
 ) -> error::Result<isize> {
     // Load the executable
     let buffer = filesystem::read(filepath)?;
@@ -84,11 +87,11 @@ pub fn execute(
         return Err(error::Status::ArgumentSecurity);
     }
 
+    // Get the current process
+    let current_process = get_current_thread_mut().get_process_mut();
+
     // Figure out working directory
-    let working_directory = match get_current_thread_mut()
-        .get_process_mut()
-        .get_current_working_directory()
-    {
+    let working_directory = match current_process.get_current_working_directory() {
         None => {
             let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
             iter.next_back();
@@ -107,19 +110,33 @@ pub fn execute(
     };
 
     // Create a process
-    let pid = do_create_process(
-        entry,
-        USERSPACE_CONTEXT_LOCATION as usize,
-        Some(working_directory),
-    );
+    let pid = match &session_lock {
+        Some(session_lock) => session_lock.lock().create_process(
+            entry,
+            USERSPACE_CONTEXT_LOCATION as usize,
+            Some(working_directory),
+            session_lock.clone(),
+        ),
+        None => daemon::create_process(
+            entry,
+            USERSPACE_CONTEXT_LOCATION as usize,
+            Some(working_directory),
+        ),
+    };
 
-    // Lock session
-    let current_process = get_current_thread_mut().get_process_mut();
-    let session_lock = current_process.get_session_mut().unwrap();
-    let mut session = session_lock.lock();
+    // Get new process
+    let new_process = match &session_lock {
+        Some(session_lock) => {
+            let mut session = session_lock.lock();
+            unsafe { &mut *(session.get_process_mut(pid).unwrap() as *mut Process) }
+        }
+        None => {
+            let mut daemon = daemon::get_daemon().lock();
+            unsafe { &mut *(daemon.get_mut(pid).unwrap() as *mut Process) }
+        }
+    };
 
     unsafe { asm!("cli") };
-    let new_process = session.get_process_mut(pid).unwrap();
 
     // Switch to new process address space
     new_process.set_address_space_as_current();
@@ -188,6 +205,32 @@ pub fn execute(
     Ok(pid)
 }
 
+pub fn execute_session(
+    filepath: &str,
+    args: Vec<String>,
+    environment: Vec<String>,
+    sid: isize,
+) -> error::Result<isize> {
+    if sid == 0 {
+        do_execute(filepath, args, environment, None)
+    } else {
+        match session::get_session_mut(sid) {
+            None => Err(error::Status::InvalidSession),
+            Some(session) => do_execute(filepath, args, environment, Some(session)),
+        }
+    }
+}
+
+pub fn execute(
+    filepath: &str,
+    args: Vec<String>,
+    environment: Vec<String>,
+) -> error::Result<isize> {
+    let current_process = get_current_thread_mut().get_process_mut();
+    let session = current_process.get_session_mut();
+    do_execute(filepath, args, environment, session)
+}
+
 pub fn create_thread(entry: ThreadFunc) -> isize {
     create_thread_raw(entry as usize, 0)
 }
@@ -198,26 +241,22 @@ pub fn create_thread_raw(entry: usize, context: usize) -> isize {
         .create_thread(entry, context)
 }
 
-fn do_create_process(
-    entry: usize,
-    context: usize,
-    working_directory: Option<DirectoryDescriptor>,
-) -> isize {
-    let current_thread = get_current_thread_mut();
-    let current_process = current_thread.get_process_mut();
-    match current_process.get_session_mut() {
-        None => panic!("Creating daemon process!"),
-        Some(current_session) => current_session.lock().create_process(
-            entry,
-            context,
-            working_directory,
-            current_session.clone(),
-        ),
-    }
-}
-
 pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> isize {
-    do_create_process(entry as usize, 0, working_directory)
+    match get_current_thread_mut_option() {
+        Some(current_thread) => {
+            let current_process = current_thread.get_process_mut();
+            match current_process.get_session_mut() {
+                None => daemon::create_process(entry as usize, 0, working_directory),
+                Some(current_session) => current_session.lock().create_process(
+                    entry as usize,
+                    0,
+                    working_directory,
+                    current_session.clone(),
+                ),
+            }
+        }
+        None => daemon::create_process(entry as usize, 0, working_directory),
+    }
 }
 
 pub unsafe fn queue_thread_cli(thread: &mut Thread) {
@@ -289,7 +328,10 @@ pub fn wait_thread(tid: isize) -> isize {
 pub fn wait_process(pid: isize) -> isize {
     let current_thread = get_current_thread_mut();
     match current_thread.get_process_mut().get_session_mut() {
-        None => panic!("Waiting on a daemon!"),
+        None => match daemon::get_daemon().lock().get_mut(pid) {
+            None => return isize::MIN,
+            Some(process) => process.insert_into_exit_queue(current_thread),
+        },
         Some(session) => match session.lock().get_process_mut(pid) {
             None => return isize::MIN,
             Some(process) => process.insert_into_exit_queue(current_thread),
@@ -351,7 +393,7 @@ pub fn kill_process(pid: isize) {
     let current_process = get_current_thread_mut().get_process_mut();
     let session_lock = match current_process.get_session_mut() {
         Some(session) => session,
-        None => panic!("Killing process on daemon session!"),
+        None => return daemon::kill_process(pid),
     };
     let mut session = session_lock.lock();
 

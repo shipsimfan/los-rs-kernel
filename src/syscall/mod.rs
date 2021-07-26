@@ -31,7 +31,7 @@ extern "C" fn system_call(
         event::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
-        error::Status::InvalidRequestCode as isize
+        error::Status::InvalidRequestCode.to_return_code()
     }
 }
 

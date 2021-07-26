@@ -63,7 +63,7 @@ perform_yield:
 
 GLOBAL thread_enter_user
 thread_enter_user:
-    o64 sysret
+    iretq
 
 GLOBAL set_fs_base
 set_fs_base:

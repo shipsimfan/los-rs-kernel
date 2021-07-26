@@ -25,14 +25,14 @@ pub fn system_call(
                             1
                         }
                     },
-                    None => panic!("Attempting to peek event on daemon process!"),
+                    None => return error::Status::InvalidSession.to_return_code(),
                 }
             }
             Err(status) => status.to_return_code(),
         },
         _ => {
             logln!("Invalid process system call: {}", code);
-            error::Status::InvalidRequestCode as isize
+            error::Status::InvalidRequestCode.to_return_code()
         }
     }
 }

@@ -107,7 +107,7 @@ pub fn system_call(
         }
         _ => {
             logln!("Invalid filesystem system call: {}", code);
-            error::Status::InvalidRequestCode as isize
+            error::Status::InvalidRequestCode.to_return_code()
         }
     }
 }

@@ -66,10 +66,15 @@ impl Thread {
             kernel_stack.push(0); // push r14
             kernel_stack.push(0); // push r15
         } else {
+            kernel_stack.push(0x1B); // ss
+            kernel_stack.push(0x7FFFFFFFFFF0); // rsp
+            kernel_stack.push(0x202); // rflags
+            kernel_stack.push(0x23); //cs
+            kernel_stack.push(entry); // rip
             kernel_stack.push(thread_enter_user as usize); // ret address
             kernel_stack.push(0); // push rax
             kernel_stack.push(0); // push rbx
-            kernel_stack.push(entry); // push rcx
+            kernel_stack.push(0); // push rcx
             kernel_stack.push(0); // push rdx
             kernel_stack.push(0); // push rsi
             kernel_stack.push(context); // push rdi
@@ -77,7 +82,7 @@ impl Thread {
             kernel_stack.push(0); // push r8
             kernel_stack.push(0); // push r9
             kernel_stack.push(0); // push r10
-            kernel_stack.push(1 << 9); // push r11
+            kernel_stack.push(0); // push r11
             kernel_stack.push(0); // push r12
             kernel_stack.push(0); // push r13
             kernel_stack.push(0); // push r14

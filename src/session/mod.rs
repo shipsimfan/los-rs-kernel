@@ -1,15 +1,23 @@
 use crate::{
-    error, event::Event, filesystem::DirectoryDescriptor, locks::Mutex, map::Map, process::Process,
+    error,
+    event::Event,
+    filesystem::DirectoryDescriptor,
+    locks::Mutex,
+    map::{Map, Mappable},
+    process::{self, Process},
 };
-use alloc::sync::Arc;
+use alloc::{string::ToString, sync::Arc, vec::Vec};
 
 pub mod console;
-mod control;
 
 pub struct Session {
-    _id: isize,
     sub: SubSession,
     processes: Map<Process>,
+}
+
+struct SessionHolder {
+    sbox: SessionBox,
+    id: isize,
 }
 
 pub enum SubSession {
@@ -18,20 +26,34 @@ pub enum SubSession {
 
 pub type SessionBox = Arc<Mutex<Session>>;
 
-static SESSIONS: Mutex<control::SessionControl> = Mutex::new(control::SessionControl::new());
+static SESSIONS: Mutex<Map<SessionHolder>> = Mutex::new(Map::with_starting_index(1));
 
-pub fn create_console_session(output_device_path: &str) -> error::Result<SessionBox> {
+pub fn create_console_session(output_device_path: &str) -> error::Result<isize> {
     let output_device = crate::device::get_device(output_device_path)?;
-    Ok(
-        (*SESSIONS.lock())
-            .create_session(SubSession::Console(console::Console::new(output_device))),
-    )
+    let new_session = Session::new(SubSession::Console(console::Console::new(output_device)?));
+    let sid = SESSIONS.lock().insert(SessionHolder {
+        id: 0,
+        sbox: Arc::new(Mutex::new(new_session)),
+    });
+
+    let mut env = Vec::new();
+    env.push("PATH=:1/los/bin".to_string());
+
+    process::execute_session(":1/los/bin/shell.app", Vec::new(), env, sid)?;
+
+    Ok(sid)
+}
+
+pub fn get_session_mut(sid: isize) -> Option<SessionBox> {
+    match SESSIONS.lock().get_mut(sid) {
+        Some(holder) => Some(holder.sbox.clone()),
+        None => None,
+    }
 }
 
 impl Session {
-    pub fn new(id: isize, sub: SubSession) -> Self {
+    pub fn new(sub: SubSession) -> Self {
         Session {
-            _id: id,
             sub,
             processes: Map::new(),
         }
@@ -85,5 +107,15 @@ impl SubSession {
         match self {
             SubSession::Console(console) => console.peek_event(),
         }
+    }
+}
+
+impl Mappable for SessionHolder {
+    fn id(&self) -> isize {
+        self.id
+    }
+
+    fn set_id(&mut self, id: isize) {
+        self.id = id
     }
 }
