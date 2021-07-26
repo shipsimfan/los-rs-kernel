@@ -71,7 +71,7 @@ fn first_port_irq(context: usize) {
         controller.port_irq[0] = true;
     } else {
         match &controller.devices[0] {
-            Some(device) => match device.lock().ioctrl(0, data as usize) {
+            Some(device) => match unsafe { (*device.as_ptr()).ioctrl(0, data as usize) } {
                 Ok(_) => {}
                 Err(_) => {}
             },
@@ -92,7 +92,7 @@ fn second_port_irq(context: usize) {
         controller.port_irq[1] = true;
     } else {
         match &controller.devices[1] {
-            Some(device) => match device.lock().ioctrl(0, data as usize) {
+            Some(device) => match unsafe { (*device.as_ptr()).ioctrl(0, data as usize) } {
                 Ok(_) => {}
                 Err(_) => {}
             },
