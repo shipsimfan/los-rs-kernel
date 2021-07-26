@@ -109,7 +109,7 @@ fn startup_thread() -> usize {
         }
     };
     let status = process::wait_process(pid);
-    logln!("Shell exited with status: {:#X}", status);
+    logln!("Shell exited with status: {}", status);
 
     loop {
         unsafe { asm!("sti;hlt") };

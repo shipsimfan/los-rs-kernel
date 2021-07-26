@@ -21,6 +21,7 @@ pub struct Thread {
     queue: Option<AtomicPtr<ThreadQueue>>,
     queue_data: isize,
     exit_queue: ThreadQueue,
+    tls_base: usize,
 }
 
 const KERNEL_STACK_SIZE: usize = 32 * 1024;
@@ -35,6 +36,7 @@ extern "C" {
     fn float_save(floating_point_storage: *mut u8);
     fn float_load(floating_point_storage: *mut u8);
     fn thread_enter_user(entry: *const c_void, context: usize);
+    fn set_fs_base(fs_base: usize);
 }
 
 extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
@@ -94,6 +96,7 @@ impl Thread {
             queue: None,
             queue_data: 0,
             exit_queue: ThreadQueue::new(),
+            tls_base: 0,
         }
     }
 
@@ -107,10 +110,16 @@ impl Thread {
 
     pub fn set_interrupt_stack(&self) {
         crate::interrupts::set_interrupt_stack(self.kernel_stack.top);
+        unsafe { set_fs_base(self.tls_base) };
     }
 
     pub fn set_queue(&mut self, queue: &mut ThreadQueue) {
         self.queue = Some(AtomicPtr::new(queue));
+    }
+
+    pub fn set_tls_base(&mut self, new_tls_base: usize) {
+        self.tls_base = new_tls_base;
+        unsafe { set_fs_base(self.tls_base) };
     }
 
     pub fn clear_queue(&mut self) {

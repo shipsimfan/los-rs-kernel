@@ -64,3 +64,12 @@ perform_yield:
 GLOBAL thread_enter_user
 thread_enter_user:
     o64 sysret
+
+GLOBAL set_fs_base
+set_fs_base:
+    mov eax, edi
+    shr rdi, 32
+    mov edx, edi
+    mov ecx, 0xC0000100
+    wrmsr
+    ret

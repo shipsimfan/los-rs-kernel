@@ -65,6 +65,7 @@ pub const EM_AMD64: Elf64_Half = 62;
 pub const EV_CURRENT: Elf64_Word = 1;
 
 pub const PT_LOAD: Elf64_Word = 1;
+pub const PT_TLS: Elf64_Word = 7;
 
 impl Elf64_Ehdr {
     pub fn from_slice(slice: &[u8]) -> Self {
@@ -248,5 +249,9 @@ impl Elf64_Phdr {
 
     pub fn p_memsz(&self) -> usize {
         self.p_memsz as usize
+    }
+
+    pub fn p_align(&self) -> usize {
+        self.p_align as usize
     }
 }

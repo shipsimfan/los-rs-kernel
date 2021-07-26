@@ -30,10 +30,13 @@ struct UserspaceContext {
     argc: usize,
     argv: *const *const u8,
     envp: *const *const u8,
+    tls_size: usize,
+    tls_align: usize,
 }
 
-const USERSPACE_CONTEXT_LOCATION: *const UserspaceContext =
-    0x700000000000 as *const UserspaceContext;
+const TLS_LOCATION: usize = 0x700000000000;
+const USERSPACE_CONTEXT_LOCATION: *mut UserspaceContext =
+    (TLS_LOCATION - core::mem::size_of::<UserspaceContext>()) as *mut UserspaceContext;
 
 static mut THREAD_CONTROL: control::ThreadControl = control::ThreadControl::new();
 
@@ -122,7 +125,7 @@ pub fn execute(
     new_process.set_address_space_as_current();
 
     // Copy the executable into the address space
-    loader::load_executable(&buffer)?;
+    let (tls_size, tls_align) = loader::load_executable(&buffer, TLS_LOCATION as *mut u8)?;
 
     // Copy arguments and environment variables into the address space
     unsafe {
@@ -139,6 +142,8 @@ pub fn execute(
             argc: args.len(),
             argv: arg_list as *const *const u8,
             envp: env_list as *const *const u8,
+            tls_size: tls_size,
+            tls_align: tls_align,
         };
 
         // Copy arguments
