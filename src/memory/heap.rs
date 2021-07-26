@@ -101,10 +101,6 @@ impl Block {
         self.above_size & !7
     }
 
-    pub fn is_below_free(&self) -> bool {
-        self.below_size & 1 != 0
-    }
-
     pub fn is_above_free(&self) -> bool {
         self.above_size & 1 != 0
     }
@@ -281,5 +277,49 @@ unsafe impl GlobalAlloc for Heap {
         }
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        let current_block = &mut *((ptr as usize - core::mem::size_of::<Block>()) as *mut Block);
+
+        if current_block.signature != SIGNATURE {
+            panic!("Heap corruption at {:p}", current_block as *mut _);
+        }
+
+        if current_block.is_above_free() {
+            panic!("Freeing a block of memory that is already free!");
+        }
+
+        // Merge previous block
+        let current_block = match current_block.get_prev() {
+            Some(previous_block) => {
+                if previous_block.is_above_free() {
+                    let block_size = previous_block.above_size()
+                        + current_block.above_size()
+                        + core::mem::size_of::<Block>();
+                    previous_block.set_above_size(block_size);
+                    previous_block
+                } else {
+                    current_block
+                }
+            }
+            None => current_block,
+        };
+
+        let next_block = current_block.get_next().unwrap();
+
+        // Merge next block
+        if next_block.is_above_free() {
+            let block_size = current_block.above_size()
+                + next_block.above_size()
+                + core::mem::size_of::<Block>();
+            current_block.set_above_size(block_size);
+            let next_block = current_block.get_next().unwrap();
+            next_block.set_below_size(block_size);
+        } else {
+            next_block.set_below(true);
+            next_block.set_below_size(current_block.above_size());
+        }
+
+        // Set current block free
+        current_block.set_above(true);
+    }
 }
