@@ -230,7 +230,11 @@ pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
 
     // Read the file
     let bytes_read = file.lock().read(0, buffer.as_mut_slice())?;
-    unsafe { buffer.set_len(bytes_read) }; // Just in case
+    if bytes_read > 0 {
+        unsafe { buffer.set_len(bytes_read as usize) };
+    } else {
+        unsafe { buffer.set_len(0) };
+    }
 
     Ok(buffer)
 }

@@ -7,6 +7,9 @@ const GET_CURRENT_WORKING_DIRECTORY: usize = 0x0002;
 const SET_CURRENT_WORKING_DIRECTORY: usize = 0x0003;
 const EXIT_PROCESS_SYSCALL: usize = 0x0004;
 const KILL_PROCESS_SYSCALL: usize = 0x0005;
+const CREATE_MUTEX_SYSCALL: usize = 0x0006;
+const LOCK_MUTEX_SYSCALL: usize = 0x0007;
+const UNLOCK_MUTEX_SYSCALL: usize = 0x0008;
 
 pub fn system_call(
     code: usize,
@@ -101,6 +104,23 @@ pub fn system_call(
             process::kill_process((arg1 & 0x7FFFFFFFFFFF) as isize);
             0
         }
+        CREATE_MUTEX_SYSCALL => process::get_current_thread_mut()
+            .get_process_mut()
+            .create_mutex(),
+        LOCK_MUTEX_SYSCALL => match process::get_current_thread_mut()
+            .get_process_mut()
+            .lock_mutex((arg1 & 0x7FFFFFFFFFFF) as isize)
+        {
+            Ok(()) => 0,
+            Err(status) => status.to_return_code(),
+        },
+        UNLOCK_MUTEX_SYSCALL => match process::get_current_thread_mut()
+            .get_process_mut()
+            .unlock_mutex((arg1 & 0x7FFFFFFFFFFF) as isize)
+        {
+            Ok(()) => 0,
+            Err(status) => status.to_return_code(),
+        },
         _ => {
             logln!("Invalid process system call: {}", code);
             error::Status::InvalidRequestCode.to_return_code()

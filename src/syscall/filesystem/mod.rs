@@ -62,7 +62,7 @@ pub fn system_call(
             };
 
             match file.read(buffer) {
-                Ok(bytes_read) => (bytes_read & 0x7FFFFFFFFFFF) as isize,
+                Ok(bytes_read) => bytes_read,
                 Err(status) => status.to_return_code(),
             }
         }

@@ -1,4 +1,4 @@
-use super::{Thread, ThreadQueue};
+use super::{mutex::ProcessMutex, Thread, ThreadQueue};
 use crate::{
     error,
     filesystem::{self, DirectoryDescriptor, DirectoryEntry, FileDescriptor},
@@ -6,6 +6,11 @@ use crate::{
     memory::AddressSpace,
     session::SessionBox,
 };
+
+struct ProcessMutexContainer {
+    mutex: ProcessMutex,
+    id: isize,
+}
 
 pub struct Process {
     id: isize,
@@ -16,6 +21,7 @@ pub struct Process {
     file_descriptors: Map<FileDescriptor>,
     directory_descriptors: Map<DirectoryDescriptor>,
     current_working_directory: Option<DirectoryDescriptor>,
+    mutexes: Map<ProcessMutexContainer>,
     process_time: isize,
 }
 
@@ -33,6 +39,7 @@ impl Process {
             file_descriptors: Map::new(),
             directory_descriptors: Map::new(),
             current_working_directory,
+            mutexes: Map::new(),
             process_time: 0,
         }
     }
@@ -133,6 +140,33 @@ impl Process {
     pub fn increase_time(&mut self, amount: isize) {
         self.process_time += amount;
     }
+
+    pub fn create_mutex(&mut self) -> isize {
+        self.mutexes.insert(ProcessMutexContainer {
+            mutex: ProcessMutex::new(),
+            id: INVALID_ID,
+        })
+    }
+
+    pub fn lock_mutex(&mut self, mid: isize) -> error::Result<()> {
+        match self.mutexes.get_mut(mid) {
+            Some(mutex) => {
+                mutex.mutex.lock();
+                Ok(())
+            }
+            None => Err(error::Status::NoEntry),
+        }
+    }
+
+    pub fn unlock_mutex(&mut self, mid: isize) -> error::Result<()> {
+        match self.mutexes.get_mut(mid) {
+            Some(mutex) => {
+                mutex.mutex.unlock();
+                Ok(())
+            }
+            None => Err(error::Status::NoEntry),
+        }
+    }
 }
 
 impl Mappable for Process {
@@ -152,5 +186,15 @@ impl Drop for Process {
         }
 
         unsafe { self.address_space.free() };
+    }
+}
+
+impl Mappable for ProcessMutexContainer {
+    fn id(&self) -> isize {
+        self.id
+    }
+
+    fn set_id(&mut self, id: isize) {
+        self.id = id;
     }
 }

@@ -23,7 +23,11 @@ impl crate::filesystem::File for File {
         Err(error::Status::NotImplemented)
     }
 
-    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<usize> {
+    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize> {
+        if offset >= self.file_size {
+            return Ok(-1);
+        }
+
         // Get info from fat
         let (bytes_per_cluster, cluster_chain) = {
             let fat = self.fat.lock();
@@ -80,7 +84,7 @@ impl crate::filesystem::File for File {
         // Copy buffer
         if end <= self.file_size {
             let mut i_buf_idx = true_start_diff;
-            let ret = buffer.len();
+            let ret = buffer.len() as isize;
             for byte in buffer {
                 *byte = int_buffer[i_buf_idx];
                 i_buf_idx += 1;
@@ -99,7 +103,7 @@ impl crate::filesystem::File for File {
                 buffer[i] = 0;
             }
 
-            Ok(self.file_size - offset)
+            Ok((self.file_size - offset) as isize)
         }
     }
 

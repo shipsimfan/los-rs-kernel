@@ -3,6 +3,7 @@
 mod control;
 mod daemon;
 mod loader;
+mod mutex;
 mod process;
 mod queue;
 mod thread;

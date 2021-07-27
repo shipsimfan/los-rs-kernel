@@ -5,7 +5,7 @@ use alloc::{boxed::Box, sync::Arc};
 pub type FileBox = Arc<Mutex<FileContainer>>;
 
 pub trait File: Send {
-    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<usize>;
+    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize>;
     fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result<()>;
     fn set_length(&mut self, new_length: usize) -> error::Result<()>;
     fn get_length(&self) -> usize;
@@ -35,7 +35,7 @@ impl FileContainer {
         self.references += 1;
     }
 
-    pub fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<usize> {
+    pub fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize> {
         self.file.read(offset, buffer)
     }
 

@@ -120,17 +120,17 @@ impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T> {
 impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
+        unsafe { asm!("cli") };
         let mutex = unsafe { &mut *(self.lock as *const _ as *mut Mutex<T>) };
 
         match mutex.queue.pop_mut() {
             None => mutex.lock.store(null_mut(), Ordering::Relaxed),
             Some(next_thread) => {
-                mutex
-                    .lock
-                    .store(next_thread as *const _ as *mut _, Ordering::Relaxed);
+                mutex.lock.store(next_thread, Ordering::Relaxed);
                 unsafe { process::queue_thread_cli(next_thread) };
             }
         }
+        unsafe { asm!("sti") };
     }
 }
 
