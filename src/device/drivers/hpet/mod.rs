@@ -97,7 +97,7 @@ pub fn initialize() {
     logln!("OK!");
 }
 
-fn irq_handler(_context: usize) {
+unsafe fn irq_handler(_context: usize) {
     crate::time::millisecond_tick();
 }
 

@@ -48,7 +48,7 @@ struct HandlerWithContext {
     context: usize,
 }
 
-pub type Handler = fn(context: usize);
+pub type Handler = unsafe fn(context: usize);
 
 const IRQ_BASE: u8 = 32;
 
@@ -208,11 +208,11 @@ pub fn initialize() {
 }
 
 #[no_mangle]
-extern "C" fn common_irq_handler(irq: usize) {
+unsafe extern "C" fn common_irq_handler(irq: usize) {
     end_irq(irq as u8);
     end_interrupt();
 
-    match unsafe { IRQ_HANDLERS[irq] } {
+    match IRQ_HANDLERS[irq] {
         None => {}
         Some(handler) => (handler.handler)(handler.context),
     }

@@ -420,6 +420,15 @@ pub fn kill_process(pid: isize) {
     }
 }
 
+pub fn get_current_thread() -> &'static Thread {
+    unsafe {
+        asm!("cli");
+        let ret = get_current_thread_cli();
+        asm!("sti");
+        ret
+    }
+}
+
 pub unsafe fn get_current_thread_cli() -> &'static Thread {
     get_current_thread_option_cli().expect("No current thread when one required!")
 }

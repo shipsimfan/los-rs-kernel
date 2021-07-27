@@ -16,6 +16,7 @@ pub struct Process {
     file_descriptors: Map<FileDescriptor>,
     directory_descriptors: Map<DirectoryDescriptor>,
     current_working_directory: Option<DirectoryDescriptor>,
+    process_time: isize,
 }
 
 impl Process {
@@ -32,6 +33,7 @@ impl Process {
             file_descriptors: Map::new(),
             directory_descriptors: Map::new(),
             current_working_directory,
+            process_time: 0,
         }
     }
 
@@ -122,6 +124,14 @@ impl Process {
 
     pub fn close_directory(&mut self, dd: isize) {
         self.directory_descriptors.remove(dd);
+    }
+
+    pub fn get_time(&self) -> isize {
+        self.process_time
+    }
+
+    pub fn increase_time(&mut self, amount: isize) {
+        self.process_time += amount;
     }
 }
 

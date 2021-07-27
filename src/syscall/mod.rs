@@ -5,6 +5,7 @@ mod event;
 mod filesystem;
 mod process;
 mod thread;
+mod time;
 
 trait NullTerminator: PartialEq {
     fn null_terminator() -> Self;
@@ -29,6 +30,8 @@ extern "C" fn system_call(
         console::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0x4000 && code <= 0x4FFF {
         event::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x5000 && code <= 0x5FFF {
+        time::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
         error::Status::InvalidRequestCode.to_return_code()
