@@ -1,3 +1,4 @@
+pub mod cmos;
 pub mod hpet;
 pub mod ide;
 pub mod pci;

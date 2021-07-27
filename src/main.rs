@@ -69,6 +69,7 @@ fn kinit() -> isize {
     device::drivers::hpet::initialize();
     device::drivers::pci::initialize();
     device::drivers::ide::initialize();
+    device::drivers::cmos::initialize();
 
     if device::get_device("/boot_video").is_ok() {
         logln!("Starting boot video session . . . ");

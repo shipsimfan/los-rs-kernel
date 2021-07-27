@@ -24,12 +24,16 @@ pub fn register_system_timer(timer_path: &str) -> error::Result<()> {
     }
 }
 
-pub fn set_timezone(offset: isize, dst: bool) {
+pub fn _set_timezone(offset: isize, dst: bool) {
     unsafe { TIME_ZONE = (offset & !1) | if dst { 1 } else { 0 } };
 }
 
 pub fn get_timezone() -> isize {
     unsafe { TIME_ZONE }
+}
+
+pub fn set_epoch_time(time: isize) {
+    unsafe { EPOCH_TIME = time };
 }
 
 pub fn get_epoch_time() -> isize {
@@ -51,6 +55,10 @@ pub unsafe fn millisecond_tick() {
     if SYSTEM_TIME % 10 == 0 {
         crate::process::preempt();
     }
+}
+
+pub fn sync_offset() {
+    unsafe { SYSTEM_OFFSET = SYSTEM_TIME % 1000 };
 }
 
 #[inline(always)]
