@@ -24,7 +24,7 @@ pub fn system_call(
             };
             match process::get_current_thread_mut()
                 .get_process_mut()
-                .open_file(filepath)
+                .open_file(filepath, arg2)
             {
                 Ok(fd) => fd,
                 Err(status) => status.to_return_code(),

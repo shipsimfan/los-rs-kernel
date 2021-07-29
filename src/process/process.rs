@@ -90,8 +90,8 @@ impl Process {
         }
     }
 
-    pub fn open_file(&mut self, filepath: &str) -> error::Result<isize> {
-        let file_descriptor = filesystem::open(filepath)?;
+    pub fn open_file(&mut self, filepath: &str, flags: usize) -> error::Result<isize> {
+        let file_descriptor = filesystem::open(filepath, flags)?;
         Ok(self.file_descriptors.insert(file_descriptor))
     }
 

@@ -15,6 +15,8 @@ pub trait Directory: Send {
     fn rename_directory(&self, old_name: &str, new_name: &str) -> error::Result<()>;
     fn remove_file(&self, filename: &str) -> error::Result<()>;
     fn remove_directory(&self, directory_name: &str) -> error::Result<()>;
+    fn update_file_metadata(&self, filename: &str, new_metadata: FileMetadata)
+        -> error::Result<()>;
 }
 
 pub enum ParentDirectory {
@@ -68,6 +70,46 @@ impl DirectoryContainer {
             if sub_name == name {
                 return Ok(sub_metadata.clone());
             }
+        }
+
+        Err(error::Status::NoEntry)
+    }
+
+    pub fn get_file_metadata_ptr(
+        &self,
+        file_ptr: *const FileContainer,
+    ) -> error::Result<FileMetadata> {
+        for (_, sub_metadata, sub_file) in &self.sub_files {
+            match sub_file {
+                None => {}
+                Some(file) => {
+                    if file.matching_data(file_ptr) {
+                        return Ok(sub_metadata.clone());
+                    }
+                }
+            }
+        }
+
+        Err(error::Status::NoEntry)
+    }
+
+    pub fn update_file_metadata(
+        &mut self,
+        file_ptr: *const FileContainer,
+        new_metadata: FileMetadata,
+    ) -> error::Result<()> {
+        for (filename, metadata, sub_file) in &mut self.sub_files {
+            match sub_file {
+                None => continue,
+                Some(file) => {
+                    if file.matching_data(file_ptr) {
+                        *metadata = new_metadata;
+                        self.directory
+                            .update_file_metadata(filename, new_metadata)?;
+                        return Ok(());
+                    }
+                }
+            };
         }
 
         Err(error::Status::NoEntry)

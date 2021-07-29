@@ -43,6 +43,8 @@ pub enum Status {
     NoFilesystem,            // ENOFS
     ArgumentSecurity,        // EARGSEC
     InvalidSession,          // EINVSESSION
+    ReadOnly,                // ERDONLY
+    WriteOnly,               // EWRONLY
 }
 
 pub type Result<T> = core::result::Result<T, Status>;
@@ -95,6 +97,8 @@ impl fmt::Display for Status {
             Status::NoFilesystem => "No filesystem",
             Status::ArgumentSecurity => "Argument security error",
             Status::InvalidSession => "Invalid session",
+            Status::ReadOnly => "Read only",
+            Status::WriteOnly => "Write only",
         })
     }
 }

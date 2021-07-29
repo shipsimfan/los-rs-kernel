@@ -50,6 +50,19 @@ impl FileContainer {
     pub fn get_length(&self) -> usize {
         self.file.get_length()
     }
+
+    pub fn set_length(&mut self, new_length: usize) -> error::Result<()> {
+        // Update file
+        self.file.set_length(new_length)?;
+
+        // Update directory
+        let mut directory = self.parent.lock();
+        let mut metadata = directory.get_file_metadata_ptr(self)?;
+        metadata.set_size(new_length);
+        directory.update_file_metadata(self, metadata)?;
+
+        Ok(())
+    }
 }
 
 impl FileMetadata {
@@ -59,5 +72,9 @@ impl FileMetadata {
 
     pub fn size(&self) -> usize {
         self.size
+    }
+
+    pub fn set_size(&mut self, new_size: usize) {
+        self.size = new_size
     }
 }

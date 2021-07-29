@@ -10,6 +10,8 @@ pub struct FileDescriptor {
     id: isize,
     file: FileBox,
     current_offset: usize,
+    read: bool,
+    _write: bool,
 }
 
 pub enum SeekFrom {
@@ -19,16 +21,22 @@ pub enum SeekFrom {
 }
 
 impl FileDescriptor {
-    pub fn new(file: FileBox) -> Self {
+    pub fn new(file: FileBox, read: bool, write: bool, starting_offset: usize) -> Self {
         file.lock().open();
         FileDescriptor {
             id: INVALID_ID,
             file: file,
-            current_offset: 0,
+            current_offset: starting_offset,
+            read,
+            _write: write,
         }
     }
 
     pub fn read(&mut self, buffer: &mut [u8]) -> error::Result<isize> {
+        if !self.read {
+            return Err(error::Status::WriteOnly);
+        }
+
         let ret = self.file.lock().read(self.current_offset, buffer)?;
 
         if ret > 0 {

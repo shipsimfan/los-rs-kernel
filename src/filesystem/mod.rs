@@ -33,6 +33,13 @@ type DetectFilesystemFunction = filesystem::DetectFilesystemFunction;
 type Filesystem = filesystem::Filesystem;
 type FilesystemStarter = filesystem::FilesystemStarter;
 
+const OPEN_READ: usize = 1;
+const OPEN_WRITE: usize = 2;
+const OPEN_READ_WRITE: usize = 3;
+const OPEN_TRUNCATE: usize = 4;
+const OPEN_APPEND: usize = 8;
+const _OPEN_CREATE: usize = 16;
+
 static FILESYSTEM_DRIVERS: Mutex<Vec<DetectFilesystemFunction>> = Mutex::new(Vec::new());
 static FILESYSTEMS: Mutex<Map<Filesystem>> = Mutex::new(Map::with_starting_index(1));
 
@@ -60,7 +67,11 @@ pub fn register_drive(drive_path: &str) -> error::Result<()> {
     detect_filesystem(drive_lock, 0, size)
 }
 
-pub fn open(filepath: &str) -> error::Result<FileDescriptor> {
+pub fn open(filepath: &str, flags: usize) -> error::Result<FileDescriptor> {
+    if flags & OPEN_READ_WRITE == 0 {
+        return Err(error::Status::InvalidArgument);
+    }
+
     // Parse filepath
     let (fs_number, path) = parse_filepath(filepath, true)?;
     if path.len() == 0 {
@@ -117,8 +128,22 @@ pub fn open(filepath: &str) -> error::Result<FileDescriptor> {
         .lock()
         .open_file(filename, &current_directory)?;
 
+    // Parse flags
+    let read = flags & OPEN_READ != 0;
+    let write = flags & OPEN_WRITE != 0;
+
+    if flags & OPEN_TRUNCATE != 0 {
+        file.lock().set_length(0)?;
+    }
+
+    let starting_offset = if flags & OPEN_APPEND != 0 {
+        file.lock().get_length()
+    } else {
+        0
+    };
+
     // Create file descriptor
-    Ok(FileDescriptor::new(file))
+    Ok(FileDescriptor::new(file, read, write, starting_offset))
 }
 
 pub fn open_directory(path: &str) -> error::Result<DirectoryDescriptor> {

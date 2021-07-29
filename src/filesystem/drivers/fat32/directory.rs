@@ -378,6 +378,10 @@ impl filesystem::Directory for Directory {
     fn remove_directory(&self, _: &str) -> error::Result<()> {
         Err(error::Status::NotImplemented)
     }
+
+    fn update_file_metadata(&self, _: &str, _: FileMetadata) -> error::Result<()> {
+        Err(error::Status::NotImplemented)
+    }
 }
 
 impl LongDirectoryEntry {
