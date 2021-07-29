@@ -466,20 +466,13 @@ impl filesystem::Directory for Directory {
                     continue;
                 }
 
-                // Correct first byte if required
-                if entry.filename[0] == 0x05 {
-                    entry.filename[0] = 0xE5;
-                }
-
-                // Change filename to lower case
-                for byte in &mut entry.filename {
-                    if *byte >= b'A' && *byte <= b'Z' {
-                        *byte = *byte - b'A' + b'a';
-                    }
-                }
-
                 // Check if the entry is the right type of entry
                 if entry.attributes & ATTRIBUTE_DIRECTORY == 0 {
+                    // Correct first byte if required
+                    if entry.filename[0] == 0x05 {
+                        entry.filename[0] = 0xE5;
+                    }
+
                     let mut filename = String::new();
                     if long_filename[0] == 0 {
                         for i in 0..8 {
@@ -495,6 +488,8 @@ impl filesystem::Directory for Directory {
                                 filename.push(entry.filename[i] as char);
                             }
                         }
+
+                        filename = filename.to_ascii_lowercase();
                     } else {
                         for c in long_filename {
                             if c == 0 {

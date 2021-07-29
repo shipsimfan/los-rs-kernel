@@ -107,8 +107,22 @@ impl crate::filesystem::File for File {
         }
     }
 
-    fn set_length(&mut self, _: usize) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn set_length(&mut self, new_length: usize) -> error::Result<()> {
+        let fat = self.fat.lock();
+        let bytes_per_cluster = fat.bytes_per_cluster();
+
+        let current_cluster_count = (self.file_size + bytes_per_cluster - 1) / bytes_per_cluster;
+        let new_cluster_count = (new_length + bytes_per_cluster - 1) / bytes_per_cluster;
+
+        if current_cluster_count > new_cluster_count {
+            fat.shrink_cluster_chain(self.first_cluster, new_cluster_count)?;
+        } else if current_cluster_count < new_cluster_count {
+            fat.grow_cluster_chain(self.first_cluster, new_cluster_count)?;
+        }
+
+        self.file_size = new_length;
+
+        Ok(())
     }
 
     fn get_length(&self) -> usize {
