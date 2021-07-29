@@ -32,6 +32,18 @@ struct DirectoryEntry {
     file_size: u32,
 }
 
+#[repr(packed(1))]
+struct LongDirectoryEntry {
+    order: u8,
+    name1: [u16; 5],
+    _attr: u8,
+    _class: u8,
+    checksum: u8,
+    name2: [u16; 6],
+    _first_cluster_low: u16,
+    name3: [u16; 2],
+}
+
 const ATTRIBUTE_READ_ONLY: u8 = 0x01;
 const ATTRIBUTE_HIDDEN: u8 = 0x02;
 const ATTRIBUTE_SYSTEM: u8 = 0x04;
@@ -135,6 +147,9 @@ impl filesystem::Directory for Directory {
             [DirectoryEntry::default(); SECTOR_SIZE / core::mem::size_of::<DirectoryEntry>()];
         let u8_buffer =
             unsafe { core::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, SECTOR_SIZE) };
+        let mut long_filename = [0u16; 255];
+        let mut long_checksum = 0;
+        let mut next_ord = 0;
         'main_loop: for cluster in cluster_chain {
             fat.read_cluster(cluster, u8_buffer)?;
 
@@ -147,23 +162,65 @@ impl filesystem::Directory for Directory {
 
                 // Look for blank entries
                 if entry.filename[0] == 0xE5 {
+                    long_filename[0] = 0;
+                    next_ord = 0;
+                    continue;
+                }
+
+                // Ignore long file names
+                if entry.attributes & ATTRIBUTE_LONG_FILE_NAME == ATTRIBUTE_LONG_FILE_NAME {
+                    let long_entry = LongDirectoryEntry::from_entry(&entry);
+
+                    if long_entry.order & 0x40 != 0 {
+                        next_ord = long_entry.order & !0x40;
+                        long_checksum = long_entry.checksum;
+                        if next_ord * 13 < 255 {
+                            long_filename[next_ord as usize * 13] = 0;
+                        }
+                    }
+
+                    if next_ord == 0 {
+                        long_filename[0] = 0;
+                        continue;
+                    }
+
+                    if long_entry.order & !0x40 != next_ord {
+                        long_filename[0] = 0;
+                        next_ord = 0;
+                    }
+
+                    if long_entry.checksum != long_checksum {
+                        long_filename[0] = 0;
+                        next_ord = 0;
+                    }
+
+                    next_ord -= 1;
+                    let offset = next_ord as usize * 13;
+                    for i in 0..5 {
+                        long_filename[offset + i] = long_entry.name1[i];
+                    }
+
+                    for i in 0..6 {
+                        long_filename[offset + i + 5] = long_entry.name2[i];
+                    }
+
+                    for i in 0..2 {
+                        long_filename[offset + i + 11] = long_entry.name3[i];
+                    }
+
+                    continue;
+                }
+
+                // Ignore volume ID entry
+                if entry.attributes & ATTRIBUTE_VOLUME_ID != 0 {
+                    long_filename[0] = 0;
+                    next_ord = 0;
                     continue;
                 }
 
                 // Correct first byte if required
                 if entry.filename[0] == 0x05 {
                     entry.filename[0] = 0xE5;
-                }
-
-                // Ignore long file names
-                // TODO: parse long file names
-                if entry.attributes & ATTRIBUTE_LONG_FILE_NAME == ATTRIBUTE_LONG_FILE_NAME {
-                    continue;
-                }
-
-                // Ignore volume ID entry
-                if entry.attributes & ATTRIBUTE_VOLUME_ID != 0 {
-                    continue;
                 }
 
                 // Change filename to lower case
@@ -176,17 +233,27 @@ impl filesystem::Directory for Directory {
                 // Check if the entry is the right type of entry
                 if entry.attributes & ATTRIBUTE_DIRECTORY == 0 {
                     let mut filename = String::new();
-                    for i in 0..8 {
-                        filename.push(entry.filename[i] as char);
-                    }
-                    let mut filename = filename.trim().to_string();
-                    if entry.filename[8] != ' ' as u8
-                        || entry.filename[9] != ' ' as u8
-                        || entry.filename[10] != ' ' as u8
-                    {
-                        filename.push('.');
-                        for i in 8..11 {
+                    if long_filename[0] == 0 {
+                        for i in 0..8 {
                             filename.push(entry.filename[i] as char);
+                        }
+                        filename = filename.trim().to_string();
+                        if entry.filename[8] != ' ' as u8
+                            || entry.filename[9] != ' ' as u8
+                            || entry.filename[10] != ' ' as u8
+                        {
+                            filename.push('.');
+                            for i in 8..11 {
+                                filename.push(entry.filename[i] as char);
+                            }
+                        }
+                    } else {
+                        for c in long_filename {
+                            if c == 0 {
+                                break;
+                            }
+
+                            filename.push(unsafe { char::from_u32_unchecked(c as u32) });
                         }
                     }
 
@@ -195,6 +262,9 @@ impl filesystem::Directory for Directory {
 
                     files.push((filename.trim().to_string(), metadata));
                 }
+
+                long_filename[0] = 0;
+                next_ord = 0;
             }
         }
 
@@ -229,11 +299,6 @@ impl filesystem::Directory for Directory {
                     continue;
                 }
 
-                // Correct first byte if required
-                if entry.filename[0] == 0x05 {
-                    entry.filename[0] = 0xE5;
-                }
-
                 // Ignore long file names
                 // TODO: parse long file names
                 if entry.attributes & ATTRIBUTE_LONG_FILE_NAME == ATTRIBUTE_LONG_FILE_NAME {
@@ -243,6 +308,11 @@ impl filesystem::Directory for Directory {
                 // Ignore volume ID entry
                 if entry.attributes & ATTRIBUTE_VOLUME_ID != 0 {
                     continue;
+                }
+
+                // Correct first byte if required
+                if entry.filename[0] == 0x05 {
+                    entry.filename[0] = 0xE5;
                 }
 
                 // Change filename to lowercase
@@ -307,5 +377,11 @@ impl filesystem::Directory for Directory {
 
     fn remove_directory(&self, _: &str) -> error::Result<()> {
         Err(error::Status::NotImplemented)
+    }
+}
+
+impl LongDirectoryEntry {
+    pub fn from_entry(entry: &DirectoryEntry) -> &LongDirectoryEntry {
+        unsafe { core::mem::transmute(entry) }
     }
 }
