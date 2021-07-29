@@ -7,6 +7,7 @@ const READ_FILE_SYSCALL: usize = 0x2003;
 const OPEN_DIRECTORY_SYSCALL: usize = 0x2004;
 const CLOSE_DIRECTORY_SYSCALL: usize = 0x2005;
 const READ_DIRECTORY_SYSCALL: usize = 0x2006;
+const TRUNCATE_FILE_SYSCALL: usize = 0x2007;
 
 pub fn system_call(
     code: usize,
@@ -101,6 +102,18 @@ pub fn system_call(
                         1
                     }
                     None => 0,
+                },
+                Err(status) => status.to_return_code(),
+            }
+        }
+        TRUNCATE_FILE_SYSCALL => {
+            match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
+            {
+                Ok(file_descriptor) => match file_descriptor.set_length(arg2) {
+                    Ok(()) => 0,
+                    Err(status) => status.to_return_code(),
                 },
                 Err(status) => status.to_return_code(),
             }

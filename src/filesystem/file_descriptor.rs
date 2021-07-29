@@ -11,7 +11,7 @@ pub struct FileDescriptor {
     file: FileBox,
     current_offset: usize,
     read: bool,
-    _write: bool,
+    write: bool,
 }
 
 pub enum SeekFrom {
@@ -28,7 +28,7 @@ impl FileDescriptor {
             file: file,
             current_offset: starting_offset,
             read,
-            _write: write,
+            write,
         }
     }
 
@@ -54,6 +54,14 @@ impl FileDescriptor {
         }
 
         self.current_offset
+    }
+
+    pub fn set_length(&self, new_length: usize) -> error::Result<()> {
+        if !self.write {
+            return Err(error::Status::ReadOnly);
+        }
+
+        self.file.lock().set_length(new_length)
     }
 }
 

@@ -231,6 +231,51 @@ impl IDEController {
 
         Ok(())
     }
+
+    fn write_buffer(&self, channel: Channel, register: u16, buffer: &[u8]) -> error::Result<()> {
+        let channel = channel as usize;
+
+        if register > 0x07 && register < 0x0C {
+            outb(
+                self.channels[channel].control + (REGISTER_CONTROL as u16) - 0x0A,
+                0x80 | self.channels[channel].n_ien,
+            );
+        }
+
+        let port = if register < 0x08 {
+            self.channels[channel].io + register - 0x00
+        } else if register < 0x0C {
+            self.channels[channel].io + register - 0x06
+        } else if register < 0x0E {
+            self.channels[channel].control + register - 0x0A
+        } else if register < 0x16 {
+            self.channels[channel].bus_master + register - 0x0E
+        } else {
+            return Err(error::Status::BadAddress);
+        };
+
+        let mut i = 0;
+        let top = buffer.len();
+        while i < top {
+            let value = (buffer[i + 0] as u32)
+                | ((buffer[i + 1] as u32) << 8)
+                | ((buffer[i + 2] as u32) << 16)
+                | ((buffer[i + 3] as u32) << 24);
+
+            device::outd(port, value);
+
+            i += 4;
+        }
+
+        if register > 0x07 && register < 0x0C {
+            outb(
+                self.channels[channel].control + (REGISTER_CONTROL as u16) - 0x0A,
+                self.channels[channel].n_ien,
+            );
+        }
+
+        Ok(())
+    }
 }
 
 impl Device for IDEController {
@@ -241,8 +286,11 @@ impl Device for IDEController {
         self.read_buffer(channel, register, buffer)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
-        Err(error::Status::NotSupported)
+    fn write(&mut self, address: usize, buffer: &[u8]) -> error::Result<()> {
+        let register: u16 = (address & 0xFF) as u16;
+        let channel = Channel::from(address.wrapping_shr(8) & 1);
+
+        self.write_buffer(channel, register, buffer)
     }
 
     fn read_register(&mut self, address: usize) -> error::Result<usize> {

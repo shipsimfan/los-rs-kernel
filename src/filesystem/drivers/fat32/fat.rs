@@ -74,6 +74,12 @@ impl FAT {
             .read(self.cluster_to_sector(cluster), buffer)
     }
 
+    pub fn write_cluster(&self, cluster: u32, buffer: &[u8]) -> error::Result<()> {
+        self.drive
+            .lock()
+            .write(self.cluster_to_sector(cluster), buffer)
+    }
+
     pub fn bytes_per_cluster(&self) -> usize {
         self.bytes_per_cluster
     }

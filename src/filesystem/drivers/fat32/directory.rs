@@ -379,8 +379,151 @@ impl filesystem::Directory for Directory {
         Err(error::Status::NotImplemented)
     }
 
-    fn update_file_metadata(&self, _: &str, _: FileMetadata) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn update_file_metadata(
+        &self,
+        target_filename: &str,
+        new_metadata: FileMetadata,
+    ) -> error::Result<()> {
+        // Lock the FAT
+        let fat = self.fat.lock();
+
+        // Get cluster chain
+        let cluster_chain = fat.get_cluster_chain(self.first_cluster)?;
+
+        // Read each cluster
+        let mut buffer =
+            [DirectoryEntry::default(); SECTOR_SIZE / core::mem::size_of::<DirectoryEntry>()];
+        let u8_buffer =
+            unsafe { core::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, SECTOR_SIZE) };
+        let mut long_filename = [0u16; 255];
+        let mut long_checksum = 0;
+        let mut next_ord = 0;
+        'main_loop: for cluster in cluster_chain {
+            fat.read_cluster(cluster, u8_buffer)?;
+
+            // Read each entry
+            for mut entry in &mut buffer {
+                // Look for end of entries
+                if entry.filename[0] == 0 {
+                    break 'main_loop;
+                }
+
+                // Look for blank entries
+                if entry.filename[0] == 0xE5 {
+                    long_filename[0] = 0;
+                    next_ord = 0;
+                    continue;
+                }
+
+                // Ignore long file names
+                if entry.attributes & ATTRIBUTE_LONG_FILE_NAME == ATTRIBUTE_LONG_FILE_NAME {
+                    let long_entry = LongDirectoryEntry::from_entry(&entry);
+
+                    if long_entry.order & 0x40 != 0 {
+                        next_ord = long_entry.order & !0x40;
+                        long_checksum = long_entry.checksum;
+                        if next_ord * 13 < 255 {
+                            long_filename[next_ord as usize * 13] = 0;
+                        }
+                    }
+
+                    if next_ord == 0 {
+                        long_filename[0] = 0;
+                        continue;
+                    }
+
+                    if long_entry.order & !0x40 != next_ord {
+                        long_filename[0] = 0;
+                        next_ord = 0;
+                    }
+
+                    if long_entry.checksum != long_checksum {
+                        long_filename[0] = 0;
+                        next_ord = 0;
+                    }
+
+                    next_ord -= 1;
+                    let offset = next_ord as usize * 13;
+                    for i in 0..5 {
+                        long_filename[offset + i] = long_entry.name1[i];
+                    }
+
+                    for i in 0..6 {
+                        long_filename[offset + i + 5] = long_entry.name2[i];
+                    }
+
+                    for i in 0..2 {
+                        long_filename[offset + i + 11] = long_entry.name3[i];
+                    }
+
+                    continue;
+                }
+
+                // Ignore volume ID entry
+                if entry.attributes & ATTRIBUTE_VOLUME_ID != 0 {
+                    long_filename[0] = 0;
+                    next_ord = 0;
+                    continue;
+                }
+
+                // Correct first byte if required
+                if entry.filename[0] == 0x05 {
+                    entry.filename[0] = 0xE5;
+                }
+
+                // Change filename to lower case
+                for byte in &mut entry.filename {
+                    if *byte >= b'A' && *byte <= b'Z' {
+                        *byte = *byte - b'A' + b'a';
+                    }
+                }
+
+                // Check if the entry is the right type of entry
+                if entry.attributes & ATTRIBUTE_DIRECTORY == 0 {
+                    let mut filename = String::new();
+                    if long_filename[0] == 0 {
+                        for i in 0..8 {
+                            filename.push(entry.filename[i] as char);
+                        }
+                        filename = filename.trim().to_string();
+                        if entry.filename[8] != ' ' as u8
+                            || entry.filename[9] != ' ' as u8
+                            || entry.filename[10] != ' ' as u8
+                        {
+                            filename.push('.');
+                            for i in 8..11 {
+                                filename.push(entry.filename[i] as char);
+                            }
+                        }
+                    } else {
+                        for c in long_filename {
+                            if c == 0 {
+                                break;
+                            }
+
+                            filename.push(unsafe { char::from_u32_unchecked(c as u32) });
+                        }
+                    }
+
+                    // Undo first byte if required
+                    if entry.filename[0] == 0xE5 {
+                        entry.filename[0] = 0x05;
+                    }
+
+                    // Update metadata
+                    if filename.trim() == target_filename {
+                        entry.file_size = new_metadata.size() as u32;
+                        fat.write_cluster(cluster, u8_buffer)?;
+                        return Ok(());
+                    }
+                }
+
+                long_filename[0] = 0;
+                next_ord = 0;
+            }
+        }
+
+        Err(error::Status::NoEntry)
     }
 }
 

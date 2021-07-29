@@ -16,11 +16,16 @@ pub fn detect_fat32_filesystem(
     start: usize,
     _: usize,
 ) -> error::Result<Option<FilesystemStarter>> {
-    let drive = drive_lock.lock();
+    let mut drive = drive_lock.lock();
 
     // Get BPB
     let mut bpb = [0u8; 512];
     drive.read(start * SECTOR_SIZE, &mut bpb)?;
+
+    bpb[0] = 0xFF;
+    bpb[1] = 0xAB;
+
+    drive.write(start * SECTOR_SIZE, &bpb)?;
 
     // Locate signature in BPB
     let bpb_signature = bpb[0x42];

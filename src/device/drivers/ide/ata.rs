@@ -156,8 +156,116 @@ impl Device for ATA {
         Ok(())
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn write(&mut self, lba: usize, buffer: &[u8]) -> error::Result<()> {
+        let lba_mode;
+        let lba_io;
+        let channel = self.channel.clone();
+        let slavebit = self.drive.clone() as usize;
+        let mut controller = self.controller.lock();
+        let cyl;
+        let num_sects = (buffer.len() + SECTOR_SIZE - 1) / SECTOR_SIZE;
+        let head;
+        let sect;
+
+        // Disable IRQ
+        controller.ioctrl(
+            controller::IOCTRL_CLEAR_CHANNEL_INTERRUPT,
+            channel.clone() as usize,
+        )?;
+
+        if lba >= 0x10000000 {
+            lba_mode = 2;
+            lba_io = [
+                ((lba & 0x0000000000FF) >> 00) as u8,
+                ((lba & 0x00000000FF00) >> 08) as u8,
+                ((lba & 0x000000FF0000) >> 16) as u8,
+                ((lba & 0x0000FF000000) >> 24) as u8,
+                ((lba & 0x00FF00000000) >> 32) as u8,
+                ((lba & 0xFF0000000000) >> 40) as u8,
+            ];
+            head = 0;
+        } else if self.capabilities & 0x200 != 0 {
+            lba_mode = 1;
+            lba_io = [
+                ((lba & 0x00000FF) >> 00) as u8,
+                ((lba & 0x000FF00) >> 08) as u8,
+                ((lba & 0x0FF0000) >> 16) as u8,
+                0,
+                0,
+                0,
+            ];
+            head = (lba & 0xF000000) >> 24;
+        } else {
+            lba_mode = 0;
+            sect = (lba % 63) + 1;
+            cyl = (lba + 1 - sect) / (16 * 63);
+            lba_io = [
+                sect as u8,
+                ((cyl & 0x00FF) >> 0) as u8,
+                ((cyl & 0xFF00) >> 8) as u8,
+                0,
+                0,
+                0,
+            ];
+            head = (lba + 1 - sect) % (16 * 63) / 63;
+        }
+
+        // Poll
+        while controller.read_register(channel.reg(REGISTER_STATUS))? & STATUS_BUSY != 0 {}
+
+        // Select drive
+        if lba_mode == 0 {
+            controller.write_register(
+                channel.reg(REGISTER_DRIVE_SELECT),
+                0xA0 | (slavebit << 4) | head,
+            )?;
+        } else {
+            controller.write_register(
+                channel.reg(REGISTER_DRIVE_SELECT),
+                0xE0 | (slavebit << 4) | head,
+            )?;
+        }
+
+        // Write parameters
+        if lba_mode == 2 {
+            controller.write_register(channel.reg(REGISTER_SECTOR_COUNT_1), 0)?;
+            controller.write_register(channel.reg(REGISTER_LBA_3), lba_io[3] as usize)?;
+            controller.write_register(channel.reg(REGISTER_LBA_4), lba_io[4] as usize)?;
+            controller.write_register(channel.reg(REGISTER_LBA_5), lba_io[5] as usize)?;
+        }
+
+        controller.write_register(channel.reg(REGISTER_SECTOR_COUNT_0), num_sects)?;
+        controller.write_register(channel.reg(REGISTER_LBA_0), lba_io[0] as usize)?;
+        controller.write_register(channel.reg(REGISTER_LBA_1), lba_io[1] as usize)?;
+        controller.write_register(channel.reg(REGISTER_LBA_2), lba_io[2] as usize)?;
+
+        // Select and send command
+        controller.write_register(
+            channel.reg(REGISTER_COMMAND),
+            match lba_mode {
+                0 | 1 => COMMAND_WRITE_PIO,
+                _ => COMMAND_WRITE_PIO_EXT,
+            },
+        )?;
+
+        for i in 0..num_sects {
+            controller.ioctrl(controller::IOCTRL_POLL, self.channel.clone() as usize)?;
+            controller.write(
+                self.channel.reg(REGISTER_DATA),
+                &buffer[i * SECTOR_SIZE..(i + 1) * SECTOR_SIZE],
+            )?;
+        }
+
+        controller.write_register(
+            REGISTER_COMMAND,
+            match lba_mode {
+                0 | 1 => COMMAND_CACHE_FLUSH,
+                _ => COMMAND_CACHE_FLUSH_EXT,
+            },
+        )?;
+        controller.ioctrl(controller::IOCTRL_POLL, self.channel.clone() as usize)?;
+
+        Ok(())
     }
 
     fn read_register(&mut self, _: usize) -> error::Result<usize> {
