@@ -45,6 +45,8 @@ pub enum Status {
     InvalidSession,          // EINVSESSION
     ReadOnly,                // ERDONLY
     WriteOnly,               // EWRONLY
+    OutOfResource,           // ENORESOURCE
+    CorruptFilesystem,       // ECORRUPTFILESYSTEM
 }
 
 pub type Result<T> = core::result::Result<T, Status>;
@@ -99,6 +101,8 @@ impl fmt::Display for Status {
             Status::InvalidSession => "Invalid session",
             Status::ReadOnly => "Read only",
             Status::WriteOnly => "Write only",
+            Status::OutOfResource => "Out of resource",
+            Status::CorruptFilesystem => "Corrupt filesystem",
         })
     }
 }

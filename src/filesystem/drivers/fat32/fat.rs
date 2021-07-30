@@ -3,15 +3,27 @@ use alloc::{sync::Arc, vec::Vec};
 
 pub type FATBox = Arc<Mutex<FAT>>;
 
+type Cluster = u32;
+
+enum ClusterState {
+    Free,
+    Some(Cluster),
+    End,
+}
+
 pub struct FAT {
     drive: DeviceBox,
     sectors_per_cluster: u32,
     bytes_per_cluster: usize,
-    _num_fats: u32,
-    _fat_size: u32,
+    num_fats: usize,
+    fat_size: usize,
     first_fat_sector: usize,
     first_data_sector: u32,
     bytes_per_sector: usize,
+    buffer: Vec<u8>,
+    buffer_modified: bool,
+    buffer_sector_offset: usize,
+    next_free_cluster: u32,
 }
 
 impl FAT {
@@ -23,215 +35,210 @@ impl FAT {
         fat_size: u32,
         bytes_per_sector: u16,
     ) -> Self {
+        let mut buffer = Vec::with_capacity(bytes_per_sector as usize);
+        for _ in 0..buffer.capacity() {
+            buffer.push(0);
+        }
+
         FAT {
-            drive: drive,
+            drive,
             sectors_per_cluster: sectors_per_cluster as u32,
             bytes_per_cluster: (sectors_per_cluster as usize) * (bytes_per_sector as usize),
             first_fat_sector: reserved_sector_count as usize,
-            _num_fats: num_fats as u32,
-            _fat_size: fat_size as u32,
+            num_fats: num_fats as usize,
+            fat_size: fat_size as usize,
             bytes_per_sector: bytes_per_sector as usize,
             first_data_sector: reserved_sector_count as u32 + ((num_fats as u32) * fat_size),
+            buffer,
+            buffer_modified: false,
+            buffer_sector_offset: 0xFFFFFFFF,
+            next_free_cluster: 0xFFFFFFFF,
         }
     }
 
-    pub fn get_cluster_chain(&self, first_cluster: u32) -> error::Result<Vec<u32>> {
-        let mut cluster_chain = Vec::new();
-
-        let mut buffer = Vec::with_capacity(self.bytes_per_sector);
-        unsafe { buffer.set_len(self.bytes_per_sector) };
-
-        let mut last_sector = 0xFFFFFFFF;
-        let mut cluster = first_cluster;
-        let drive = self.drive.lock();
-        loop {
-            let sector = self.first_fat_sector + ((cluster as usize * 4) / self.bytes_per_sector);
-            let offset = (cluster as usize * 4) % self.bytes_per_sector;
-
-            if last_sector != sector {
-                drive.read(sector, buffer.as_mut_slice())?;
-                last_sector = sector;
+    fn flush_buffer(&mut self) -> error::Result<()> {
+        if self.buffer_modified {
+            let mut drive = self.drive.lock();
+            let mut sector = self.buffer_sector_offset + self.first_fat_sector;
+            for _ in 0..self.num_fats {
+                drive.write(sector, self.buffer.as_slice())?;
+                sector += self.fat_size;
             }
-
-            cluster_chain.push(cluster & 0x0FFFFFFF);
-            cluster = ((buffer[offset] as u32)
-                | ((buffer[offset + 1] as u32) << 8)
-                | ((buffer[offset + 2] as u32) << 16)
-                | ((buffer[offset + 3] as u32) << 24))
-                & 0x0FFFFFFF;
-
-            if cluster == 0 || (cluster & 0x0FFFFFFF) >= 0x0FFFFFF8 {
-                break;
-            }
+            self.buffer_modified = false;
         }
 
-        Ok(cluster_chain)
+        Ok(())
     }
 
-    pub fn grow_cluster_chain(&self, first_cluster: u32, num_clusters: usize) -> error::Result<()> {
-        // Locate end of cluster chain
-        let mut buffer = Vec::with_capacity(self.bytes_per_sector);
-        unsafe { buffer.set_len(self.bytes_per_sector) };
+    fn set_buffer_sector(&mut self, new_sector_offset: usize) -> error::Result<()> {
+        if self.buffer_sector_offset == new_sector_offset {
+            return Ok(());
+        }
 
-        let mut cluster = first_cluster;
-        let mut last_sector = 0xFFFFFFFF;
-        let mut original_count = 0;
-        let mut drive = self.drive.lock();
-        let (mut prev_sector, mut prev_offset) = loop {
-            let sector = self.first_fat_sector + ((cluster as usize * 4) / self.bytes_per_sector);
-            let offset = (cluster as usize * 4) % self.bytes_per_sector;
+        self.flush_buffer()?;
 
-            if last_sector != sector {
-                drive.read(sector, buffer.as_mut_slice())?;
-                last_sector = sector;
-            }
+        self.buffer_sector_offset = new_sector_offset;
+        self.drive.lock().read(
+            new_sector_offset + self.first_fat_sector,
+            self.buffer.as_mut_slice(),
+        )
+    }
 
-            cluster = ((buffer[offset] as u32)
-                | ((buffer[offset + 1] as u32) << 8)
-                | ((buffer[offset + 2] as u32) << 16)
-                | ((buffer[offset + 3] as u32) << 24))
-                & 0x0FFFFFFF;
-            original_count += 1;
+    fn get_next_cluster(&mut self, cluster: Cluster) -> error::Result<ClusterState> {
+        let sector_offset = (cluster as usize * 4) / self.bytes_per_sector;
+        let offset = (cluster as usize * 4) % self.bytes_per_sector;
 
-            if cluster == 0 {
-                return Err(error::Status::IOError);
-            }
+        self.set_buffer_sector(sector_offset)?;
 
-            if (cluster & 0x0FFFFFFF) >= 0x0FFFFFF8 {
-                break (sector, offset);
-            }
+        let next_cluster = ((self.buffer[offset] as u32)
+            | ((self.buffer[offset + 1] as u32) << 8)
+            | ((self.buffer[offset + 2] as u32) << 16)
+            | ((self.buffer[offset + 3] as u32) << 24))
+            & 0x0FFFFFFF;
+
+        Ok(if next_cluster >= 0x0FFFFFF8 {
+            ClusterState::End
+        } else if next_cluster == 0 {
+            ClusterState::Free
+        } else {
+            ClusterState::Some(next_cluster)
+        })
+    }
+
+    fn set_next_cluster(
+        &mut self,
+        cluster: Cluster,
+        next_cluster: ClusterState,
+    ) -> error::Result<()> {
+        let next_cluster = match next_cluster {
+            ClusterState::Free => 0,
+            ClusterState::Some(next_cluster) => next_cluster,
+            ClusterState::End => 0x0FFFFFFF,
         };
 
-        // Allocate new clusters
-        let mut prev_buffer = buffer;
-        let mut buffer = Vec::with_capacity(self.bytes_per_sector);
-        unsafe { buffer.set_len(self.bytes_per_sector) };
+        let sector_offset = (cluster as usize * 4) / self.bytes_per_sector;
+        let offset = (cluster as usize * 4) % self.bytes_per_sector;
 
-        let mut cluster: u32 = 2;
-        last_sector = 0xFFFFFFFF;
-        for _ in original_count..num_clusters {
-            let (sector, offset) = loop {
-                let sector =
-                    self.first_fat_sector + ((cluster as usize * 4) / self.bytes_per_sector);
-                let offset = (cluster as usize * 4) % self.bytes_per_sector;
+        self.set_buffer_sector(sector_offset)?;
 
-                if last_sector != sector {
-                    drive.read(sector, buffer.as_mut_slice())?;
-                    last_sector = sector;
-                }
+        self.buffer[offset + 0] = (next_cluster.wrapping_shr(0) & 0xFF) as u8;
+        self.buffer[offset + 1] = (next_cluster.wrapping_shr(8) & 0xFF) as u8;
+        self.buffer[offset + 2] = (next_cluster.wrapping_shr(16) & 0xFF) as u8;
+        self.buffer[offset + 3] = (next_cluster.wrapping_shr(24) & 0xFF) as u8;
 
-                let new_cluster = ((buffer[offset] as u32)
-                    | ((buffer[offset + 1] as u32) << 8)
-                    | ((buffer[offset + 2] as u32) << 16)
-                    | ((buffer[offset + 3] as u32) << 24))
-                    & 0x0FFFFFFF;
+        self.buffer_modified = true;
 
-                if new_cluster == 0 {
-                    break (sector, offset);
-                }
+        Ok(())
+    }
 
-                cluster += 1;
-            };
-
-            prev_buffer[prev_offset + 0] = (cluster.wrapping_shr(0) & 0xFF) as u8;
-            prev_buffer[prev_offset + 1] = (cluster.wrapping_shr(8) & 0xFF) as u8;
-            prev_buffer[prev_offset + 2] = (cluster.wrapping_shr(16) & 0xFF) as u8;
-            prev_buffer[prev_offset + 3] = (cluster.wrapping_shr(24) & 0xFF) as u8;
-
-            drive.write(prev_sector, prev_buffer.as_slice())?;
-            prev_buffer = buffer;
-            prev_sector = sector;
-            prev_offset = offset;
-
-            buffer = Vec::with_capacity(self.bytes_per_sector);
-            for byte in &prev_buffer {
-                buffer.push(*byte);
-            }
-
-            cluster += 1;
+    fn find_next_free_cluster(&mut self) -> error::Result<Cluster> {
+        if self.next_free_cluster == 0xFFFFFFFF {
+            self.next_free_cluster = 2;
         }
 
-        prev_buffer[prev_offset + 0] = 0xFF;
-        prev_buffer[prev_offset + 1] = 0xFF;
-        prev_buffer[prev_offset + 2] = 0xFF;
-        prev_buffer[prev_offset + 3] = 0x0F;
-        drive.write(prev_sector, prev_buffer.as_slice())?;
+        let top = ((self.fat_size * self.bytes_per_sector) / 4) as u32;
+
+        while self.next_free_cluster < top {
+            match self.get_next_cluster(self.next_free_cluster)? {
+                ClusterState::Free => return Ok(self.next_free_cluster),
+                _ => self.next_free_cluster += 1,
+            }
+        }
+
+        Err(error::Status::OutOfResource)
+    }
+
+    fn allocate_cluster(&mut self) -> error::Result<u32> {
+        let cluster = self.find_next_free_cluster()?;
+        self.set_next_cluster(cluster, ClusterState::End)?;
+        Ok(cluster)
+    }
+
+    fn free_cluster(&mut self, cluster: u32) -> error::Result<()> {
+        if self.next_free_cluster == 0xFFFFFFFF {
+            self.find_next_free_cluster()?;
+        }
+
+        self.set_next_cluster(cluster, ClusterState::Free)?;
+        if cluster < self.next_free_cluster {
+            self.next_free_cluster = cluster;
+        }
+        Ok(())
+    }
+
+    pub fn get_cluster_chain(&mut self, first_cluster: Cluster) -> error::Result<Vec<Cluster>> {
+        let mut cluster_chain = Vec::new();
+
+        let mut cluster = first_cluster;
+        loop {
+            cluster_chain.push(cluster);
+            cluster = match self.get_next_cluster(cluster)? {
+                ClusterState::Free => return Err(error::Status::CorruptFilesystem),
+                ClusterState::End => return Ok(cluster_chain),
+                ClusterState::Some(next_cluster) => next_cluster,
+            };
+        }
+    }
+
+    pub fn grow_cluster_chain(
+        &mut self,
+        first_cluster: u32,
+        num_clusters: usize,
+    ) -> error::Result<()> {
+        // Locate end of cluster chain
+        let mut cluster = first_cluster;
+        let mut cluster_count = 1;
+        'search_loop: loop {
+            cluster = match self.get_next_cluster(cluster)? {
+                ClusterState::Free => return Err(error::Status::CorruptFilesystem),
+                ClusterState::End => break 'search_loop,
+                ClusterState::Some(next_cluster) => next_cluster,
+            };
+            cluster_count += 1;
+        }
+
+        // Allocate clusters
+        for _ in cluster_count..num_clusters {
+            let new_cluster = self.allocate_cluster()?;
+            self.set_next_cluster(cluster, ClusterState::Some(new_cluster))?;
+            cluster = new_cluster;
+        }
+
+        self.flush_buffer()?;
 
         Ok(())
     }
 
     pub fn shrink_cluster_chain(
-        &self,
+        &mut self,
         first_cluster: u32,
         num_clusters: usize,
     ) -> error::Result<()> {
-        // Find new end of cluster
-        let mut buffer = Vec::with_capacity(self.bytes_per_sector);
-        unsafe { buffer.set_len(self.bytes_per_sector) };
-
-        let mut last_sector = 0xFFFFFFFF;
         let mut cluster = first_cluster;
-        let mut drive = self.drive.lock();
         for _ in 0..num_clusters {
-            let sector = self.first_fat_sector + ((cluster as usize * 4) / self.bytes_per_sector);
-            let offset = (cluster as usize * 4) % self.bytes_per_sector;
-
-            if last_sector != sector {
-                drive.read(sector, buffer.as_mut_slice())?;
-                last_sector = sector;
-            }
-
-            cluster = ((buffer[offset] as u32)
-                | ((buffer[offset + 1] as u32) << 8)
-                | ((buffer[offset + 2] as u32) << 16)
-                | ((buffer[offset + 3] as u32) << 24))
-                & 0x0FFFFFFF;
-
-            if cluster == 0 || (cluster & 0x0FFFFFFF) >= 0x0FFFFFF8 {
-                return Err(error::Status::IOError);
-            }
+            cluster = match self.get_next_cluster(cluster)? {
+                ClusterState::Some(next_cluster) => next_cluster,
+                ClusterState::End => return Err(error::Status::InvalidArgument),
+                ClusterState::Free => return Err(error::Status::CorruptFilesystem),
+            };
         }
 
-        // Free remaining clusters
-        let mut next_cluster = cluster;
-        {
-            let offset = (cluster as usize * 4) % self.bytes_per_sector;
+        let mut next_cluster = match self.get_next_cluster(cluster)? {
+            ClusterState::End => return Ok(()),
+            ClusterState::Free => return Err(error::Status::CorruptFilesystem),
+            ClusterState::Some(next_cluster) => next_cluster,
+        };
 
-            buffer[offset] = 0xFF;
-            buffer[offset + 1] = 0xFF;
-            buffer[offset + 2] = 0xFF;
-            buffer[offset + 3] = 0x0F;
-        }
-
+        self.set_next_cluster(cluster, ClusterState::End)?;
         loop {
-            let sector = self.first_fat_sector + ((cluster as usize * 4) / self.bytes_per_sector);
-            let offset = (cluster as usize * 4) % self.bytes_per_sector;
-
-            if last_sector != sector {
-                drive.write(last_sector, buffer.as_slice())?;
-                drive.read(sector, buffer.as_mut_slice())?;
-                last_sector = sector;
-            }
-
-            next_cluster = ((buffer[offset] as u32)
-                | ((buffer[offset + 1] as u32) << 8)
-                | ((buffer[offset + 2] as u32) << 16)
-                | ((buffer[offset + 3] as u32) << 24))
-                & 0x0FFFFFFF;
-
-            buffer[offset] = 0;
-            buffer[offset + 1] = 0;
-            buffer[offset + 2] = 0;
-            buffer[offset + 3] = 0;
-
-            if next_cluster == 0 || (next_cluster & 0x0FFFFFFF) >= 0x0FFFFFF8 {
-                break;
-            }
+            cluster = next_cluster;
+            next_cluster = match self.get_next_cluster(cluster)? {
+                ClusterState::End => return Ok(()),
+                ClusterState::Free => return Err(error::Status::CorruptFilesystem),
+                ClusterState::Some(next_cluster) => next_cluster,
+            };
+            self.free_cluster(cluster)?;
         }
-
-        drive.write(last_sector, buffer.as_slice())?;
-
-        Ok(())
     }
 
     pub fn read_cluster(&self, cluster: u32, buffer: &mut [u8]) -> error::Result<()> {

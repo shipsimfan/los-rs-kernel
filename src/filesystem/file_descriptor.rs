@@ -46,6 +46,20 @@ impl FileDescriptor {
         Ok(ret)
     }
 
+    pub fn write(&mut self, buffer: &[u8]) -> error::Result<isize> {
+        if !self.write {
+            return Err(error::Status::ReadOnly);
+        }
+
+        let ret = self.file.lock().write(self.current_offset, buffer)?;
+
+        if ret > 0 {
+            self.current_offset += ret as usize;
+        }
+
+        Ok(ret)
+    }
+
     pub fn seek(&mut self, offset: usize, seek_from: SeekFrom) -> usize {
         match seek_from {
             SeekFrom::Start => self.current_offset = offset,

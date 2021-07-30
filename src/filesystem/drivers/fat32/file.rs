@@ -19,8 +19,82 @@ impl File {
 }
 
 impl crate::filesystem::File for File {
-    fn write(&mut self, _: usize, _: &[u8]) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result<isize> {
+        if offset + buffer.len() > self.file_size {
+            return Err(error::Status::OutOfRange);
+        }
+
+        let mut fat = self.fat.lock();
+
+        let starting_cluster_index = offset / fat.bytes_per_cluster();
+        let ending_cluster_index = (offset + buffer.len()) / fat.bytes_per_cluster();
+
+        let cluster_chain = fat.get_cluster_chain(self.first_cluster)?;
+
+        if starting_cluster_index == ending_cluster_index {
+            let mut write_buffer = Vec::with_capacity(fat.bytes_per_cluster());
+            unsafe { write_buffer.set_len(fat.bytes_per_cluster()) };
+
+            fat.read_cluster(
+                cluster_chain[starting_cluster_index],
+                write_buffer.as_mut_slice(),
+            )?;
+
+            let buffer_offset = offset - (starting_cluster_index * fat.bytes_per_cluster());
+            for i in 0..buffer.len() {
+                write_buffer[i + buffer_offset] = buffer[i];
+            }
+
+            fat.write_cluster(
+                cluster_chain[starting_cluster_index],
+                write_buffer.as_slice(),
+            )?;
+        } else {
+            // Write first cluster
+            let mut write_buffer = Vec::with_capacity(fat.bytes_per_cluster());
+            unsafe { write_buffer.set_len(fat.bytes_per_cluster()) };
+
+            fat.read_cluster(
+                cluster_chain[starting_cluster_index],
+                write_buffer.as_mut_slice(),
+            )?;
+
+            let buffer_offset = offset - (starting_cluster_index * fat.bytes_per_cluster());
+            for i in buffer_offset..fat.bytes_per_cluster() {
+                write_buffer[i] = buffer[i - buffer_offset];
+            }
+
+            fat.write_cluster(
+                cluster_chain[starting_cluster_index],
+                write_buffer.as_slice(),
+            )?;
+
+            // Write middle clusters
+            let mut buffer_offset = fat.bytes_per_cluster() - buffer_offset;
+            for cluster_index in starting_cluster_index + 1..ending_cluster_index - 1 {
+                fat.write_cluster(
+                    cluster_chain[cluster_index],
+                    &buffer[buffer_offset..buffer_offset + fat.bytes_per_cluster()],
+                )?;
+                buffer_offset += fat.bytes_per_cluster();
+            }
+
+            // Write final cluster
+            fat.read_cluster(
+                cluster_chain[ending_cluster_index],
+                write_buffer.as_mut_slice(),
+            )?;
+
+            let mut j = 0;
+            for i in buffer_offset..buffer.len() {
+                write_buffer[j] = buffer[i];
+                j += 1;
+            }
+
+            fat.write_cluster(cluster_chain[ending_cluster_index], write_buffer.as_slice())?;
+        }
+
+        Ok(buffer.len() as isize)
     }
 
     fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize> {
@@ -30,7 +104,7 @@ impl crate::filesystem::File for File {
 
         // Get info from fat
         let (bytes_per_cluster, cluster_chain) = {
-            let fat = self.fat.lock();
+            let mut fat = self.fat.lock();
             (
                 fat.bytes_per_cluster(),
                 fat.get_cluster_chain(self.first_cluster)?,
@@ -108,7 +182,7 @@ impl crate::filesystem::File for File {
     }
 
     fn set_length(&mut self, new_length: usize) -> error::Result<()> {
-        let fat = self.fat.lock();
+        let mut fat = self.fat.lock();
         let bytes_per_cluster = fat.bytes_per_cluster();
 
         let current_cluster_count = (self.file_size + bytes_per_cluster - 1) / bytes_per_cluster;

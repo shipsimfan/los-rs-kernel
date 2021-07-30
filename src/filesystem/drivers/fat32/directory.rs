@@ -64,7 +64,7 @@ impl Directory {
 
     fn open(&self, name: &str) -> error::Result<DirectoryEntry> {
         // Lock the FAT
-        let fat = self.fat.lock();
+        let mut fat = self.fat.lock();
 
         // Get cluster chain
         let cluster_chain = fat.get_cluster_chain(self.first_cluster)?;
@@ -136,7 +136,7 @@ impl Directory {
 impl filesystem::Directory for Directory {
     fn get_sub_files(&self) -> error::Result<Vec<(String, FileMetadata)>> {
         // Lock the FAT
-        let fat = self.fat.lock();
+        let mut fat = self.fat.lock();
 
         // Get cluster chain
         let cluster_chain = fat.get_cluster_chain(self.first_cluster)?;
@@ -273,7 +273,7 @@ impl filesystem::Directory for Directory {
 
     fn get_sub_directories(&self) -> error::Result<Vec<String>> {
         // Lock the FAT
-        let fat = self.fat.lock();
+        let mut fat = self.fat.lock();
 
         // Get cluster chain
         let cluster_chain = fat.get_cluster_chain(self.first_cluster)?;
@@ -385,7 +385,7 @@ impl filesystem::Directory for Directory {
         new_metadata: FileMetadata,
     ) -> error::Result<()> {
         // Lock the FAT
-        let fat = self.fat.lock();
+        let mut fat = self.fat.lock();
 
         // Get cluster chain
         let cluster_chain = fat.get_cluster_chain(self.first_cluster)?;

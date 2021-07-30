@@ -6,7 +6,7 @@ pub type FileBox = Arc<Mutex<FileContainer>>;
 
 pub trait File: Send {
     fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize>;
-    fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result<()>;
+    fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result<isize>;
     fn set_length(&mut self, new_length: usize) -> error::Result<()>;
     fn get_length(&self) -> usize;
 }
@@ -37,6 +37,15 @@ impl FileContainer {
 
     pub fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize> {
         self.file.read(offset, buffer)
+    }
+
+    pub fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result<isize> {
+        let file_length = self.file.get_length();
+        if offset + buffer.len() > file_length {
+            self.set_length(offset + buffer.len())?;
+        }
+
+        self.file.write(offset, buffer)
     }
 
     pub fn close(&mut self, arc_ptr: *const Mutex<FileContainer>) {
