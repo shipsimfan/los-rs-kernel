@@ -2,8 +2,7 @@ use crate::{device::DeviceBox, error, locks::Mutex};
 use alloc::{sync::Arc, vec::Vec};
 
 pub type FATBox = Arc<Mutex<FAT>>;
-
-type Cluster = u32;
+pub type Cluster = u32;
 
 enum ClusterState {
     Free,
