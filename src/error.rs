@@ -47,6 +47,7 @@ pub enum Status {
     WriteOnly,               // EWRONLY
     OutOfResource,           // ENORESOURCE
     CorruptFilesystem,       // ECORRUPTFILESYSTEM
+    IsFile,                  // EISFILE
 }
 
 pub type Result<T> = core::result::Result<T, Status>;
@@ -103,6 +104,7 @@ impl fmt::Display for Status {
             Status::WriteOnly => "Write only",
             Status::OutOfResource => "Out of resource",
             Status::CorruptFilesystem => "Corrupt filesystem",
+            Status::IsFile => "Is file",
         })
     }
 }

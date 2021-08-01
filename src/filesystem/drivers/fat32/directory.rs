@@ -55,12 +55,46 @@ impl filesystem::Directory for Directory {
         Ok(sub_directories)
     }
 
-    fn open_file(&self, _: &str) -> error::Result<Box<dyn File>> {
-        Err(error::Status::NotImplemented)
+    fn open_file(&self, filename: &str) -> error::Result<Box<dyn File>> {
+        let mut iter = self.create_iterator()?;
+
+        while let Some(entry) = iter.next()? {
+            if entry.name() == filename {
+                return if entry.is_directory() {
+                    Err(error::Status::IsDirectory)
+                } else {
+                    Ok(Box::new(super::file::File::new(
+                        entry.first_cluster(),
+                        entry.file_size(),
+                        self.fat.clone(),
+                    )))
+                };
+            }
+        }
+
+        Err(error::Status::NoEntry)
     }
 
-    fn open_directory(&self, _: &str) -> error::Result<Box<dyn filesystem::Directory>> {
-        Err(error::Status::NotImplemented)
+    fn open_directory(
+        &self,
+        directory_name: &str,
+    ) -> error::Result<Box<dyn filesystem::Directory>> {
+        let mut iter = self.create_iterator()?;
+
+        while let Some(entry) = iter.next()? {
+            if entry.name() == directory_name {
+                return if !entry.is_directory() {
+                    Err(error::Status::IsFile)
+                } else {
+                    Ok(Box::new(Directory::new(
+                        entry.first_cluster(),
+                        self.fat.clone(),
+                    )))
+                };
+            }
+        }
+
+        Err(error::Status::NoEntry)
     }
 
     fn make_file(&self, _: &str) -> error::Result<()> {
@@ -87,7 +121,26 @@ impl filesystem::Directory for Directory {
         Err(error::Status::NotImplemented)
     }
 
-    fn update_file_metadata(&self, _: &str, _: FileMetadata) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn update_file_metadata(
+        &self,
+        filename: &str,
+        new_metadata: FileMetadata,
+    ) -> error::Result<()> {
+        let mut iter = self.create_iterator()?;
+
+        while let Some(mut entry) = iter.next()? {
+            if entry.name() == filename {
+                return if entry.is_directory() {
+                    Err(error::Status::IsDirectory)
+                } else {
+                    entry.set_file_size(new_metadata.size());
+                    iter.write(entry)?;
+                    iter.flush_buffer()?;
+                    Ok(())
+                };
+            }
+        }
+
+        Err(error::Status::NoEntry)
     }
 }
