@@ -38,7 +38,7 @@ const OPEN_WRITE: usize = 2;
 const OPEN_READ_WRITE: usize = 3;
 const OPEN_TRUNCATE: usize = 4;
 const OPEN_APPEND: usize = 8;
-const _OPEN_CREATE: usize = 16;
+const OPEN_CREATE: usize = 16;
 
 static FILESYSTEM_DRIVERS: Mutex<Vec<DetectFilesystemFunction>> = Mutex::new(Vec::new());
 static FILESYSTEMS: Mutex<Map<Filesystem>> = Mutex::new(Map::with_starting_index(1));
@@ -89,9 +89,23 @@ pub fn open(filepath: &str, flags: usize) -> error::Result<FileDescriptor> {
     };
 
     // Open file
-    let file = current_directory
-        .lock()
-        .open_file(filename, &current_directory)?;
+    let mut directory = current_directory.lock();
+    let file = match directory.open_file(filename, &current_directory) {
+        Ok(file) => file,
+        Err(status) => match status {
+            error::Status::NoEntry => {
+                if flags & OPEN_CREATE != 0 {
+                    directory.create_file(filename)?;
+                    directory.open_file(filename, &current_directory)?
+                } else {
+                    return Err(status);
+                }
+            }
+            _ => return Err(status),
+        },
+    };
+
+    drop(directory);
 
     // Parse flags
     let read = flags & OPEN_READ != 0;
@@ -200,6 +214,25 @@ pub fn remove_directory(path: &str) -> error::Result<()> {
     // Remove directory
     let mut parent_directory = parent_directory_lock.lock();
     parent_directory.remove_directory(directory_name)
+}
+
+pub fn create_directory(path: &str) -> error::Result<()> {
+    // Parse filepath
+    let (fs_number, path) = parse_filepath(path, false)?;
+
+    // Open filesystem
+    let root_directory = get_root_directory(fs_number)?;
+
+    // Iterate path
+    let (parent_directory_lock, directory_name) = get_directory(path, root_directory, true)?;
+    let directory_name = match directory_name {
+        Some(str) => str,
+        None => return Err(error::Status::InvalidArgument),
+    };
+
+    // Remove directory
+    let mut parent_directory = parent_directory_lock.lock();
+    parent_directory.create_directory(directory_name)
 }
 
 fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result<()> {

@@ -1,6 +1,6 @@
 use super::{File, FileBox, FileContainer, FileMetadata};
 use crate::{error, locks::Mutex};
-use alloc::{boxed::Box, format, string::String, sync::Arc, vec::Vec};
+use alloc::{borrow::ToOwned, boxed::Box, format, string::String, sync::Arc, vec::Vec};
 
 pub type DirectoryBox = Arc<Mutex<DirectoryContainer>>;
 
@@ -371,5 +371,46 @@ impl DirectoryContainer {
         } else {
             Err(status)
         }
+    }
+
+    pub fn create_file(&mut self, filename: &str) -> error::Result<()> {
+        // Verify file does not exist
+        for (sub_filename, _, _) in &self.sub_files {
+            if sub_filename == filename {
+                return Err(error::Status::Exists);
+            }
+        }
+
+        for (sub_dir_name, _) in &self.sub_directories {
+            if sub_dir_name == filename {
+                return Err(error::Status::Exists);
+            }
+        }
+
+        // Create the file
+        self.directory.make_file(filename)?;
+        self.sub_files
+            .push((filename.to_owned(), FileMetadata::new(0), None));
+        Ok(())
+    }
+
+    pub fn create_directory(&mut self, directory_name: &str) -> error::Result<()> {
+        // Verify directory does not exist
+        for (sub_filename, _, _) in &self.sub_files {
+            if sub_filename == directory_name {
+                return Err(error::Status::Exists);
+            }
+        }
+
+        for (sub_dir_name, _) in &self.sub_directories {
+            if sub_dir_name == directory_name {
+                return Err(error::Status::Exists);
+            }
+        }
+
+        // Create the directory
+        self.directory.make_directory(directory_name)?;
+        self.sub_directories.push((directory_name.to_owned(), None));
+        Ok(())
     }
 }

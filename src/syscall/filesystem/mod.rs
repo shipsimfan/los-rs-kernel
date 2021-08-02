@@ -15,6 +15,7 @@ const TRUNCATE_FILE_SYSCALL: usize = 0x2007;
 const WRITE_FILE_SYSCALL: usize = 0x2008;
 const REMOVE_FILE_SYSCALL: usize = 0x2009;
 const REMOVE_DIRECTORY_SYSCALL: usize = 0x200A;
+const CREATE_DIRECTORY_SYSCALL: usize = 0x200B;
 
 pub fn system_call(
     code: usize,
@@ -162,6 +163,17 @@ pub fn system_call(
             };
 
             match filesystem::remove_directory(path) {
+                Ok(()) => 0,
+                Err(status) => status.to_return_code(),
+            }
+        }
+        CREATE_DIRECTORY_SYSCALL => {
+            let path = match super::to_str(arg1) {
+                Ok(str) => str,
+                Err(status) => return status.to_return_code(),
+            };
+
+            match filesystem::create_directory(path) {
                 Ok(()) => 0,
                 Err(status) => status.to_return_code(),
             }

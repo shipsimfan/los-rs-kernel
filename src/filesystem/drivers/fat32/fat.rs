@@ -147,7 +147,7 @@ impl FAT {
         Err(error::Status::OutOfResource)
     }
 
-    fn allocate_cluster(&mut self) -> error::Result<u32> {
+    pub fn allocate_cluster(&mut self) -> error::Result<u32> {
         let cluster = self.find_next_free_cluster()?;
         self.set_next_cluster(cluster, ClusterState::End)?;
         Ok(cluster)

@@ -121,12 +121,80 @@ impl filesystem::Directory for Directory {
         Err(error::Status::NoEntry)
     }
 
-    fn make_file(&self, _: &str) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn make_file(&self, filename: &str) -> error::Result<()> {
+        // Allocate cluster
+        let first_cluster = self.fat.lock().allocate_cluster()?;
+
+        // Create the entry
+        let entry = entry::DirectoryEntry::new(filename.to_owned(), false, first_cluster, 0);
+        let mut iter = self.create_iterator()?;
+        iter.create(entry)?;
+        iter.flush_buffer()
     }
 
-    fn make_directory(&self, _: &str) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn make_directory(&self, directory_name: &str) -> error::Result<()> {
+        // Allocate cluster
+        let first_cluster = self.fat.lock().allocate_cluster()?;
+
+        // Write empty directory
+        let dot_entry = entry::DiskDirectoryEntry {
+            filename: [
+                b'.', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+            ],
+            attributes: entry::ATTRIBUTE_DIRECTORY,
+            reserved: 0,
+            creation_tenths: 0,
+            creation_time: 0,
+            creation_date: 0,
+            last_accessed_date: 0,
+            first_cluster_high: (first_cluster.wrapping_shr(16) & 0xFFFF) as u16,
+            last_modification_time: 0,
+            last_modification_date: 0,
+            first_cluster_low: (first_cluster & 0xFFFF) as u16,
+            file_size: 0,
+        };
+
+        let dot_dot_entry = entry::DiskDirectoryEntry {
+            filename: [
+                b'.', b'.', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+            ],
+            attributes: entry::ATTRIBUTE_DIRECTORY,
+            reserved: 0,
+            creation_tenths: 0,
+            creation_time: 0,
+            creation_date: 0,
+            last_accessed_date: 0,
+            first_cluster_high: (self.first_cluster.wrapping_shr(16) & 0xFFFF) as u16,
+            last_modification_time: 0,
+            last_modification_date: 0,
+            first_cluster_low: (self.first_cluster & 0xFFFF) as u16,
+            file_size: 0,
+        };
+
+        let bytes_per_cluster = self.fat.lock().bytes_per_cluster();
+        let mut buffer = Vec::with_capacity(bytes_per_cluster);
+        let dot_entry_slice = dot_entry.to_slice();
+        for i in 0..dot_entry_slice.len() {
+            buffer.push(dot_entry_slice[i]);
+        }
+        let dot_dot_entry_slice = dot_dot_entry.to_slice();
+        for i in 0..dot_dot_entry_slice.len() {
+            buffer.push(dot_dot_entry_slice[i]);
+        }
+        for _ in buffer.len()..buffer.capacity() {
+            buffer.push(0);
+        }
+
+        self.fat
+            .lock()
+            .write_cluster(first_cluster, buffer.as_slice())?;
+
+        // Create entry
+        let entry = entry::DirectoryEntry::new(directory_name.to_owned(), true, first_cluster, 0);
+
+        let mut iter = self.create_iterator()?;
+        iter.create(entry)?;
+        iter.flush_buffer()
     }
 
     fn rename_file(&self, _: &str, _: &str) -> error::Result<()> {

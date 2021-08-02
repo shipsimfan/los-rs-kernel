@@ -6,23 +6,23 @@ use alloc::{borrow::ToOwned, string::String, vec::Vec};
 #[repr(C)]
 #[repr(packed(1))]
 #[derive(Debug, Default, Clone, Copy)]
-struct DiskDirectoryEntry {
-    filename: [u8; 11],
-    attributes: u8,
-    reserved: u8,
-    creation_tenths: u8,
-    creation_time: u16,
-    creation_date: u16,
-    last_accessed_date: u16,
-    first_cluster_high: u16,
-    last_modification_time: u16,
-    last_modification_date: u16,
-    first_cluster_low: u16,
-    file_size: u32,
+pub struct DiskDirectoryEntry {
+    pub filename: [u8; 11],
+    pub attributes: u8,
+    pub reserved: u8,
+    pub creation_tenths: u8,
+    pub creation_time: u16,
+    pub creation_date: u16,
+    pub last_accessed_date: u16,
+    pub first_cluster_high: u16,
+    pub last_modification_time: u16,
+    pub last_modification_date: u16,
+    pub first_cluster_low: u16,
+    pub file_size: u32,
 }
 
 #[repr(packed(1))]
-struct LongDirectoryEntry {
+pub struct LongDirectoryEntry {
     order: u8,
     name1: [u16; 5],
     attr: u8,
@@ -58,7 +58,7 @@ const ATTRIBUTE_READ_ONLY: u8 = 0x01;
 const ATTRIBUTE_HIDDEN: u8 = 0x02;
 const ATTRIBUTE_SYSTEM: u8 = 0x04;
 const ATTRIBUTE_VOLUME_ID: u8 = 0x08;
-const ATTRIBUTE_DIRECTORY: u8 = 0x10;
+pub const ATTRIBUTE_DIRECTORY: u8 = 0x10;
 const ATTRIBUTE_ARCHIVE: u8 = 0x20;
 const ATTRIBUTE_LONG_FILE_NAME: u8 =
     ATTRIBUTE_READ_ONLY | ATTRIBUTE_HIDDEN | ATTRIBUTE_SYSTEM | ATTRIBUTE_VOLUME_ID;
@@ -128,6 +128,10 @@ impl DiskDirectoryEntry {
 impl LongDirectoryEntry {
     pub fn from_entry(entry: &DiskDirectoryEntry) -> &LongDirectoryEntry {
         unsafe { core::mem::transmute(entry) }
+    }
+
+    pub fn to_slice(self) -> [u8; 32] {
+        unsafe { core::mem::transmute::<Self, DiskDirectoryEntry>(self) }.to_slice()
     }
 }
 
@@ -411,6 +415,51 @@ impl DirectoryIterator {
         Ok(())
     }
 
+    pub fn create(&mut self, entry: DirectoryEntry) -> error::Result<()> {
+        // Create disk entry and long directory entries
+        let (disk_entry, long_entries) = entry.to_disk_entries()?;
+
+        // Find a space for the entries
+        let num_entries = 1 + long_entries.len();
+        let mut current_free_entries = 0;
+        let mut entry_buffer = [0u8; core::mem::size_of::<DiskDirectoryEntry>()];
+        loop {
+            self.current_index += 1;
+
+            let (cluster_index, offset) = self.get_cluster_index_and_offset();
+            self.buffer.set_current_cluster_index(cluster_index)?;
+            self.buffer.read(offset, &mut entry_buffer)?;
+            let entry = DiskDirectoryEntry::from_slice(&entry_buffer);
+
+            if entry.filename[0] != 0 && entry.filename[0] != 0xE5 {
+                current_free_entries = 0;
+                continue;
+            }
+
+            current_free_entries += 1;
+            if current_free_entries >= num_entries {
+                break;
+            }
+        }
+
+        // Write the entries
+        let (cluster_index, offset) = self.get_cluster_index_and_offset();
+        self.buffer.set_current_cluster_index(cluster_index)?;
+        let disk_entry_slice = disk_entry.to_slice();
+        self.buffer.write(offset, &disk_entry_slice)?;
+
+        for entry in long_entries {
+            self.current_index -= 1;
+            let slice = entry.to_slice();
+
+            let (cluster_index, offset) = self.get_cluster_index_and_offset();
+            self.buffer.set_current_cluster_index(cluster_index)?;
+            self.buffer.write(offset, &slice)?;
+        }
+
+        Ok(())
+    }
+
     fn get_cluster_index_and_offset(&self) -> (usize, usize) {
         let byte_index = self.current_index * core::mem::size_of::<DiskDirectoryEntry>();
         (byte_index / self.cluster_top, byte_index % self.cluster_top)
@@ -425,6 +474,189 @@ impl DirectoryEntry {
             first_cluster,
             file_size,
         }
+    }
+
+    pub fn to_disk_entries(self) -> error::Result<(DiskDirectoryEntry, Vec<LongDirectoryEntry>)> {
+        // Check to see if long file name is nescessary
+        let is_long_filename = if self.directory {
+            if self.name.len() > 11 {
+                return Err(error::Status::InvalidArgument);
+            } else {
+                false
+            }
+        } else {
+            let mut filename_length = 0;
+            let mut extension_length = 0;
+            let mut extension = false;
+            for c in self.name.chars() {
+                if c == ' ' {
+                    filename_length = 9;
+                    break;
+                }
+
+                if c == '.' {
+                    if extension {
+                        filename_length = 9;
+                        break;
+                    } else {
+                        extension = true;
+                    }
+                } else {
+                    if extension {
+                        extension_length += 1;
+                    } else {
+                        filename_length += 1;
+                    }
+                }
+            }
+            filename_length > 8 || extension_length > 3
+        };
+
+        // Generate short name
+        let short_name = if is_long_filename {
+            // Generate basis name
+            let basis_name = self
+                .name
+                .to_ascii_uppercase()
+                .replace(' ', "")
+                .trim_start_matches('.')
+                .to_owned();
+
+            let mut short_name = [b' '; 11];
+
+            let mut i = 0;
+            let mut iter = basis_name.chars();
+            while let Some(c) = iter.next() {
+                if c == '.' {
+                    break;
+                }
+
+                short_name[i] = c as u8;
+                i += 1;
+                if i >= 8 {
+                    break;
+                }
+            }
+
+            i = 8;
+            while let Some(c) = iter.next() {
+                short_name[i] = c as u8;
+                if i >= 11 {
+                    break;
+                }
+            }
+
+            // TODO: Generate tail
+
+            short_name
+        } else {
+            let mut short_name = [b' '; 11];
+            let mut i = 0;
+            for c in self.name.chars() {
+                if c == '.' && !self.directory {
+                    i = 8;
+                    continue;
+                }
+
+                short_name[i] = c.to_ascii_uppercase() as u8;
+                i += 1;
+            }
+
+            short_name
+        };
+
+        // Generate disk directory entry
+        let disk_entry = DiskDirectoryEntry {
+            filename: short_name,
+            attributes: if self.directory {
+                ATTRIBUTE_DIRECTORY
+            } else {
+                0
+            },
+            reserved: 0,
+            creation_tenths: 0,
+            creation_time: 0,
+            creation_date: 0,
+            last_accessed_date: 0,
+            first_cluster_high: (self.first_cluster.wrapping_shr(16) & 0xFFFF) as u16,
+            last_modification_time: 0,
+            last_modification_date: 0,
+            first_cluster_low: (self.first_cluster & 0xFFFF) as u16,
+            file_size: self.file_size as u32,
+        };
+
+        // Generate long directory entries
+        let mut long_entries = Vec::new();
+        if is_long_filename {
+            let checksum = {
+                let mut sum: u8 = 0;
+                for c in short_name {
+                    sum = if sum & 1 == 0 { 0 } else { 0x80 } + sum.wrapping_shr(1) + c;
+                }
+                sum
+            };
+
+            let mut ord = 1;
+            let mut offset = 0;
+            let mut current = [0xFFFFu16; 13];
+
+            for c in self.name.chars() {
+                current[offset] = c as u16;
+
+                offset += 1;
+                if offset >= 13 {
+                    long_entries.push(LongDirectoryEntry {
+                        order: ord,
+                        name1: [current[0], current[1], current[2], current[3], current[4]],
+                        attr: ATTRIBUTE_LONG_FILE_NAME,
+                        class: 0,
+                        checksum,
+                        name2: [
+                            current[5],
+                            current[6],
+                            current[7],
+                            current[8],
+                            current[9],
+                            current[10],
+                        ],
+                        first_cluster_low: 0,
+                        name3: [current[11], current[12]],
+                    });
+
+                    ord += 1;
+                    offset = 0;
+                    for val in &mut current {
+                        *val = 0xFFFF;
+                    }
+                }
+            }
+
+            if offset == 0 {
+                let len = long_entries.len();
+                long_entries[len - 1].order |= 0x40;
+            } else {
+                current[offset] = 0;
+                long_entries.push(LongDirectoryEntry {
+                    order: ord | 0x40,
+                    name1: [current[0], current[1], current[2], current[3], current[4]],
+                    attr: ATTRIBUTE_LONG_FILE_NAME,
+                    class: 0,
+                    checksum,
+                    name2: [
+                        current[5],
+                        current[6],
+                        current[7],
+                        current[8],
+                        current[9],
+                        current[10],
+                    ],
+                    first_cluster_low: 0,
+                    name3: [current[11], current[12]],
+                });
+            }
+        }
+
+        Ok((disk_entry, long_entries))
     }
 
     pub fn is_directory(&self) -> bool {
