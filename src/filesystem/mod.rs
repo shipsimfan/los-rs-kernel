@@ -150,8 +150,11 @@ pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
     let mut buffer = Vec::with_capacity(metadata.size());
     unsafe { buffer.set_len(metadata.size()) };
 
+    // Create the file descriptor
+    let mut fd = FileDescriptor::new(file, true, false, 0);
+
     // Read the file
-    let bytes_read = file.lock().read(0, buffer.as_mut_slice())?;
+    let bytes_read = fd.read(buffer.as_mut_slice())?;
     if bytes_read > 0 {
         unsafe { buffer.set_len(bytes_read as usize) };
     } else {
