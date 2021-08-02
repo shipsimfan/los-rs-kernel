@@ -25,6 +25,30 @@ impl Directory {
     fn create_iterator(&self) -> error::Result<DirectoryIterator> {
         DirectoryIterator::new(self.first_cluster, self.fat.clone())
     }
+
+    fn remove(&self, name: &str, directory: bool) -> error::Result<()> {
+        let mut iter = self.create_iterator()?;
+        while let Some(entry) = iter.next()? {
+            if entry.name() == name {
+                if entry.is_directory() == directory {
+                    // Free cluster chain
+                    self.fat.lock().free_cluster_chain(entry.first_cluster())?;
+
+                    // Remove entry
+                    iter.remove()?;
+                    iter.flush_buffer()?;
+
+                    return Ok(());
+                } else if directory {
+                    return Err(error::Status::IsFile);
+                } else {
+                    return Err(error::Status::IsDirectory);
+                }
+            }
+        }
+
+        Err(error::Status::NoEntry)
+    }
 }
 
 impl filesystem::Directory for Directory {
@@ -113,12 +137,12 @@ impl filesystem::Directory for Directory {
         Err(error::Status::NotImplemented)
     }
 
-    fn remove_file(&self, _: &str) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn remove_file(&self, filename: &str) -> error::Result<()> {
+        self.remove(filename, false)
     }
 
-    fn remove_directory(&self, _: &str) -> error::Result<()> {
-        Err(error::Status::NotImplemented)
+    fn remove_directory(&self, directory_name: &str) -> error::Result<()> {
+        self.remove(directory_name, true)
     }
 
     fn update_file_metadata(
@@ -134,7 +158,7 @@ impl filesystem::Directory for Directory {
                     Err(error::Status::IsDirectory)
                 } else {
                     entry.set_file_size(new_metadata.size());
-                    iter.write(entry)?;
+                    iter.write_metadata(entry)?;
                     iter.flush_buffer()?;
                     Ok(())
                 };

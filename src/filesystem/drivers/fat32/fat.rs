@@ -240,6 +240,22 @@ impl FAT {
         }
     }
 
+    pub fn free_cluster_chain(&mut self, first_cluster: Cluster) -> error::Result<()> {
+        let mut cluster = first_cluster;
+
+        loop {
+            let next_cluster = self.get_next_cluster(cluster)?;
+
+            self.free_cluster(cluster)?;
+
+            cluster = match next_cluster {
+                ClusterState::Some(cluster) => cluster,
+                ClusterState::End => return Ok(()),
+                ClusterState::Free => return Err(error::Status::CorruptFilesystem),
+            }
+        }
+    }
+
     pub fn read_cluster(&self, cluster: u32, buffer: &mut [u8]) -> error::Result<()> {
         self.drive
             .lock()

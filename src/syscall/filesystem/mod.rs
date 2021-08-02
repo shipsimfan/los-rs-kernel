@@ -1,4 +1,8 @@
-use crate::{error, filesystem::SeekFrom, logln, process};
+use crate::{
+    error,
+    filesystem::{self, SeekFrom},
+    logln, process,
+};
 
 const OPEN_FILE_SYSCALL: usize = 0x2000;
 const CLOSE_FILE_SYSCALL: usize = 0x2001;
@@ -9,6 +13,8 @@ const CLOSE_DIRECTORY_SYSCALL: usize = 0x2005;
 const READ_DIRECTORY_SYSCALL: usize = 0x2006;
 const TRUNCATE_FILE_SYSCALL: usize = 0x2007;
 const WRITE_FILE_SYSCALL: usize = 0x2008;
+const REMOVE_FILE_SYSCALL: usize = 0x2009;
+const REMOVE_DIRECTORY_SYSCALL: usize = 0x200A;
 
 pub fn system_call(
     code: usize,
@@ -135,6 +141,28 @@ pub fn system_call(
 
             match file.write(buffer) {
                 Ok(bytes_read) => bytes_read,
+                Err(status) => status.to_return_code(),
+            }
+        }
+        REMOVE_FILE_SYSCALL => {
+            let path = match super::to_str(arg1) {
+                Ok(str) => str,
+                Err(status) => return status.to_return_code(),
+            };
+
+            match filesystem::remove_file(path) {
+                Ok(()) => 0,
+                Err(status) => status.to_return_code(),
+            }
+        }
+        REMOVE_DIRECTORY_SYSCALL => {
+            let path = match super::to_str(arg1) {
+                Ok(str) => str,
+                Err(status) => return status.to_return_code(),
+            };
+
+            match filesystem::remove_directory(path) {
+                Ok(()) => 0,
                 Err(status) => status.to_return_code(),
             }
         }

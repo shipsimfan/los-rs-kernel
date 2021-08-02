@@ -79,49 +79,14 @@ pub fn open(filepath: &str, flags: usize) -> error::Result<FileDescriptor> {
     }
 
     // Open filesystem
-    let mut current_directory = match fs_number {
-        Some(fs_number) => {
-            let mut filesystems = FILESYSTEMS.lock();
-            match filesystems.get_mut(fs_number) {
-                Some(filesystem) => filesystem.root_directory().clone(),
-                None => return Err(error::Status::NoFilesystem),
-            }
-        }
-        None => {
-            match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_current_working_directory()
-            {
-                Some(dir) => dir.get_directory(),
-                None => return Err(error::Status::NotSupported),
-            }
-        }
-    };
+    let root_directory = get_root_directory(fs_number)?;
 
     // Iterate path
-    let mut iter = path.into_iter();
-    let filename = match iter.next_back() {
-        Some(str) => str,
+    let (current_directory, filename) = get_directory(path, root_directory, true)?;
+    let filename = match filename {
+        Some(filename) => filename,
         None => return Err(error::Status::InvalidArgument),
     };
-
-    while let Some(dir_name) = iter.next() {
-        if dir_name == "." {
-            continue;
-        }
-
-        let mut directory = current_directory.lock();
-        let new_directory = if dir_name == ".." {
-            match directory.get_parent() {
-                Some(parent) => parent,
-                None => continue,
-            }
-        } else {
-            directory.open_directory(dir_name, &current_directory)?
-        };
-        drop(directory);
-        current_directory = new_directory;
-    }
 
     // Open file
     let file = current_directory
@@ -151,45 +116,12 @@ pub fn open_directory(path: &str) -> error::Result<DirectoryDescriptor> {
     let (fs_number, path) = parse_filepath(path, false)?;
 
     // Open filesystem
-    let mut current_directory = match fs_number {
-        Some(fs_number) => {
-            let mut filesystems = FILESYSTEMS.lock();
-            match filesystems.get_mut(fs_number) {
-                Some(filesystem) => filesystem.root_directory().clone(),
-                None => return Err(error::Status::NoFilesystem),
-            }
-        }
-        None => {
-            match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_current_working_directory()
-            {
-                Some(dir) => dir.get_directory(),
-                None => return Err(error::Status::NotSupported),
-            }
-        }
-    };
+    let root_directory = get_root_directory(fs_number)?;
 
     // Iterate path
-    for dir_name in path {
-        if dir_name == "." {
-            continue;
-        }
+    let (directory, _) = get_directory(path, root_directory, false)?;
 
-        let mut directory = current_directory.lock();
-        let new_directory = if dir_name == ".." {
-            match directory.get_parent() {
-                Some(parent) => parent,
-                None => continue,
-            }
-        } else {
-            directory.open_directory(dir_name, &current_directory)?
-        };
-        drop(directory);
-        current_directory = new_directory;
-    }
-
-    Ok(DirectoryDescriptor::new(current_directory))
+    Ok(DirectoryDescriptor::new(directory))
 }
 
 pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
@@ -197,49 +129,14 @@ pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
     let (fs_number, path) = parse_filepath(filepath, true)?;
 
     // Open filesystem
-    let mut current_directory = match fs_number {
-        Some(fs_number) => {
-            let mut filesystems = FILESYSTEMS.lock();
-            match filesystems.get_mut(fs_number) {
-                Some(filesystem) => filesystem.root_directory().clone(),
-                None => return Err(error::Status::NoFilesystem),
-            }
-        }
-        None => {
-            match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_current_working_directory()
-            {
-                Some(dir) => dir.get_directory(),
-                None => return Err(error::Status::NotSupported),
-            }
-        }
-    };
+    let root_directory = get_root_directory(fs_number)?;
 
     // Iterate path
-    let mut iter = path.into_iter();
-    let filename = match iter.next_back() {
-        Some(str) => str,
+    let (current_directory, filename) = get_directory(path, root_directory, true)?;
+    let filename = match filename {
+        Some(filename) => filename,
         None => return Err(error::Status::InvalidArgument),
     };
-
-    while let Some(dir_name) = iter.next() {
-        if dir_name == "." {
-            continue;
-        }
-
-        let mut directory = current_directory.lock();
-        let new_directory = if dir_name == ".." {
-            match directory.get_parent() {
-                Some(parent) => parent,
-                None => continue,
-            }
-        } else {
-            directory.open_directory(dir_name, &current_directory)?
-        };
-        drop(directory);
-        current_directory = new_directory;
-    }
 
     // Get metadata and file
     let (metadata, file) = {
@@ -262,6 +159,44 @@ pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
     }
 
     Ok(buffer)
+}
+
+pub fn remove_file(path: &str) -> error::Result<()> {
+    // Parse filepath
+    let (fs_number, path) = parse_filepath(path, false)?;
+
+    // Open filesystem
+    let root_directory = get_root_directory(fs_number)?;
+
+    // Iterate path
+    let (parent_directory_lock, filename) = get_directory(path, root_directory, true)?;
+    let filename = match filename {
+        Some(str) => str,
+        None => return Err(error::Status::InvalidArgument),
+    };
+
+    // Remove directory
+    let mut parent_directory = parent_directory_lock.lock();
+    parent_directory.remove_file(filename)
+}
+
+pub fn remove_directory(path: &str) -> error::Result<()> {
+    // Parse filepath
+    let (fs_number, path) = parse_filepath(path, false)?;
+
+    // Open filesystem
+    let root_directory = get_root_directory(fs_number)?;
+
+    // Iterate path
+    let (parent_directory_lock, directory_name) = get_directory(path, root_directory, true)?;
+    let directory_name = match directory_name {
+        Some(str) => str,
+        None => return Err(error::Status::InvalidArgument),
+    };
+
+    // Remove directory
+    let mut parent_directory = parent_directory_lock.lock();
+    parent_directory.remove_directory(directory_name)
 }
 
 fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result<()> {
@@ -315,4 +250,55 @@ fn parse_filepath(filepath: &str, file: bool) -> error::Result<(Option<isize>, V
     let path = iter.collect();
 
     Ok((drive_number, path))
+}
+
+fn get_root_directory(fs_number: Option<isize>) -> error::Result<DirectoryBox> {
+    match fs_number {
+        Some(fs_number) => {
+            let mut filesystems = FILESYSTEMS.lock();
+            match filesystems.get_mut(fs_number) {
+                Some(filesystem) => Ok(filesystem.root_directory().clone()),
+                None => Err(error::Status::NoFilesystem),
+            }
+        }
+        None => {
+            match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_current_working_directory()
+            {
+                Some(dir) => Ok(dir.get_directory()),
+                None => Err(error::Status::NotSupported),
+            }
+        }
+    }
+}
+
+fn get_directory(
+    path: Vec<&str>,
+    root_directory: DirectoryBox,
+    filename: bool,
+) -> error::Result<(DirectoryBox, Option<&str>)> {
+    let mut iter = path.into_iter();
+    let filename = if filename { iter.next_back() } else { None };
+
+    let mut current_directory = root_directory;
+    while let Some(dir_name) = iter.next() {
+        if dir_name == "." {
+            continue;
+        }
+
+        let mut directory = current_directory.lock();
+        let new_directory = if dir_name == ".." {
+            match directory.get_parent() {
+                Some(parent) => parent,
+                None => continue,
+            }
+        } else {
+            directory.open_directory(dir_name, &current_directory)?
+        };
+        drop(directory);
+        current_directory = new_directory;
+    }
+
+    Ok((current_directory, filename))
 }

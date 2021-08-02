@@ -277,4 +277,99 @@ impl DirectoryContainer {
     pub fn get_sub_directories(&self) -> &Vec<(String, Option<DirectoryBox>)> {
         &self.sub_directories
     }
+
+    pub fn remove_directory(&mut self, directory_name: &str) -> error::Result<()> {
+        let mut status = error::Status::NoEntry;
+        let directory = &self.directory;
+        self.sub_directories
+            .retain(|(sub_dir_name, sub_dir)| -> bool {
+                if sub_dir_name == directory_name {
+                    return match sub_dir {
+                        Some(_) => {
+                            status = error::Status::InUse;
+                            true
+                        }
+                        None => {
+                            // Verify sub-directory has zero children
+                            let target_directory = match directory.open_directory(directory_name) {
+                                Ok(directory) => directory,
+                                Err(ret_status) => {
+                                    status = ret_status;
+                                    return true;
+                                }
+                            };
+
+                            if match target_directory.get_sub_directories() {
+                                Ok(directories) => directories,
+                                Err(ret_status) => {
+                                    status = ret_status;
+                                    return true;
+                                }
+                            }
+                            .len()
+                                != 0
+                                || match target_directory.get_sub_files() {
+                                    Ok(directories) => directories,
+                                    Err(ret_status) => {
+                                        status = ret_status;
+                                        return true;
+                                    }
+                                }
+                                .len()
+                                    != 0
+                            {
+                                status = error::Status::NotEmpty;
+                                return true;
+                            }
+
+                            // Remove sub-directory on disk
+                            status = match directory.remove_directory(directory_name) {
+                                Ok(()) => error::Status::Success,
+                                Err(status) => status,
+                            };
+                            false
+                        }
+                    };
+                }
+
+                true
+            });
+
+        if status == error::Status::Success {
+            Ok(())
+        } else {
+            Err(status)
+        }
+    }
+
+    pub fn remove_file(&mut self, filename: &str) -> error::Result<()> {
+        let mut status = error::Status::NoEntry;
+        let directory = &self.directory;
+        self.sub_files
+            .retain(|(sub_filename, _, sub_file)| -> bool {
+                if sub_filename == filename {
+                    match sub_file {
+                        Some(_) => {
+                            status = error::Status::InUse;
+                            true
+                        }
+                        None => {
+                            status = match directory.remove_file(filename) {
+                                Ok(()) => error::Status::Success,
+                                Err(status) => status,
+                            };
+                            false
+                        }
+                    }
+                } else {
+                    true
+                }
+            });
+
+        if status == error::Status::Success {
+            Ok(())
+        } else {
+            Err(status)
+        }
+    }
 }

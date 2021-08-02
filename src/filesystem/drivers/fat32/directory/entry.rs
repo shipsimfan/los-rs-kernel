@@ -341,8 +341,7 @@ impl DirectoryIterator {
         }
     }
 
-    pub fn write(&mut self, new_entry: DirectoryEntry) -> error::Result<()> {
-        // Write metadata
+    pub fn write_metadata(&mut self, new_entry: DirectoryEntry) -> error::Result<()> {
         let mut buffer = [0u8; core::mem::size_of::<DiskDirectoryEntry>()];
         let (cluster_index, offset) = self.get_cluster_index_and_offset();
         self.buffer.set_current_cluster_index(cluster_index)?;
@@ -356,7 +355,58 @@ impl DirectoryIterator {
         let buffer = entry.to_slice();
         self.buffer.write(offset, &buffer)?;
 
-        // TODO: Deal with name
+        Ok(())
+    }
+
+    pub fn remove(&mut self) -> error::Result<()> {
+        let mut write_buffer = [0u8; core::mem::size_of::<DiskDirectoryEntry>()];
+        let mut read_buffer = [0u8; core::mem::size_of::<DiskDirectoryEntry>()];
+
+        // Check next entry
+        self.current_index += 1;
+        let (next_cluster_index, next_offset) = self.get_cluster_index_and_offset();
+        self.buffer.set_current_cluster_index(next_cluster_index)?;
+        self.buffer.read(next_offset, &mut read_buffer)?;
+
+        // Initialize the write buffer
+        if read_buffer[0] != 0 {
+            write_buffer[0] = 0xE5;
+        }
+
+        // Clear current entry
+        self.current_index -= 1;
+        let (cluster_index, offset) = self.get_cluster_index_and_offset();
+        self.buffer.set_current_cluster_index(cluster_index)?;
+        self.buffer.write(offset, &write_buffer)?;
+
+        // Remove long directory entries
+        let mut next_ord = 1;
+        loop {
+            // Read entry
+            self.current_index -= 1;
+            let (cluster_index, offset) = self.get_cluster_index_and_offset();
+            self.buffer.set_current_cluster_index(cluster_index)?;
+            self.buffer.read(offset, &mut read_buffer)?;
+            let entry = DiskDirectoryEntry::from_slice(&read_buffer);
+
+            // Check to see if valid
+            if entry.attributes & ATTRIBUTE_LONG_FILE_NAME != ATTRIBUTE_LONG_FILE_NAME {
+                break;
+            }
+
+            if entry.filename[0] & !0x40 != next_ord {
+                break;
+            }
+
+            // Remove if valid
+            self.buffer.write(offset, &write_buffer)?;
+
+            if entry.filename[0] & 0x40 != 0 {
+                break;
+            }
+
+            next_ord += 1;
+        }
 
         Ok(())
     }
