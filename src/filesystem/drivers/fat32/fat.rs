@@ -4,7 +4,7 @@ use alloc::{sync::Arc, vec::Vec};
 pub type FATBox = Arc<Mutex<FAT>>;
 pub type Cluster = u32;
 
-enum ClusterState {
+pub enum ClusterState {
     Free,
     Some(Cluster),
     End,
@@ -104,7 +104,7 @@ impl FAT {
         })
     }
 
-    fn set_next_cluster(
+    pub fn set_next_cluster(
         &mut self,
         cluster: Cluster,
         next_cluster: ClusterState,

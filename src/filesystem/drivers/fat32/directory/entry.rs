@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use super::super::fat::{Cluster, FATBox};
-use crate::error;
+use crate::{error, filesystem::drivers::fat32::fat::ClusterState};
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
 #[repr(C)]
@@ -165,7 +165,16 @@ impl Buffer {
             return Ok(());
         }
 
-        if new_cluster_index >= self.cluster_chain.len() {
+        if new_cluster_index == self.cluster_chain.len() {
+            // Allocate new cluster
+            let new_cluster = self.fat.lock().allocate_cluster()?;
+            let last_cluster_index = self.cluster_chain.len() - 1;
+            self.fat.lock().set_next_cluster(
+                self.cluster_chain[last_cluster_index],
+                ClusterState::Some(new_cluster),
+            )?;
+            self.cluster_chain.push(new_cluster);
+        } else if new_cluster_index > self.cluster_chain.len() {
             return Err(error::Status::OutOfRange);
         }
 
@@ -526,8 +535,10 @@ impl DirectoryEntry {
 
             let mut i = 0;
             let mut iter = basis_name.chars();
+            let mut extension = false;
             while let Some(c) = iter.next() {
                 if c == '.' {
+                    extension = true;
                     break;
                 }
 
@@ -538,9 +549,19 @@ impl DirectoryEntry {
                 }
             }
 
+            if !extension {
+                while let Some(c) = iter.next() {
+                    if c == '.' {
+                        break;
+                    }
+                }
+            }
+
             i = 8;
             while let Some(c) = iter.next() {
                 short_name[i] = c as u8;
+
+                i += 1;
                 if i >= 11 {
                     break;
                 }
@@ -591,7 +612,9 @@ impl DirectoryEntry {
             let checksum = {
                 let mut sum: u8 = 0;
                 for c in short_name {
-                    sum = if sum & 1 == 0 { 0 } else { 0x80 } + sum.wrapping_shr(1) + c;
+                    sum = if sum & 1 == 0 { 0u8 } else { 0x80u8 }
+                        .wrapping_add(sum.wrapping_shr(1))
+                        .wrapping_add(c);
                 }
                 sum
             };
