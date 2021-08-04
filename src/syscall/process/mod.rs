@@ -1,4 +1,8 @@
-use crate::{error, filesystem, logln, memory::KERNEL_VMA, process};
+use crate::{
+    error, filesystem, logln,
+    memory::KERNEL_VMA,
+    process::{self, CStandardIO},
+};
 use alloc::{string::ToString, vec::Vec};
 
 const WAIT_PROCESS_SYSCALL: usize = 0x0000;
@@ -16,7 +20,7 @@ pub fn system_call(
     arg1: usize,
     arg2: usize,
     arg3: usize,
-    _arg4: usize,
+    arg4: usize,
     _arg5: usize,
 ) -> isize {
     match code {
@@ -57,7 +61,15 @@ pub fn system_call(
                 environment.push(env.to_string());
             }
 
-            match process::execute(filepath, args, environment) {
+            let stdio = match super::to_ptr_mut::<CStandardIO>(arg4) {
+                Ok(stdio_ptr) => match unsafe { (*stdio_ptr).to_stdio() } {
+                    Ok(stdio) => stdio,
+                    Err(status) => return status.to_return_code(),
+                },
+                Err(status) => return status.to_return_code(),
+            };
+
+            match process::execute(filepath, args, environment, stdio) {
                 Ok(pid) => pid,
                 Err(status) => status.to_return_code(),
             }

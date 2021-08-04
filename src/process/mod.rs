@@ -35,11 +35,38 @@ struct UserspaceContext {
     envp: *const *const u8,
     tls_size: usize,
     tls_align: usize,
+    stdio: *const CStandardIO,
+}
+
+#[repr(packed(1))]
+pub struct CStandardIO {
+    stdout_type: usize,
+    stdout_desc: isize,
+    stderr_type: usize,
+    stderr_desc: isize,
+    stdin_type: usize,
+    stdin_desc: isize,
+}
+
+pub struct StandardIO {
+    stdout: StandardIOType,
+    stderr: StandardIOType,
+    stdin: StandardIOType,
+}
+
+pub enum StandardIOType {
+    None,
+    Console,
+    File(isize),
 }
 
 const TLS_LOCATION: usize = 0x700000000000;
 const USERSPACE_CONTEXT_LOCATION: *mut UserspaceContext =
     (TLS_LOCATION - core::mem::size_of::<UserspaceContext>()) as *mut UserspaceContext;
+
+const STDIO_TYPE_NONE: usize = 0;
+const STDIO_TYPE_CONSOLE: usize = 1;
+const STDIO_TYPE_FILE: usize = 2;
 
 static mut THREAD_CONTROL: control::ThreadControl = control::ThreadControl::new();
 
@@ -77,6 +104,7 @@ fn do_execute(
     filepath: &str,
     args: Vec<String>,
     environment: Vec<String>,
+    mut standard_io: StandardIO,
     session_lock: Option<SessionBox>,
 ) -> error::Result<isize> {
     // Load the executable
@@ -137,6 +165,9 @@ fn do_execute(
         }
     };
 
+    // Copy stdio descriptors
+    standard_io.copy_descriptors(current_process, new_process)?;
+
     unsafe { asm!("cli") };
 
     // Switch to new process address space
@@ -145,15 +176,17 @@ fn do_execute(
     // Copy the executable into the address space
     let (tls_size, tls_align) = loader::load_executable(&buffer, TLS_LOCATION as *mut u8)?;
 
-    // Copy arguments and environment variables into the address space
+    // Copy arguments, environment variables, and stdio into the address space
     unsafe {
         let context_location = USERSPACE_CONTEXT_LOCATION as usize;
-        let arg_list_start = context_location + core::mem::size_of::<UserspaceContext>();
+        let stdio_location = context_location + core::mem::size_of::<UserspaceContext>();
+        let arg_list_start = stdio_location + core::mem::size_of::<CStandardIO>();
         let env_list_start = arg_list_start + (core::mem::size_of::<*mut u8>() * (args.len() + 1));
         let args_start =
             env_list_start + (core::mem::size_of::<*mut u8>() * (environment.len() + 1));
         let mut arg_list = arg_list_start as *mut *mut u8;
         let mut env_list = env_list_start as *mut *mut u8;
+        let stdio = stdio_location as *mut CStandardIO;
 
         let context = context_location as *mut UserspaceContext;
         *context = UserspaceContext {
@@ -162,6 +195,7 @@ fn do_execute(
             envp: env_list as *const *const u8,
             tls_size: tls_size,
             tls_align: tls_align,
+            stdio: stdio_location as *const CStandardIO,
         };
 
         // Copy arguments
@@ -196,6 +230,9 @@ fn do_execute(
         }
 
         *env_list = core::ptr::null_mut();
+
+        // Copy stdio
+        *stdio = standard_io.to_c_stdio();
     }
 
     // Return to current process address space
@@ -210,14 +247,15 @@ pub fn execute_session(
     filepath: &str,
     args: Vec<String>,
     environment: Vec<String>,
+    standard_io: StandardIO,
     sid: isize,
 ) -> error::Result<isize> {
     if sid == 0 {
-        do_execute(filepath, args, environment, None)
+        do_execute(filepath, args, environment, standard_io, None)
     } else {
         match session::get_session_mut(sid) {
             None => Err(error::Status::InvalidSession),
-            Some(session) => do_execute(filepath, args, environment, Some(session)),
+            Some(session) => do_execute(filepath, args, environment, standard_io, Some(session)),
         }
     }
 }
@@ -226,10 +264,11 @@ pub fn execute(
     filepath: &str,
     args: Vec<String>,
     environment: Vec<String>,
+    standard_io: StandardIO,
 ) -> error::Result<isize> {
     let current_process = get_current_thread_mut().get_process_mut();
     let session = current_process.get_session_mut();
-    do_execute(filepath, args, environment, session)
+    do_execute(filepath, args, environment, standard_io, session)
 }
 
 pub fn create_thread(entry: ThreadFunc) -> isize {
@@ -485,4 +524,83 @@ pub fn preempt() {
     }
 
     queue_and_yield();
+}
+
+impl StandardIO {
+    pub fn new(stdout: StandardIOType, stderr: StandardIOType, stdin: StandardIOType) -> Self {
+        StandardIO {
+            stdout,
+            stderr,
+            stdin,
+        }
+    }
+
+    pub fn copy_descriptors(
+        &mut self,
+        current_process: &mut Process,
+        new_process: &mut Process,
+    ) -> error::Result<()> {
+        self.stdout.copy_descriptors(current_process, new_process)?;
+        self.stderr.copy_descriptors(current_process, new_process)?;
+        self.stdin.copy_descriptors(current_process, new_process)
+    }
+
+    pub fn to_c_stdio(self) -> CStandardIO {
+        let (stdout_type, stdout_desc) = self.stdout.to_c_stdio();
+        let (stderr_type, stderr_desc) = self.stderr.to_c_stdio();
+        let (stdin_type, stdin_desc) = self.stdin.to_c_stdio();
+
+        CStandardIO {
+            stdout_type,
+            stdout_desc,
+            stderr_type,
+            stderr_desc,
+            stdin_type,
+            stdin_desc,
+        }
+    }
+}
+
+impl StandardIOType {
+    pub fn to_c_stdio(self) -> (usize, isize) {
+        match self {
+            StandardIOType::None => (STDIO_TYPE_NONE, 0),
+            StandardIOType::Console => (STDIO_TYPE_CONSOLE, 0),
+            StandardIOType::File(fd) => (STDIO_TYPE_FILE, fd),
+        }
+    }
+
+    pub fn copy_descriptors(
+        &mut self,
+        current_process: &mut Process,
+        new_process: &mut Process,
+    ) -> error::Result<()> {
+        match self {
+            StandardIOType::None | &mut StandardIOType::Console => Ok(()),
+            StandardIOType::File(fd) => {
+                let descriptor = current_process.get_file(*fd)?;
+                *fd = new_process.clone_file(descriptor);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl CStandardIO {
+    pub fn to_stdio(&self) -> error::Result<StandardIO> {
+        Ok(StandardIO::new(
+            CStandardIO::parse(self.stdout_type, self.stdout_desc)?,
+            CStandardIO::parse(self.stderr_type, self.stderr_desc)?,
+            CStandardIO::parse(self.stdin_type, self.stdin_desc)?,
+        ))
+    }
+
+    fn parse(class: usize, desc: isize) -> error::Result<StandardIOType> {
+        match class {
+            STDIO_TYPE_NONE => Ok(StandardIOType::None),
+            STDIO_TYPE_CONSOLE => Ok(StandardIOType::Console),
+            STDIO_TYPE_FILE => Ok(StandardIOType::File(desc)),
+            _ => Err(error::Status::OutOfRange),
+        }
+    }
 }

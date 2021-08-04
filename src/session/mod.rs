@@ -4,7 +4,7 @@ use crate::{
     filesystem::DirectoryDescriptor,
     locks::Mutex,
     map::{Map, Mappable},
-    process::{self, Process},
+    process::{self, Process, StandardIO, StandardIOType},
 };
 use alloc::{string::ToString, sync::Arc, vec::Vec};
 
@@ -39,7 +39,17 @@ pub fn create_console_session(output_device_path: &str) -> error::Result<isize> 
     let mut env = Vec::new();
     env.push("PATH=:1/los/bin".to_string());
 
-    process::execute_session(":1/los/bin/shell.app", Vec::new(), env, sid)?;
+    process::execute_session(
+        ":1/los/bin/shell.app",
+        Vec::new(),
+        env,
+        StandardIO::new(
+            StandardIOType::Console,
+            StandardIOType::Console,
+            StandardIOType::Console,
+        ),
+        sid,
+    )?;
 
     Ok(sid)
 }

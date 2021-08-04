@@ -6,6 +6,7 @@ use crate::{
 use super::FileBox;
 use alloc::sync::Arc;
 
+#[derive(Clone)]
 pub struct FileDescriptor {
     id: isize,
     file: FileBox,

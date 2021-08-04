@@ -106,6 +106,10 @@ impl Process {
         }
     }
 
+    pub fn clone_file(&mut self, descriptor: &mut FileDescriptor) -> isize {
+        self.file_descriptors.insert(descriptor.clone())
+    }
+
     pub fn get_current_working_directory(&mut self) -> Option<&mut DirectoryDescriptor> {
         match &mut self.current_working_directory {
             Some(dir) => Some(dir),
