@@ -33,9 +33,9 @@ struct UserspaceContext {
     argc: usize,
     argv: *const *const u8,
     envp: *const *const u8,
+    stdio: *const CStandardIO,
     tls_size: usize,
     tls_align: usize,
-    stdio: *const CStandardIO,
 }
 
 #[repr(packed(1))]
@@ -357,7 +357,10 @@ pub fn wait_thread(tid: isize) -> isize {
     let current_thread = get_current_thread_mut();
     match current_thread.get_process_mut().get_thread_mut(tid) {
         None => return isize::MIN,
-        Some(thread) => thread.insert_into_exit_queue(current_thread),
+        Some(thread) => {
+            unsafe { asm!("cli") };
+            thread.insert_into_exit_queue(current_thread)
+        }
     }
 
     yield_thread();
