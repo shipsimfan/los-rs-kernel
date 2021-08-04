@@ -6,7 +6,6 @@ use crate::{
 use super::FileBox;
 use alloc::sync::Arc;
 
-#[derive(Clone)]
 pub struct FileDescriptor {
     id: isize,
     file: FileBox,
@@ -77,6 +76,17 @@ impl FileDescriptor {
         }
 
         self.file.lock().set_length(new_length)
+    }
+}
+
+impl Clone for FileDescriptor {
+    fn clone(&self) -> Self {
+        FileDescriptor::new(
+            self.file.clone(),
+            self.read,
+            self.write,
+            self.current_offset,
+        )
     }
 }
 
