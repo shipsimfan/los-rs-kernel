@@ -1,9 +1,11 @@
+use alloc::string::String;
+
 use crate::{
     error, logln, process,
     session::{console::Color, SubSession},
 };
 
-const CONSOLE_WRITE_SYSCALL: usize = 0x3000;
+const CONSOLE_WRITE_CH_SYSCALL: usize = 0x3000;
 const CONSOLE_WRITE_STR_SYSCALL: usize = 0x3001;
 const CONSOLE_CLEAR_SYSCALL: usize = 0x3002;
 const CONSOLE_SET_ATTRIBUTE_SYSCALL: usize = 0x3003;
@@ -14,6 +16,7 @@ const CONSOLE_SET_BACKGROUND_COLOR_RGB_SYSCALL: usize = 0x3007;
 const CONSOLE_SET_CURSOR_POS_SYSCALL: usize = 0x3008;
 const CONSOLE_GET_WIDTH: usize = 0x3009;
 const CONSOLE_GET_HEIGHT: usize = 0x300A;
+const CONSOLE_WRITE_SYSCALL: usize = 0x300B;
 
 pub fn system_call(
     code: usize,
@@ -37,7 +40,7 @@ pub fn system_call(
     };
 
     match match code {
-        CONSOLE_WRITE_SYSCALL => {
+        CONSOLE_WRITE_CH_SYSCALL => {
             let c = (arg1 & 0xFF) as u8;
             console_session.write(&[c])
         }
@@ -80,6 +83,10 @@ pub fn system_call(
                 Err(status) => status.to_return_code(),
             }
         }
+        CONSOLE_WRITE_SYSCALL => match super::to_slice_mut(arg1, arg2) {
+            Ok(slice) => console_session.write_str(&String::from_utf8_lossy(slice)),
+            Err(status) => Err(status),
+        },
         _ => {
             logln!("Invalid console system call: {}", code);
             Err(error::Status::InvalidRequestCode)
