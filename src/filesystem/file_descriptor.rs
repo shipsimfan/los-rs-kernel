@@ -77,6 +77,10 @@ impl FileDescriptor {
 
         self.file.lock().set_length(new_length)
     }
+
+    pub fn tell(&self) -> usize {
+        self.current_offset
+    }
 }
 
 impl Clone for FileDescriptor {

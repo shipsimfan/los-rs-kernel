@@ -16,6 +16,7 @@ const WRITE_FILE_SYSCALL: usize = 0x2008;
 const REMOVE_FILE_SYSCALL: usize = 0x2009;
 const REMOVE_DIRECTORY_SYSCALL: usize = 0x200A;
 const CREATE_DIRECTORY_SYSCALL: usize = 0x200B;
+const TELL_FILE_SYSCALL: usize = 0x200C;
 
 pub fn system_call(
     code: usize,
@@ -177,6 +178,17 @@ pub fn system_call(
                 Ok(()) => 0,
                 Err(status) => status.to_return_code(),
             }
+        }
+        TELL_FILE_SYSCALL => {
+            let file = match process::get_current_thread_mut()
+                .get_process_mut()
+                .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
+            {
+                Ok(file) => file,
+                Err(status) => return status.to_return_code(),
+            };
+
+            (file.tell() & 0x7FFFFFFFFFFF) as isize
         }
         _ => {
             logln!("Invalid filesystem system call: {}", code);
