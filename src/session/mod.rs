@@ -40,7 +40,7 @@ pub fn create_console_session(output_device_path: &str) -> error::Result<isize> 
     env.push("PATH=:1/los/bin".to_string());
 
     process::execute_session(
-        ":1/los/bin/shell.app",
+        ":1/los/bin/cshell.app",
         Vec::new(),
         env,
         StandardIO::new(
