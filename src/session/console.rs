@@ -13,6 +13,7 @@ pub struct Color {
     pub blue: u8,
 }
 
+#[allow(dead_code)]
 pub const STYLE_RESET: usize = 0;
 #[allow(dead_code)]
 pub const STYLE_BOLD: usize = 1;

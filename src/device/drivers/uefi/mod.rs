@@ -166,23 +166,9 @@ impl Device for UEFIConsole {
                 Ok(0)
             }
             console::IOCTRL_SET_ATTRIBUTE => {
-                if argument == console::STYLE_RESET {
-                    self.dim = false;
-                    self.strikethrough = false;
-                    self.underline = false;
-                }
-
-                if argument & console::STYLE_DIM != 0 {
-                    self.dim = true;
-                }
-
-                if argument & console::STYLE_STRIKETRHOUGH != 0 {
-                    self.strikethrough = true;
-                }
-
-                if argument & console::STYLE_UNDERLINE != 0 {
-                    self.underline = true;
-                }
+                self.dim = argument & console::STYLE_DIM != 0;
+                self.strikethrough = argument & console::STYLE_STRIKETRHOUGH != 0;
+                self.underline = argument & console::STYLE_UNDERLINE != 0;
 
                 Ok(0)
             }
