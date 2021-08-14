@@ -230,7 +230,7 @@ pub fn create_directory(path: &str) -> error::Result<()> {
         None => return Err(error::Status::InvalidArgument),
     };
 
-    // Remove directory
+    // Create directory
     let mut parent_directory = parent_directory_lock.lock();
     parent_directory.create_directory(directory_name)
 }
