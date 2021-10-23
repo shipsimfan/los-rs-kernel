@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+//#![allow(dead_code)]
 
 mod control;
 mod daemon;
@@ -7,10 +7,6 @@ mod process;
 mod queue;
 mod thread;
 
-use core::usize;
-
-use alloc::{string::String, vec::Vec};
-
 use crate::{
     error,
     filesystem::{self, open_directory, DirectoryDescriptor},
@@ -18,6 +14,8 @@ use crate::{
     memory::KERNEL_VMA,
     session::{self, SessionBox},
 };
+use alloc::{string::String, vec::Vec};
+use core::usize;
 
 pub type Thread = thread::Thread;
 pub type Process = process::Process;
@@ -177,6 +175,7 @@ fn do_execute(
 
     // Copy arguments, environment variables, and stdio into the address space
     unsafe {
+        // Prepare locations
         let context_location = USERSPACE_CONTEXT_LOCATION as usize;
         let stdio_location = context_location + core::mem::size_of::<UserspaceContext>();
         let arg_list_start = stdio_location + core::mem::size_of::<CStandardIO>();
@@ -187,6 +186,7 @@ fn do_execute(
         let mut env_list = env_list_start as *mut *mut u8;
         let stdio = stdio_location as *mut CStandardIO;
 
+        // Copy context
         let context = context_location as *mut UserspaceContext;
         *context = UserspaceContext {
             argc: args.len(),
@@ -232,6 +232,9 @@ fn do_execute(
 
         // Copy stdio
         *stdio = standard_io.to_c_stdio();
+
+        // Queue the new process
+        queue_thread_cli(new_process.get_thread_mut(0).unwrap());
     }
 
     // Return to current process address space
@@ -275,9 +278,10 @@ pub fn create_thread(entry: ThreadFunc) -> isize {
 }
 
 pub fn create_thread_raw(entry: usize, context: usize) -> isize {
-    get_current_thread_mut()
-        .get_process_mut()
-        .create_thread(entry, context)
+    let current_process = get_current_thread_mut().get_process_mut();
+    let tid = current_process.create_thread(entry, context);
+    queue_thread(current_process.get_thread_mut(tid).unwrap());
+    tid
 }
 
 pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> isize {
@@ -285,16 +289,49 @@ pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDesc
         Some(current_thread) => {
             let current_process = current_thread.get_process_mut();
             match current_process.get_session_mut() {
-                None => daemon::create_process(entry as usize, 0, working_directory),
-                Some(current_session) => current_session.lock().create_process(
-                    entry as usize,
-                    0,
-                    working_directory,
-                    current_session.clone(),
-                ),
+                None => {
+                    let pid = daemon::create_process(entry as usize, 0, working_directory);
+                    queue_thread(
+                        daemon::get_daemon()
+                            .lock()
+                            .get_mut(pid)
+                            .unwrap()
+                            .get_thread_mut(0)
+                            .unwrap(),
+                    );
+                    pid
+                }
+                Some(current_session) => {
+                    let pid = current_session.lock().create_process(
+                        entry as usize,
+                        0,
+                        working_directory,
+                        current_session.clone(),
+                    );
+                    queue_thread(
+                        current_session
+                            .lock()
+                            .get_process_mut(pid)
+                            .unwrap()
+                            .get_thread_mut(0)
+                            .unwrap(),
+                    );
+                    pid
+                }
             }
         }
-        None => daemon::create_process(entry as usize, 0, working_directory),
+        None => {
+            let pid = daemon::create_process(entry as usize, 0, working_directory);
+            queue_thread(
+                daemon::get_daemon()
+                    .lock()
+                    .get_mut(pid)
+                    .unwrap()
+                    .get_thread_mut(0)
+                    .unwrap(),
+            );
+            pid
+        }
     }
 }
 
@@ -448,6 +485,7 @@ pub fn kill_process(pid: isize) {
                     exit_process(128);
                 } else {
                     process.kill_threads(INVALID_ID);
+                    process.pre_exit(128);
                     true
                 }
             }

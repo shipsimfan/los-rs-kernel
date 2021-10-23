@@ -40,7 +40,6 @@ impl Process {
     pub fn create_thread(&mut self, entry: usize, context: usize) -> isize {
         let thread = Thread::new(self, entry, context);
         let tid = self.threads.insert(thread);
-        super::queue_thread(self.threads.get_mut(tid).unwrap());
         tid
     }
 
@@ -73,7 +72,7 @@ impl Process {
     }
 
     pub fn pre_exit(&mut self, exit_status: isize) {
-        if self.threads.count() != 1 {
+        if self.threads.count() > 1 {
             return;
         }
 

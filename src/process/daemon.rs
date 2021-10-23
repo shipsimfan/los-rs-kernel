@@ -43,6 +43,7 @@ pub fn kill_process(pid: isize) {
                     super::exit_process(128);
                 } else {
                     process.kill_threads(INVALID_ID);
+                    process.pre_exit(128);
                     true
                 }
             }
