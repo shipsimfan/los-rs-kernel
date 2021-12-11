@@ -31,7 +31,7 @@ impl ThreadControl {
         self.current_thread = Some(new_thread);
     }
 
-    pub fn get_next_thread(&mut self) -> Option<&mut Thread> {
+    pub unsafe fn get_next_thread(&mut self) -> Option<&mut Thread> {
         self.running_queue.pop_mut()
     }
 
@@ -39,7 +39,7 @@ impl ThreadControl {
         self.running_queue.is_front()
     }
 
-    pub fn queue_execution(&mut self, thread: &mut Thread) {
+    pub unsafe fn queue_execution(&mut self, thread: &mut Thread) {
         self.running_queue.push(thread);
     }
 }

@@ -1,31 +1,30 @@
 use super::Thread;
 use crate::queue::Queue;
+use core::ffi::c_void;
 
 pub struct ThreadQueue(Queue<*mut Thread>);
+
+unsafe fn remove(queue: *mut c_void, thread: *mut Thread) {
+    let queue = &mut *(queue as *mut ThreadQueue);
+    queue.remove(&mut *thread);
+}
 
 impl ThreadQueue {
     pub const fn new() -> Self {
         ThreadQueue(Queue::new())
     }
 
-    pub fn push(&mut self, thread: &mut Thread) {
-        thread.set_queue(self);
+    pub unsafe fn push(&mut self, thread: &mut Thread) {
+        thread.set_queue(remove, self as *mut _ as *mut _);
         self.0.push(thread);
     }
 
-    pub fn pop(&mut self) -> Option<&Thread> {
-        match self.pop_mut() {
-            Some(thread) => Some(thread),
-            None => None,
-        }
-    }
-
-    pub fn pop_mut(&mut self) -> Option<&mut Thread> {
+    pub unsafe fn pop_mut(&mut self) -> Option<&mut Thread> {
         match self.0.pop() {
-            Some(thread) => unsafe {
-                (*thread).clear_queue();
+            Some(thread) => {
+                (*thread).clear_queue(true);
                 Some(&mut *(thread))
-            },
+            }
             None => None,
         }
     }
@@ -39,24 +38,3 @@ impl ThreadQueue {
         self.0.remove(thread);
     }
 }
-
-/*
-impl ThreadQueue {
-    pub const fn new() -> Self {
-        ThreadQueue(Queue::new())
-    }
-
-    pub fn push(&mut self, thread: ThreadBox) {
-        self.0.push(thread)
-    }
-
-    pub fn pop(&mut self) -> Option<ThreadBox> {
-        while let Some(t) = self.0.pop() {
-            if !t.lock().is_killed() {
-                return Some(t);
-            }
-        }
-
-        None
-    }
-} */

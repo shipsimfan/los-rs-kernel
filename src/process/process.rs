@@ -64,14 +64,18 @@ impl Process {
     }
 
     pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
-        self.exit_queue.push(thread);
+        unsafe {
+            asm!("cli");
+            self.exit_queue.push(thread);
+            asm!("sti");
+        }
     }
 
     pub unsafe fn kill_threads(&mut self, exception: isize) {
         self.threads.remove_all_except(exception);
     }
 
-    pub fn pre_exit(&mut self, exit_status: isize) {
+    pub unsafe fn pre_exit(&mut self, exit_status: isize) {
         if self.threads.count() > 1 {
             return;
         }

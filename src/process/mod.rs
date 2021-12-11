@@ -26,6 +26,7 @@ pub type ThreadFunc = fn() -> isize;
 pub type ThreadFuncContext = fn(context: usize) -> isize;
 
 #[repr(packed(1))]
+#[allow(unused)]
 struct UserspaceContext {
     argc: usize,
     argv: *const *const u8,
@@ -273,6 +274,7 @@ pub fn execute(
     do_execute(filepath, args, environment, standard_io, session)
 }
 
+#[allow(dead_code)]
 pub fn create_thread(entry: ThreadFunc) -> isize {
     create_thread_raw(entry as usize, 0)
 }
@@ -393,10 +395,7 @@ pub fn wait_thread(tid: isize) -> isize {
     let current_thread = get_current_thread_mut();
     match current_thread.get_process_mut().get_thread_mut(tid) {
         None => return isize::MIN,
-        Some(thread) => {
-            unsafe { asm!("cli") };
-            thread.insert_into_exit_queue(current_thread)
-        }
+        Some(thread) => thread.insert_into_exit_queue(current_thread),
     }
 
     yield_thread();
@@ -430,7 +429,7 @@ pub fn exit_thread(exit_status: isize) -> ! {
         current_thread.pre_exit(exit_status);
         current_thread.get_process_mut().pre_exit(exit_status);
 
-        current_thread.clear_queue();
+        current_thread.clear_queue(false);
         yield_thread();
         panic!("Returned to thread after exit!");
     }
@@ -448,6 +447,7 @@ pub fn exit_process(exit_status: isize) -> ! {
     }
 }
 
+#[allow(dead_code)]
 pub fn kill_thread(tid: isize) {
     unsafe {
         asm!("cli");
@@ -517,6 +517,7 @@ pub unsafe fn get_current_thread_option_cli() -> Option<&'static Thread> {
     THREAD_CONTROL.get_current_thread()
 }
 
+#[allow(dead_code)]
 pub fn get_current_thread_option() -> Option<&'static Thread> {
     unsafe {
         asm!("cli");

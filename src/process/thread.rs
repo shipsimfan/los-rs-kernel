@@ -13,12 +13,17 @@ struct Stack {
     pointer: usize,
 }
 
+struct CurrentQueue {
+    remove: unsafe fn(*mut c_void, *mut Thread),
+    object: AtomicPtr<c_void>,
+}
+
 pub struct Thread {
     id: isize,
     kernel_stack: Stack,
     floating_point_storage: &'static mut [u8],
     process: AtomicPtr<Process>,
-    queue: Option<AtomicPtr<ThreadQueue>>,
+    queue: Option<CurrentQueue>,
     queue_data: isize,
     exit_queue: ThreadQueue,
     tls_base: usize,
@@ -118,17 +123,33 @@ impl Thread {
         unsafe { set_fs_base(self.tls_base) };
     }
 
-    pub fn set_queue(&mut self, queue: &mut ThreadQueue) {
-        self.queue = Some(AtomicPtr::new(queue));
+    pub unsafe fn set_queue(
+        &mut self,
+        remove: unsafe fn(*mut c_void, *mut Thread),
+        queue: *mut c_void,
+    ) {
+        self.clear_queue(false);
+
+        self.queue = Some(CurrentQueue {
+            remove,
+            object: AtomicPtr::new(queue),
+        })
+    }
+
+    pub unsafe fn clear_queue(&mut self, removed: bool) {
+        if !removed {
+            match &mut self.queue {
+                Some(queue) => (queue.remove)(*queue.object.get_mut(), self),
+                None => {}
+            }
+        }
+
+        self.queue = None;
     }
 
     pub fn set_tls_base(&mut self, new_tls_base: usize) {
         self.tls_base = new_tls_base;
         unsafe { set_fs_base(self.tls_base) };
-    }
-
-    pub fn clear_queue(&mut self) {
-        self.queue = None;
     }
 
     pub fn in_queue(&mut self) -> bool {
@@ -164,7 +185,11 @@ impl Thread {
     }
 
     pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
-        self.exit_queue.push(thread);
+        unsafe {
+            asm!("cli");
+            self.exit_queue.push(thread);
+            asm!("sti");
+        }
     }
 
     pub unsafe fn pre_exit(&mut self, exit_status: isize) {
@@ -187,14 +212,11 @@ impl Mappable for Thread {
 
 impl Drop for Thread {
     fn drop(&mut self) {
-        unsafe { self.pre_exit(128) };
-
-        match &self.queue {
-            Some(queue) => unsafe { (*queue.load(Ordering::Acquire)).remove(self) },
-            None => {}
-        }
-
         unsafe {
+            self.pre_exit(128);
+
+            self.clear_queue(false);
+
             alloc::alloc::dealloc(
                 self.floating_point_storage.as_mut_ptr(),
                 FLOATING_POINT_STORAGE_LAYOUT,
