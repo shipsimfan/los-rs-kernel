@@ -81,7 +81,7 @@ unsafe fn first_port_irq(context: usize) {
 }
 
 unsafe fn second_port_irq(context: usize) {
-    let controller = unsafe { &mut *(context as *mut Controller) };
+    let controller = &mut *(context as *mut Controller);
     let data = inb(REGISTER_DATA);
 
     if controller.initializing[1] {
@@ -92,7 +92,7 @@ unsafe fn second_port_irq(context: usize) {
         controller.port_irq[1] = true;
     } else {
         match &controller.devices[1] {
-            Some(device) => match unsafe { (*device.as_ptr()).ioctrl(0, data as usize) } {
+            Some(device) => match (*device.as_ptr()).ioctrl(0, data as usize) {
                 Ok(_) => {}
                 Err(_) => {}
             },
