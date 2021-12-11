@@ -229,7 +229,7 @@ impl DirectoryIterator {
     pub fn new(first_cluster: u32, fat: FATBox) -> error::Result<Self> {
         Ok(DirectoryIterator {
             buffer: Buffer::new(first_cluster, fat.clone())?,
-            current_index: 1,
+            current_index: 0,
             cluster_top: fat.lock().bytes_per_cluster(),
         })
     }

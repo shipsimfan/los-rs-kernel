@@ -72,6 +72,9 @@ impl filesystem::Directory for Directory {
         let mut iter = self.create_iterator()?;
         while let Some(entry) = iter.next()? {
             if entry.is_directory() {
+                if entry.name() == "." || entry.name() == ".." {
+                    continue;
+                }
                 sub_directories.push(entry.name().to_owned());
             }
         }
