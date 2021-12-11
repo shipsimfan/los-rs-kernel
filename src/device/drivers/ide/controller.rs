@@ -23,8 +23,8 @@ pub const IOCTRL_ADVANCED_POLL: usize = 2;
 pub const IOCTRL_SET_CHANNEL_INTERRUPT: usize = 3;
 pub const IOCTRL_CLEAR_CHANNEL_INTERRUPT: usize = 4;
 
-fn irq_handler(context: usize) {
-    let _controller = unsafe { &mut *(context as *mut IDEController) };
+unsafe fn irq_handler(context: usize) {
+    let _controller = &mut *(context as *mut IDEController);
 }
 
 impl IDEController {

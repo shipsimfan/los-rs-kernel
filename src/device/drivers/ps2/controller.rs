@@ -59,8 +59,8 @@ fn write_data(value: u8) {
     outb(REGISTER_DATA, value);
 }
 
-fn first_port_irq(context: usize) {
-    let controller = unsafe { &mut *(context as *mut Controller) };
+unsafe fn first_port_irq(context: usize) {
+    let controller = &mut *(context as *mut Controller);
     let data = inb(REGISTER_DATA);
 
     if controller.initializing[0] {
@@ -71,7 +71,7 @@ fn first_port_irq(context: usize) {
         controller.port_irq[0] = true;
     } else {
         match &controller.devices[0] {
-            Some(device) => match unsafe { (*device.as_ptr()).ioctrl(0, data as usize) } {
+            Some(device) => match (*device.as_ptr()).ioctrl(0, data as usize) {
                 Ok(_) => {}
                 Err(_) => {}
             },
@@ -80,7 +80,7 @@ fn first_port_irq(context: usize) {
     }
 }
 
-fn second_port_irq(context: usize) {
+unsafe fn second_port_irq(context: usize) {
     let controller = unsafe { &mut *(context as *mut Controller) };
     let data = inb(REGISTER_DATA);
 

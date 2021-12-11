@@ -89,12 +89,17 @@ impl Console {
         Ok(self.output_device.lock().ioctrl(IOCTRL_GET_HEIGHT, 0)? as isize)
     }
 
-    pub fn push_event(&mut self, event: Event) {
+    pub unsafe fn push_event(&mut self, event: Event) {
         self.event_queue.push(event);
     }
 
     pub fn peek_event(&mut self) -> Option<Event> {
-        self.event_queue.pop()
+        unsafe {
+            asm!("cli");
+            let res = self.event_queue.pop();
+            asm!("sti");
+            res
+        }
     }
 }
 

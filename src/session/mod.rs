@@ -97,7 +97,7 @@ impl Session {
         &mut self.sub
     }
 
-    pub fn push_event(&mut self, event: Event) {
+    pub unsafe fn push_event(&mut self, event: Event) {
         self.sub.push_event(event);
     }
 
@@ -107,7 +107,7 @@ impl Session {
 }
 
 impl SubSession {
-    pub fn push_event(&mut self, event: Event) {
+    pub unsafe fn push_event(&mut self, event: Event) {
         match self {
             SubSession::Console(console) => console.push_event(event),
         }

@@ -112,7 +112,7 @@ impl Keyboard {
         }
     }
 
-    fn irq(&mut self, data: u8) {
+    unsafe fn irq(&mut self, data: u8) {
         if self.ignore_next_irq {
             self.ignore_next_irq = false;
         } else {
@@ -142,7 +142,7 @@ impl Device for Keyboard {
     fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result<usize> {
         match code {
             0 => {
-                self.irq(argument as u8);
+                unsafe { self.irq(argument as u8) };
                 Ok(0)
             }
             _ => Err(error::Status::InvalidIOCtrl),
