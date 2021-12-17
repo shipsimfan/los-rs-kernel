@@ -3,7 +3,7 @@ use self::entry::DirectoryIterator;
 use super::fat::FATBox;
 use crate::{
     error,
-    filesystem::{self, File, FileMetadata},
+    filesystem::{self, File, Metadata},
 };
 use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
 
@@ -52,34 +52,17 @@ impl Directory {
 }
 
 impl filesystem::Directory for Directory {
-    fn get_sub_files(&self) -> error::Result<Vec<(String, FileMetadata)>> {
-        let mut sub_files = Vec::new();
+    fn get_children(&self) -> error::Result<Vec<(String, Metadata)>> {
+        let mut children = Vec::new();
         let mut iter = self.create_iterator()?;
         while let Some(entry) = iter.next()? {
-            if !entry.is_directory() {
-                sub_files.push((
-                    entry.name().to_owned(),
-                    FileMetadata::new(entry.file_size()),
-                ))
-            }
+            children.push((
+                entry.name().to_owned(),
+                Metadata::new(entry.file_size(), entry.is_directory()),
+            ))
         }
 
-        Ok(sub_files)
-    }
-
-    fn get_sub_directories(&self) -> error::Result<Vec<String>> {
-        let mut sub_directories = Vec::new();
-        let mut iter = self.create_iterator()?;
-        while let Some(entry) = iter.next()? {
-            if entry.is_directory() {
-                if entry.name() == "." || entry.name() == ".." {
-                    continue;
-                }
-                sub_directories.push(entry.name().to_owned());
-            }
-        }
-
-        Ok(sub_directories)
+        Ok(children)
     }
 
     fn open_file(&self, filename: &str) -> error::Result<Box<dyn File>> {
@@ -208,23 +191,15 @@ impl filesystem::Directory for Directory {
         Err(error::Status::NotImplemented)
     }
 
-    fn remove_file(&self, filename: &str) -> error::Result<()> {
-        self.remove(filename, false)
+    fn remove(&self, name: &str) -> error::Result<()> {
+        self.remove(name, false)
     }
 
-    fn remove_directory(&self, directory_name: &str) -> error::Result<()> {
-        self.remove(directory_name, true)
-    }
-
-    fn update_file_metadata(
-        &self,
-        filename: &str,
-        new_metadata: FileMetadata,
-    ) -> error::Result<()> {
+    fn update_metadata(&self, name: &str, new_metadata: Metadata) -> error::Result<()> {
         let mut iter = self.create_iterator()?;
 
         while let Some(mut entry) = iter.next()? {
-            if entry.name() == filename {
+            if entry.name() == name {
                 return if entry.is_directory() {
                     Err(error::Status::IsDirectory)
                 } else {

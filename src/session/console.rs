@@ -32,7 +32,7 @@ pub const IOCTRL_GET_HEIGHT: usize = 7;
 
 impl Console {
     pub fn new(output_device: DeviceBox) -> error::Result<Self> {
-        output_device.lock().ioctrl(IOCTRL_CLEAR, 0)?;
+        //output_device.lock().ioctrl(IOCTRL_CLEAR, 0)?;
 
         Ok(Console {
             output_device,

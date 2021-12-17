@@ -1,17 +1,10 @@
-use crate::map::{Mappable, INVALID_ID};
-
 use super::{DirectoryBox, DirectoryEntry};
+use crate::map::{Mappable, INVALID_ID};
 use alloc::{string::String, sync::Arc};
-
-enum IterStage {
-    File,
-    Directory,
-}
 
 pub struct DirectoryDescriptor {
     id: isize,
     directory: DirectoryBox,
-    stage: IterStage,
     iter: usize,
 }
 
@@ -21,7 +14,6 @@ impl DirectoryDescriptor {
         DirectoryDescriptor {
             id: INVALID_ID,
             directory,
-            stage: IterStage::Directory,
             iter: 0,
         }
     }
@@ -36,31 +28,14 @@ impl DirectoryDescriptor {
 
     pub fn next(&mut self) -> Option<DirectoryEntry> {
         let directory = self.directory.lock();
-        match self.stage {
-            IterStage::Directory => {
-                let sub_directories = directory.get_sub_directories();
-                if self.iter >= sub_directories.len() {
-                    self.stage = IterStage::File;
-                    self.iter = 0;
-                    drop(sub_directories);
-                    drop(directory);
-                    self.next()
-                } else {
-                    let (dir_name, _) = &sub_directories[self.iter];
-                    self.iter += 1;
-                    Some(DirectoryEntry::from_directory(dir_name))
-                }
+
+        let child = directory.get_child(self.iter);
+        match child {
+            Some((name, metadata)) => {
+                self.iter += 1;
+                Some(DirectoryEntry::new(name, metadata))
             }
-            IterStage::File => {
-                let sub_files = directory.get_sub_files();
-                if self.iter >= sub_files.len() {
-                    None
-                } else {
-                    let (file_name, metadata, _) = &sub_files[self.iter];
-                    self.iter += 1;
-                    Some(DirectoryEntry::from_file(file_name, metadata))
-                }
-            }
+            None => None,
         }
     }
 }

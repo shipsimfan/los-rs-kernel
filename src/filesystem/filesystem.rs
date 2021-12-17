@@ -1,4 +1,4 @@
-use super::{Directory, DirectoryBox, DirectoryContainer, ParentDirectory};
+use super::{Directory, DirectoryBox, DirectoryContainer, Parent};
 use crate::{device::DeviceBox, error, locks::Mutex, map::*};
 use alloc::{boxed::Box, string::String, sync::Arc};
 
@@ -22,7 +22,7 @@ impl Filesystem {
             number: INVALID_ID,
             root_directory: Arc::new(Mutex::new(DirectoryContainer::new(
                 filesystem_starter.root_directory,
-                ParentDirectory::Root(INVALID_ID),
+                Parent::Root(INVALID_ID),
             )?)),
             _volume_name: filesystem_starter.volume_name,
         })

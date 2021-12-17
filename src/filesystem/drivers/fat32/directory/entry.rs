@@ -43,7 +43,7 @@ struct Buffer {
 
 pub struct DirectoryIterator {
     buffer: Buffer,
-    current_index: usize,
+    current_index: Option<usize>,
     cluster_top: usize,
 }
 
@@ -229,9 +229,29 @@ impl DirectoryIterator {
     pub fn new(first_cluster: u32, fat: FATBox) -> error::Result<Self> {
         Ok(DirectoryIterator {
             buffer: Buffer::new(first_cluster, fat.clone())?,
-            current_index: 0,
+            current_index: None,
             cluster_top: fat.lock().bytes_per_cluster(),
         })
+    }
+
+    fn increament_index(&mut self) {
+        match &mut self.current_index {
+            None => self.current_index = Some(0),
+            Some(idx) => *idx += 1,
+        }
+    }
+
+    fn decreament_index(&mut self) {
+        match &mut self.current_index {
+            None => {}
+            Some(idx) => {
+                if *idx == 0 {
+                    self.current_index = None
+                } else {
+                    *idx -= 1;
+                }
+            }
+        }
     }
 
     pub fn flush_buffer(&mut self) -> error::Result<()> {
@@ -244,7 +264,7 @@ impl DirectoryIterator {
         let mut long_checksum = 0;
         let mut next_ord = 0;
         loop {
-            self.current_index += 1;
+            self.increament_index();
 
             let (cluster_index, offset) = self.get_cluster_index_and_offset();
 
@@ -345,6 +365,10 @@ impl DirectoryIterator {
                 }
             }
 
+            if filename == ".." || filename == "." {
+                continue;
+            }
+
             return Ok(Some(DirectoryEntry::new(
                 filename,
                 entry.attributes & ATTRIBUTE_DIRECTORY != 0,
@@ -376,7 +400,7 @@ impl DirectoryIterator {
         let mut read_buffer = [0u8; core::mem::size_of::<DiskDirectoryEntry>()];
 
         // Check next entry
-        self.current_index += 1;
+        self.increament_index();
         let (next_cluster_index, next_offset) = self.get_cluster_index_and_offset();
         self.buffer.set_current_cluster_index(next_cluster_index)?;
         self.buffer.read(next_offset, &mut read_buffer)?;
@@ -387,7 +411,7 @@ impl DirectoryIterator {
         }
 
         // Clear current entry
-        self.current_index -= 1;
+        self.decreament_index();
         let (cluster_index, offset) = self.get_cluster_index_and_offset();
         self.buffer.set_current_cluster_index(cluster_index)?;
         self.buffer.write(offset, &write_buffer)?;
@@ -396,7 +420,7 @@ impl DirectoryIterator {
         let mut next_ord = 1;
         loop {
             // Read entry
-            self.current_index -= 1;
+            self.decreament_index();
             let (cluster_index, offset) = self.get_cluster_index_and_offset();
             self.buffer.set_current_cluster_index(cluster_index)?;
             self.buffer.read(offset, &mut read_buffer)?;
@@ -433,7 +457,7 @@ impl DirectoryIterator {
         let mut current_free_entries = 0;
         let mut entry_buffer = [0u8; core::mem::size_of::<DiskDirectoryEntry>()];
         loop {
-            self.current_index += 1;
+            self.increament_index();
 
             let (cluster_index, offset) = self.get_cluster_index_and_offset();
             self.buffer.set_current_cluster_index(cluster_index)?;
@@ -458,7 +482,7 @@ impl DirectoryIterator {
         self.buffer.write(offset, &disk_entry_slice)?;
 
         for entry in long_entries {
-            self.current_index -= 1;
+            self.decreament_index();
             let slice = entry.to_slice();
 
             let (cluster_index, offset) = self.get_cluster_index_and_offset();
@@ -470,7 +494,7 @@ impl DirectoryIterator {
     }
 
     fn get_cluster_index_and_offset(&self) -> (usize, usize) {
-        let byte_index = self.current_index * core::mem::size_of::<DiskDirectoryEntry>();
+        let byte_index = self.current_index.unwrap() * core::mem::size_of::<DiskDirectoryEntry>();
         (byte_index / self.cluster_top, byte_index % self.cluster_top)
     }
 }

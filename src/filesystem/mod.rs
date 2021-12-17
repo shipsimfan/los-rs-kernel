@@ -15,15 +15,16 @@ pub mod drivers;
 mod file;
 mod file_descriptor;
 mod filesystem;
+mod metadata;
 
 pub use directory::Directory;
-pub use directory::ParentDirectory;
+pub use directory::Parent;
 pub use directory_descriptor::DirectoryDescriptor;
 pub use directory_entry::DirectoryEntry;
 pub use file::File;
-pub use file::FileMetadata;
 pub use file_descriptor::FileDescriptor;
 pub use file_descriptor::SeekFrom;
+pub use metadata::Metadata;
 
 type DirectoryBox = directory::DirectoryBox;
 type DirectoryContainer = directory::DirectoryContainer;
@@ -155,7 +156,7 @@ pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
     // Get metadata and file
     let (metadata, file) = {
         let mut dir = current_directory.lock();
-        let metadata = dir.get_file_metadata(filename)?;
+        let metadata = dir.get_metadata(filename)?;
         let file = dir.open_file(filename, &current_directory)?;
         (metadata, file)
     };
@@ -178,7 +179,7 @@ pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
     Ok(buffer)
 }
 
-pub fn remove_file(path: &str) -> error::Result<()> {
+pub fn remove(path: &str) -> error::Result<()> {
     // Parse filepath
     let (fs_number, path) = parse_filepath(path, false)?;
 
@@ -194,26 +195,7 @@ pub fn remove_file(path: &str) -> error::Result<()> {
 
     // Remove directory
     let mut parent_directory = parent_directory_lock.lock();
-    parent_directory.remove_file(filename)
-}
-
-pub fn remove_directory(path: &str) -> error::Result<()> {
-    // Parse filepath
-    let (fs_number, path) = parse_filepath(path, false)?;
-
-    // Open filesystem
-    let root_directory = get_root_directory(fs_number)?;
-
-    // Iterate path
-    let (parent_directory_lock, directory_name) = get_directory(path, root_directory, true)?;
-    let directory_name = match directory_name {
-        Some(str) => str,
-        None => return Err(error::Status::InvalidArgument),
-    };
-
-    // Remove directory
-    let mut parent_directory = parent_directory_lock.lock();
-    parent_directory.remove_directory(directory_name)
+    parent_directory.remove(filename)
 }
 
 pub fn create_directory(path: &str) -> error::Result<()> {

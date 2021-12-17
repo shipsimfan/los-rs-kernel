@@ -152,7 +152,7 @@ pub fn system_call(
                 Err(status) => return status.to_return_code(),
             };
 
-            match filesystem::remove_file(path) {
+            match filesystem::remove(path) {
                 Ok(()) => 0,
                 Err(status) => status.to_return_code(),
             }
@@ -163,7 +163,7 @@ pub fn system_call(
                 Err(status) => return status.to_return_code(),
             };
 
-            match filesystem::remove_directory(path) {
+            match filesystem::remove(path) {
                 Ok(()) => 0,
                 Err(status) => status.to_return_code(),
             }

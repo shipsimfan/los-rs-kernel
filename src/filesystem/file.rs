@@ -17,11 +17,6 @@ pub struct FileContainer {
     references: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct FileMetadata {
-    size: usize,
-}
-
 impl FileContainer {
     pub fn new(file: Box<dyn File>, parent: DirectoryBox) -> Self {
         FileContainer {
@@ -66,24 +61,10 @@ impl FileContainer {
 
         // Update directory
         let mut directory = self.parent.lock();
-        let mut metadata = directory.get_file_metadata_ptr(self)?;
+        let mut metadata = directory.get_metadata_ptr(self as *const _ as *const _)?;
         metadata.set_size(new_length);
-        directory.update_file_metadata(self, metadata)?;
+        directory.update_metadata(self, metadata)?;
 
         Ok(())
-    }
-}
-
-impl FileMetadata {
-    pub fn new(size: usize) -> Self {
-        FileMetadata { size: size }
-    }
-
-    pub fn size(&self) -> usize {
-        self.size
-    }
-
-    pub fn set_size(&mut self, new_size: usize) {
-        self.size = new_size
     }
 }
