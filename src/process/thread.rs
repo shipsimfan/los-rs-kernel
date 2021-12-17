@@ -160,20 +160,12 @@ impl Thread {
         (&self.kernel_stack.pointer) as *const _ as *mut _
     }
 
-    pub fn get_kernel_stack_top(&self) -> usize {
-        self.kernel_stack.top
-    }
-
     pub fn get_process(&self) -> &'static Process {
         unsafe { &*self.process.load(Ordering::Acquire) }
     }
 
     pub fn get_process_mut(&mut self) -> &'static mut Process {
         unsafe { &mut *self.process.load(Ordering::Acquire) }
-    }
-
-    pub fn compare_process(&self, other: &Thread) -> bool {
-        self.process.load(Ordering::Acquire) == other.process.load(Ordering::Acquire)
     }
 
     pub fn set_queue_data(&mut self, new_data: isize) {
@@ -186,9 +178,9 @@ impl Thread {
 
     pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
         unsafe {
-            asm!("cli");
+            crate::critical::enter_local();
             self.exit_queue.push(thread);
-            asm!("sti");
+            crate::critical::leave_local();
         }
     }
 

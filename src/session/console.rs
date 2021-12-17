@@ -95,9 +95,9 @@ impl Console {
 
     pub fn peek_event(&mut self) -> Option<Event> {
         unsafe {
-            asm!("cli");
+            crate::critical::enter_local();
             let res = self.event_queue.pop();
-            asm!("sti");
+            crate::critical::leave_local();
             res
         }
     }

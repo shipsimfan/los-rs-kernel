@@ -166,7 +166,7 @@ fn do_execute(
     // Copy stdio descriptors
     standard_io.copy_descriptors(current_process, new_process)?;
 
-    unsafe { asm!("cli") };
+    unsafe { crate::critical::enter_local() };
 
     // Switch to new process address space
     new_process.set_address_space_as_current();
@@ -242,7 +242,7 @@ fn do_execute(
     current_process.set_address_space_as_current();
 
     // Return the process id
-    unsafe { asm!("sti") };
+    unsafe { crate::critical::leave_local() };
     Ok(pid)
 }
 
@@ -343,9 +343,9 @@ pub unsafe fn queue_thread_cli(thread: &mut Thread) {
 
 pub fn queue_thread(thread: &mut Thread) {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         queue_thread_cli(thread);
-        asm!("sti");
+        crate::critical::leave_local();
     }
 }
 
@@ -358,7 +358,7 @@ pub fn queue_and_yield() {
 pub fn yield_thread() {
     loop {
         unsafe {
-            asm!("cli");
+            crate::critical::enter_local();
             while let Some(next_thread) = THREAD_CONTROL.get_next_thread() {
                 let default_location: usize = 0;
                 let (save_location, load_location) = {
@@ -423,7 +423,7 @@ pub fn wait_process(pid: isize) -> isize {
 
 pub fn exit_thread(exit_status: isize) -> ! {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         let current_thread = get_current_thread_mut_cli();
 
         current_thread.pre_exit(exit_status);
@@ -437,7 +437,7 @@ pub fn exit_thread(exit_status: isize) -> ! {
 
 pub fn exit_process(exit_status: isize) -> ! {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         let current_thread = get_current_thread_mut_cli();
         let current_process = current_thread.get_process_mut();
 
@@ -450,7 +450,7 @@ pub fn exit_process(exit_status: isize) -> ! {
 #[allow(dead_code)]
 pub fn kill_thread(tid: isize) {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         let current_thread = get_current_thread_mut_cli();
         let current_process = current_thread.get_process_mut();
 
@@ -464,7 +464,7 @@ pub fn kill_thread(tid: isize) {
             }
             None => {}
         }
-        asm!("sti");
+        crate::critical::leave_local();
     }
 }
 
@@ -477,7 +477,7 @@ pub fn kill_process(pid: isize) {
     let mut session = session_lock.lock();
 
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
 
         let remove = match session.get_process_mut(pid) {
             Some(process) => {
@@ -496,15 +496,15 @@ pub fn kill_process(pid: isize) {
             session.remove_process(pid);
         }
 
-        asm!("sti");
+        crate::critical::leave_local();
     }
 }
 
 pub fn get_current_thread() -> &'static Thread {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         let ret = get_current_thread_cli();
-        asm!("sti");
+        crate::critical::leave_local();
         ret
     }
 }
@@ -520,18 +520,18 @@ pub unsafe fn get_current_thread_option_cli() -> Option<&'static Thread> {
 #[allow(dead_code)]
 pub fn get_current_thread_option() -> Option<&'static Thread> {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         let ret = get_current_thread_option_cli();
-        asm!("sti");
+        crate::critical::leave_local();
         ret
     }
 }
 
 pub fn get_current_thread_mut() -> &'static mut Thread {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         let ret = get_current_thread_mut_cli();
-        asm!("sti");
+        crate::critical::leave_local();
         ret
     }
 }
@@ -542,9 +542,9 @@ pub unsafe fn get_current_thread_mut_cli() -> &'static mut Thread {
 
 pub fn get_current_thread_mut_option() -> Option<&'static mut Thread> {
     unsafe {
-        asm!("cli");
+        crate::critical::enter_local();
         let ret = get_current_thread_mut_option_cli();
-        asm!("sti");
+        crate::critical::leave_local();
         ret
     }
 }

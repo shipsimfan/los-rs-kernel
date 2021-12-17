@@ -65,9 +65,9 @@ impl Process {
 
     pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
         unsafe {
-            asm!("cli");
+            crate::critical::enter_local();
             self.exit_queue.push(thread);
-            asm!("sti");
+            crate::critical::leave_local();
         }
     }
 

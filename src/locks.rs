@@ -39,7 +39,7 @@ impl<T> Mutex<T> {
 
     #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T> {
-        unsafe { asm!("cli") };
+        unsafe { crate::critical::enter_local() };
         match unsafe { process::get_current_thread_mut_option_cli() } {
             None => {}
             Some(current_thread) => {
@@ -61,7 +61,7 @@ impl<T> Mutex<T> {
             }
         }
 
-        unsafe { asm!("sti") };
+        unsafe { crate::critical::leave_local() };
 
         MutexGuard {
             lock: &self,
@@ -121,7 +121,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
         unsafe {
-            asm!("cli");
+            crate::critical::enter_local();
             let mutex = &mut *(self.lock as *const _ as *mut Mutex<T>);
 
             match mutex.queue.pop_mut() {
@@ -131,7 +131,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
                     process::queue_thread_cli(next_thread);
                 }
             }
-            asm!("sti");
+            crate::critical::leave_local();
         }
     }
 }

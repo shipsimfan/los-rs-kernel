@@ -18,12 +18,12 @@ enum Register {
 const MONTH_TO_DAYS: [isize; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 
 fn read_register(register: Register) -> u8 {
-    unsafe { asm!("cli") };
+    unsafe { crate::critical::enter_local() };
 
     outb(0x70, register as u8);
     let ret = inb(0x71);
 
-    unsafe { asm!("sti") };
+    unsafe { crate::critical::leave_local() };
 
     ret
 }

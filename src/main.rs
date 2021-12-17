@@ -11,6 +11,7 @@
 #![feature(trait_alias)]
 
 mod bootloader;
+mod critical;
 mod device;
 mod error;
 mod event;
@@ -73,7 +74,7 @@ fn kinit() -> isize {
 
     if device::get_device("/boot_video").is_ok() {
         logln!("Starting boot video session . . . ");
-        //logger::disable_boot_video_logging();
+        logger::disable_boot_video_logging();
         match session::create_console_session("/boot_video") {
             Ok(_) => {}
             Err(status) => panic!("Failed to create boot video session: {}", status),
