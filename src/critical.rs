@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 #[inline(always)]
 pub unsafe fn enter_local() {
     asm!("cli");

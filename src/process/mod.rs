@@ -15,7 +15,7 @@ use crate::{
     session::{self, SessionBox},
 };
 use alloc::{string::String, vec::Vec};
-use core::usize;
+use core::{arch::asm, usize};
 
 pub type Thread = thread::Thread;
 pub type Process = process::Process;

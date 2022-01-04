@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(alloc_error_handler)]
-#![feature(asm)]
 #![feature(core_intrinsics)]
 #![feature(core_panic)]
 #![feature(panic_info_message)]

@@ -4,6 +4,7 @@ use crate::{
     locks::Mutex,
     process,
 };
+use core::arch::asm;
 
 static SYSTEM_TIMER: Mutex<Option<DeviceBox>> = Mutex::new(None);
 static mut SYSTEM_TIME: usize = 0;

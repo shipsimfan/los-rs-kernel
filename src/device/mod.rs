@@ -1,5 +1,6 @@
 use crate::{error, locks::Mutex};
 use alloc::{boxed::Box, sync::Arc};
+use core::arch::asm;
 
 pub mod acpi;
 pub mod drivers;
