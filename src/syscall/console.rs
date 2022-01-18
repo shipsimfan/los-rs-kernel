@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use crate::{
     error, logln, process,
-    session::{console::Color, SubSession},
+    session::{console::Color, get_session_mut, SubSession},
 };
 
 const CONSOLE_WRITE_CH_SYSCALL: usize = 0x3000;
@@ -28,9 +28,12 @@ pub fn system_call(
 ) -> isize {
     let session_lock = match process::get_current_thread_mut()
         .get_process_mut()
-        .get_session_mut()
+        .session_id()
     {
-        Some(session) => session,
+        Some(session_id) => match get_session_mut(session_id) {
+            Some(session) => session,
+            None => return error::Status::InvalidSession.to_return_code(),
+        },
         None => return error::Status::InvalidSession.to_return_code(),
     };
 

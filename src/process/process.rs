@@ -4,14 +4,13 @@ use crate::{
     filesystem::{self, DirectoryDescriptor, DirectoryEntry, FileDescriptor},
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
-    session::SessionBox,
 };
 
 pub struct Process {
     id: isize,
     threads: Map<Thread>,
     address_space: AddressSpace,
-    session: Option<SessionBox>,
+    session_id: Option<isize>,
     exit_queue: ThreadQueue,
     file_descriptors: Map<FileDescriptor>,
     directory_descriptors: Map<DirectoryDescriptor>,
@@ -21,14 +20,14 @@ pub struct Process {
 
 impl Process {
     pub fn new(
-        session: Option<SessionBox>,
+        session_id: Option<isize>,
         current_working_directory: Option<DirectoryDescriptor>,
     ) -> Self {
         Process {
             id: INVALID_ID,
             threads: Map::new(),
             address_space: AddressSpace::new(),
-            session,
+            session_id,
             exit_queue: ThreadQueue::new(),
             file_descriptors: Map::new(),
             directory_descriptors: Map::new(),
@@ -56,11 +55,8 @@ impl Process {
         self.address_space.set_as_current()
     }
 
-    pub fn get_session_mut(&mut self) -> Option<SessionBox> {
-        match &self.session {
-            Some(session) => Some(session.clone()),
-            None => None,
-        }
+    pub fn session_id(&mut self) -> Option<isize> {
+        self.session_id
     }
 
     pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {

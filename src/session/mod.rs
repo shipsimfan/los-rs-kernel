@@ -2,8 +2,8 @@ use crate::{
     error,
     event::Event,
     filesystem::DirectoryDescriptor,
-    locks::Mutex,
-    map::{Map, Mappable},
+    locks::{Mutex, MutexGuard},
+    map::{Map, Mappable, INVALID_ID},
     process::{self, Process, StandardIO, StandardIOType},
 };
 use alloc::{string::ToString, sync::Arc, vec::Vec};
@@ -13,10 +13,6 @@ pub mod console;
 pub struct Session {
     sub: SubSession,
     processes: Map<Process>,
-}
-
-struct SessionHolder {
-    sbox: SessionBox,
     id: isize,
 }
 
@@ -24,17 +20,17 @@ pub enum SubSession {
     Console(console::Console),
 }
 
-pub type SessionBox = Arc<Mutex<Session>>;
+#[derive(Clone)]
+pub struct SessionBox(Arc<Mutex<Session>>);
 
-static SESSIONS: Mutex<Map<SessionHolder>> = Mutex::new(Map::with_starting_index(1));
+static SESSIONS: Mutex<Map<SessionBox>> = Mutex::new(Map::with_starting_index(1));
 
 pub fn create_console_session(output_device_path: &str) -> error::Result<isize> {
     let output_device = crate::device::get_device(output_device_path)?;
     let new_session = Session::new(SubSession::Console(console::Console::new(output_device)?));
-    let sid = SESSIONS.lock().insert(SessionHolder {
-        id: 0,
-        sbox: Arc::new(Mutex::new(new_session)),
-    });
+    let sid = SESSIONS
+        .lock()
+        .insert(SessionBox(Arc::new(Mutex::new(new_session))));
 
     let mut env = Vec::new();
     env.push("PATH=:1/los/bin".to_string());
@@ -48,17 +44,14 @@ pub fn create_console_session(output_device_path: &str) -> error::Result<isize> 
             StandardIOType::Console,
             StandardIOType::Console,
         ),
-        sid,
+        Some(sid),
     )?;
 
     Ok(sid)
 }
 
 pub fn get_session_mut(sid: isize) -> Option<SessionBox> {
-    match SESSIONS.lock().get_mut(sid) {
-        Some(holder) => Some(holder.sbox.clone()),
-        None => None,
-    }
+    SESSIONS.lock().get_mut(sid).map(|sbox| sbox.clone())
 }
 
 impl Session {
@@ -66,6 +59,7 @@ impl Session {
         Session {
             sub,
             processes: Map::new(),
+            id: INVALID_ID,
         }
     }
 
@@ -74,9 +68,8 @@ impl Session {
         entry: usize,
         context: usize,
         working_directory: Option<DirectoryDescriptor>,
-        self_box: SessionBox,
     ) -> isize {
-        let new_process = Process::new(Some(self_box), working_directory);
+        let new_process = Process::new(Some(self.id), working_directory);
         let pid = self.processes.insert(new_process);
         self.processes
             .get_mut(pid)
@@ -120,12 +113,22 @@ impl SubSession {
     }
 }
 
-impl Mappable for SessionHolder {
+impl SessionBox {
+    pub unsafe fn remove_process(&self, id: isize) {
+        (*self.0.as_ptr()).remove_process(id)
+    }
+
+    pub fn lock(&self) -> MutexGuard<Session> {
+        self.0.lock()
+    }
+}
+
+impl Mappable for SessionBox {
     fn id(&self) -> isize {
-        self.id
+        self.0.lock().id
     }
 
     fn set_id(&mut self, id: isize) {
-        self.id = id
+        self.0.lock().id = id
     }
 }

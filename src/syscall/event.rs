@@ -1,4 +1,4 @@
-use crate::{error, event::CEvent, logln, process};
+use crate::{error, event::CEvent, logln, process, session::get_session_mut};
 
 const PEEK_EVENT_SYSCALL: usize = 0x4000;
 
@@ -15,15 +15,18 @@ pub fn system_call(
             Ok(ptr) => {
                 match process::get_current_thread_mut()
                     .get_process_mut()
-                    .get_session_mut()
+                    .session_id()
                 {
-                    Some(session) => match session.lock().peek_event() {
-                        None => 0,
-                        Some(event) => {
-                            let cevent = CEvent::from(event);
-                            unsafe { *ptr = cevent };
-                            1
-                        }
+                    Some(session_id) => match get_session_mut(session_id) {
+                        Some(session) => match session.lock().peek_event() {
+                            None => 0,
+                            Some(event) => {
+                                let cevent = CEvent::from(event);
+                                unsafe { *ptr = cevent };
+                                1
+                            }
+                        },
+                        None => return error::Status::InvalidSession.to_return_code(),
                     },
                     None => return error::Status::InvalidSession.to_return_code(),
                 }
