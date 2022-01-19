@@ -75,10 +75,13 @@ pub fn system_call(
             if arg1 >= KERNEL_VMA || arg1 + arg2 >= KERNEL_VMA {
                 error::Status::ArgumentSecurity.to_return_code()
             } else {
-                let mut path = match process::get_current_thread_mut()
-                    .get_process_mut()
-                    .get_current_working_directory()
-                {
+                let process_lock = process::get_current_thread()
+                    .process()
+                    .unwrap()
+                    .upgrade()
+                    .unwrap();
+                let mut process = process_lock.lock();
+                let mut path = match process.current_working_directory() {
                     Some(dir) => dir.get_full_path(),
                     None => return error::Status::NotSupported.to_return_code(),
                 };
@@ -100,8 +103,9 @@ pub fn system_call(
 
             match filesystem::open_directory(path) {
                 Ok(directory) => {
-                    process::get_current_thread_mut()
-                        .get_process_mut()
+                    process::get_current_thread()
+                        .process()
+                        .unwrap()
                         .set_current_working_directory(directory);
                     0
                 }

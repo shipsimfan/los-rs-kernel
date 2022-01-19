@@ -280,10 +280,13 @@ fn get_root_directory(fs_number: Option<isize>) -> error::Result<DirectoryBox> {
             }
         }
         None => {
-            match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_current_working_directory()
-            {
+            let process_lock = process::get_current_thread()
+                .process()
+                .unwrap()
+                .upgrade()
+                .unwrap();
+            let mut process = process_lock.lock();
+            match process.current_working_directory() {
                 Some(dir) => Ok(dir.get_directory()),
                 None => Err(error::Status::NotSupported),
             }

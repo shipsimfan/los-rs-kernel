@@ -56,7 +56,7 @@ pub extern "C" fn kmain(
     log!("Creating kinit process . . . ");
     process::create_process(kinit, None);
     logln!("OK!");
-    process::yield_thread();
+    process::yield_thread(None);
 
     loop {}
 }

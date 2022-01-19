@@ -2,9 +2,9 @@ use crate::{
     error,
     event::Event,
     filesystem::DirectoryDescriptor,
-    locks::{Mutex, MutexGuard},
+    locks::{Spinlock, SpinlockGuard},
     map::{Map, Mappable, INVALID_ID},
-    process::{self, Process, StandardIO, StandardIOType},
+    process::{self, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner},
 };
 use alloc::{string::ToString, sync::Arc, vec::Vec};
 
@@ -12,7 +12,7 @@ pub mod console;
 
 pub struct Session {
     sub: SubSession,
-    processes: Map<Process>,
+    processes: Map<ProcessReference>,
     id: isize,
 }
 
@@ -21,16 +21,16 @@ pub enum SubSession {
 }
 
 #[derive(Clone)]
-pub struct SessionBox(Arc<Mutex<Session>>);
+pub struct SessionBox(Arc<Spinlock<Session>>);
 
-static SESSIONS: Mutex<Map<SessionBox>> = Mutex::new(Map::with_starting_index(1));
+static SESSIONS: Spinlock<Map<SessionBox>> = Spinlock::new(Map::with_starting_index(1));
 
 pub fn create_console_session(output_device_path: &str) -> error::Result<isize> {
     let output_device = crate::device::get_device(output_device_path)?;
     let new_session = Session::new(SubSession::Console(console::Console::new(output_device)?));
     let sid = SESSIONS
         .lock()
-        .insert(SessionBox(Arc::new(Mutex::new(new_session))));
+        .insert(SessionBox(Arc::new(Spinlock::new(new_session))));
 
     let mut env = Vec::new();
     env.push("PATH=:1/los/bin".to_string());
@@ -68,18 +68,14 @@ impl Session {
         entry: usize,
         context: usize,
         working_directory: Option<DirectoryDescriptor>,
-    ) -> isize {
-        let new_process = Process::new(Some(self.id), working_directory);
-        let pid = self.processes.insert(new_process);
-        self.processes
-            .get_mut(pid)
-            .unwrap()
-            .create_thread(entry, context);
-        pid
+    ) -> ThreadOwner {
+        let new_process = ProcessOwner::new(Some(self.id), working_directory);
+        self.processes.insert(new_process.reference());
+        new_process.create_thread(entry, context)
     }
 
-    pub fn get_process_mut(&mut self, pid: isize) -> Option<&mut Process> {
-        self.processes.get_mut(pid)
+    pub fn get_process(&self, pid: isize) -> Option<ProcessReference> {
+        self.processes.get(pid).map(|reference| reference.clone())
     }
 
     pub fn remove_process(&mut self, id: isize) {
@@ -90,7 +86,7 @@ impl Session {
         &mut self.sub
     }
 
-    pub unsafe fn push_event(&mut self, event: Event) {
+    pub fn push_event(&mut self, event: Event) {
         self.sub.push_event(event);
     }
 
@@ -100,7 +96,7 @@ impl Session {
 }
 
 impl SubSession {
-    pub unsafe fn push_event(&mut self, event: Event) {
+    pub fn push_event(&mut self, event: Event) {
         match self {
             SubSession::Console(console) => console.push_event(event),
         }
@@ -114,11 +110,7 @@ impl SubSession {
 }
 
 impl SessionBox {
-    pub unsafe fn remove_process(&self, id: isize) {
-        (*self.0.as_ptr()).remove_process(id)
-    }
-
-    pub fn lock(&self) -> MutexGuard<Session> {
+    pub fn lock(&self) -> SpinlockGuard<Session> {
         self.0.lock()
     }
 }

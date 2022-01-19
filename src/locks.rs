@@ -1,9 +1,8 @@
-use crate::process::{self, Thread, ThreadQueue};
+use crate::process::{self, ThreadQueue};
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    ptr::null_mut,
-    sync::atomic::{AtomicBool, AtomicPtr, Ordering},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 pub struct Spinlock<T: ?Sized> {
@@ -12,8 +11,8 @@ pub struct Spinlock<T: ?Sized> {
 }
 
 pub struct Mutex<T: ?Sized> {
-    lock: AtomicPtr<Thread>,
-    queue: ThreadQueue,
+    lock: AtomicBool,
+    queue: Spinlock<ThreadQueue>,
     data: UnsafeCell<T>,
 }
 
@@ -31,8 +30,8 @@ impl<T> Mutex<T> {
     #[inline(always)]
     pub const fn new(data: T) -> Self {
         Mutex {
-            lock: AtomicPtr::new(null_mut()),
-            queue: ThreadQueue::new(),
+            lock: AtomicBool::new(false),
+            queue: Spinlock::new(ThreadQueue::new()),
             data: UnsafeCell::new(data),
         }
     }
@@ -40,23 +39,15 @@ impl<T> Mutex<T> {
     #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T> {
         unsafe { crate::critical::enter_local() };
-        match unsafe { process::get_current_thread_mut_option_cli() } {
+        match unsafe { process::get_current_thread_option_cli() } {
             None => {}
-            Some(current_thread) => {
+            Some(_) => {
                 if self
                     .lock
-                    .compare_exchange(
-                        null_mut(),
-                        current_thread,
-                        Ordering::Acquire,
-                        Ordering::Relaxed,
-                    )
+                    .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
                     .is_err()
                 {
-                    unsafe {
-                        (*(&self.queue as *const _ as *mut ThreadQueue)).push(current_thread);
-                    }
-                    process::yield_thread();
+                    process::yield_thread(Some(self.queue.lock().into_current_queue()));
                 }
             }
         }
@@ -71,17 +62,12 @@ impl<T> Mutex<T> {
 
     #[inline(always)]
     pub fn _try_lock(&self) -> Option<MutexGuard<T>> {
-        match process::get_current_thread_mut_option() {
+        match process::get_current_thread_option() {
             None => None,
-            Some(current_thread) => {
+            Some(_) => {
                 if self
                     .lock
-                    .compare_exchange(
-                        null_mut(),
-                        current_thread,
-                        Ordering::Acquire,
-                        Ordering::Relaxed,
-                    )
+                    .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
                     .is_ok()
                 {
                     Some(MutexGuard {
@@ -124,10 +110,10 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
             crate::critical::enter_local();
             let mutex = &mut *(self.lock as *const _ as *mut Mutex<T>);
 
-            match mutex.queue.pop_mut() {
-                None => mutex.lock.store(null_mut(), Ordering::Relaxed),
+            match mutex.queue.lock().pop() {
+                None => mutex.lock.store(false, Ordering::Relaxed),
                 Some(next_thread) => {
-                    mutex.lock.store(next_thread, Ordering::Relaxed);
+                    mutex.lock.store(true, Ordering::Relaxed);
                     process::queue_thread_cli(next_thread);
                 }
             }
@@ -186,6 +172,16 @@ impl<T> Spinlock<T> {
     #[inline(always)]
     pub fn is_locked(&self) -> bool {
         self.lock.load(Ordering::Relaxed)
+    }
+
+    pub fn matching_data(&self, other: *const T) -> bool {
+        self.data.get() == other as *mut _
+    }
+}
+
+impl<T: ?Sized> PartialEq for Spinlock<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data.get() == other.data.get()
     }
 }
 

@@ -13,8 +13,9 @@ pub fn system_call(
     match code {
         PEEK_EVENT_SYSCALL => match super::to_ptr_mut(arg1) {
             Ok(ptr) => {
-                match process::get_current_thread_mut()
-                    .get_process_mut()
+                match process::get_current_thread()
+                    .process()
+                    .unwrap()
                     .session_id()
                 {
                     Some(session_id) => match get_session_mut(session_id) {

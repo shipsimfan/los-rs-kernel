@@ -1,45 +1,43 @@
-use super::Process;
+use super::{ProcessOwner, ProcessReference, ThreadOwner};
 use crate::{
     filesystem::DirectoryDescriptor,
     locks::Mutex,
     map::{Map, INVALID_ID},
 };
 
-static DAEMON_PROCESSES: Mutex<Map<Process>> = Mutex::new(Map::new());
+static DAEMON_PROCESSES: Mutex<Map<ProcessReference>> = Mutex::new(Map::new());
 
 pub fn create_process(
     entry: usize,
     context: usize,
     working_directory: Option<DirectoryDescriptor>,
-) -> isize {
-    let new_process = Process::new(None, working_directory);
+) -> ThreadOwner {
+    let new_process = ProcessOwner::new(None, working_directory);
     let mut daemon_processes = DAEMON_PROCESSES.lock();
-    let pid = daemon_processes.insert(new_process);
-    daemon_processes
-        .get_mut(pid)
-        .unwrap()
-        .create_thread(entry, context);
-    pid
+    daemon_processes.insert(new_process.reference());
+    new_process.create_thread(entry, context)
 }
 
-pub fn get_daemon() -> &'static Mutex<Map<Process>> {
-    &DAEMON_PROCESSES
-}
-
-pub unsafe fn remove_process(pid: isize) {
-    (*DAEMON_PROCESSES.as_ptr()).remove(pid)
+pub fn get_daemon_process(pid: isize) -> Option<ProcessReference> {
+    DAEMON_PROCESSES
+        .lock()
+        .get(pid)
+        .map(|reference| reference.clone())
 }
 
 pub fn kill_process(pid: isize) {
-    let current_process = super::get_current_thread_mut().get_process_mut();
+    let current_process = match super::get_current_thread().process() {
+        Some(process) => process,
+        None => return,
+    };
     let mut session = DAEMON_PROCESSES.lock();
 
     unsafe {
         crate::critical::enter_local();
 
-        let remove = match session.get_mut(pid) {
+        let remove = match session.get(pid) {
             Some(process) => {
-                if process as *const _ == current_process as *const _ {
+                if *process == current_process {
                     super::exit_process(128);
                 } else {
                     process.kill_threads(INVALID_ID);

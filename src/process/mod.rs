@@ -10,6 +10,7 @@ mod thread;
 use crate::{
     error,
     filesystem::{self, open_directory, DirectoryDescriptor},
+    locks::Spinlock,
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
     session::get_session_mut,
@@ -17,13 +18,9 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 use core::{arch::asm, usize};
 
-pub type Thread = thread::Thread;
-pub type Process = process::Process;
-
-pub type ThreadQueue = queue::ThreadQueue;
-
-pub type ThreadFunc = fn() -> isize;
-pub type ThreadFuncContext = fn(context: usize) -> isize;
+pub use process::*;
+pub use queue::ThreadQueue;
+pub use thread::*;
 
 #[repr(packed(1))]
 #[allow(unused)]
@@ -66,39 +63,21 @@ const STDIO_TYPE_NONE: usize = 0;
 const STDIO_TYPE_CONSOLE: usize = 1;
 const STDIO_TYPE_FILE: usize = 2;
 
-static mut THREAD_CONTROL: control::ThreadControl = control::ThreadControl::new();
+static THREAD_CONTROL: Spinlock<control::ThreadControl> =
+    Spinlock::new(control::ThreadControl::new());
+static NEXT_THREAD: Spinlock<Option<(ThreadOwner, Option<CurrentQueue>)>> = Spinlock::new(None);
 
 extern "C" {
     #[allow(improper_ctypes)]
-    fn perform_yield(
-        save_location: *const usize,
-        load_location: *const usize,
-        next_thread: *mut Thread,
-    );
+    fn perform_yield(save_location: *const usize, load_location: *const usize);
 }
 
 #[no_mangle]
-unsafe extern "C" fn switch_thread(next_thread: *mut Thread) {
-    match THREAD_CONTROL.get_current_thread_mut() {
-        None => {}
-        Some(current_thread) => {
-            if !current_thread.in_queue() {
-                let current_process = current_thread.get_process_mut();
-                if current_process.remove_thread(current_thread.id()) {
-                    let current_process_id = current_process.id();
-                    match current_process.session_id() {
-                        None => daemon::remove_process(current_process_id),
-                        Some(session_id) => match get_session_mut(session_id) {
-                            Some(session) => session.remove_process(current_process_id),
-                            None => {}
-                        },
-                    }
-                }
-            }
-        }
-    }
-
-    THREAD_CONTROL.set_current_thread(next_thread);
+unsafe extern "C" fn switch_thread() {
+    let (new_thread, new_queue) = NEXT_THREAD.lock().take().unwrap();
+    THREAD_CONTROL
+        .lock()
+        .set_current_thread(new_thread, new_queue);
 }
 
 fn do_execute(
@@ -118,29 +97,33 @@ fn do_execute(
     }
 
     // Get the current process
-    let current_process = get_current_thread_mut().get_process_mut();
+    let current_process = get_current_thread().process().unwrap();
 
     // Figure out working directory
-    let working_directory = match current_process.get_current_working_directory() {
-        None => {
-            let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
-            iter.next_back();
+    let working_directory = {
+        let process_lock = current_process.upgrade().unwrap();
+        let mut process = process_lock.lock();
+        match process.current_working_directory() {
+            None => {
+                let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
+                iter.next_back();
 
-            let mut path = String::new();
-            while let Some(part) = iter.next() {
-                path.push_str(part);
-                path.push('/');
+                let mut path = String::new();
+                while let Some(part) = iter.next() {
+                    path.push_str(part);
+                    path.push('/');
+                }
+
+                path.pop();
+
+                open_directory(&path)?
             }
-
-            path.pop();
-
-            open_directory(&path)?
+            Some(working_directory) => DirectoryDescriptor::new(working_directory.get_directory()),
         }
-        Some(working_directory) => DirectoryDescriptor::new(working_directory.get_directory()),
     };
 
     // Create a process
-    let pid = match session_id {
+    let new_thread = match session_id {
         Some(session_id) => match get_session_mut(session_id) {
             Some(session) => session.lock().create_process(
                 entry,
@@ -156,23 +139,10 @@ fn do_execute(
         ),
     };
 
-    // Get new process
-    let new_process = match session_id {
-        Some(session) => match get_session_mut(session) {
-            Some(session_lock) => {
-                let mut session = session_lock.lock();
-                unsafe { &mut *(session.get_process_mut(pid).unwrap() as *mut Process) }
-            }
-            None => return Err(error::Status::InvalidSession),
-        },
-        None => {
-            let mut daemon = daemon::get_daemon().lock();
-            unsafe { &mut *(daemon.get_mut(pid).unwrap() as *mut Process) }
-        }
-    };
+    let new_process = new_thread.process();
 
     // Copy stdio descriptors
-    standard_io.copy_descriptors(current_process, new_process)?;
+    standard_io.copy_descriptors(&current_process, &new_process)?;
 
     unsafe { crate::critical::enter_local() };
 
@@ -243,7 +213,7 @@ fn do_execute(
         *stdio = standard_io.to_c_stdio();
 
         // Queue the new process
-        queue_thread_cli(new_process.get_thread_mut(0).unwrap());
+        queue_thread_cli(new_thread);
     }
 
     // Return to current process address space
@@ -251,7 +221,7 @@ fn do_execute(
 
     // Return the process id
     unsafe { crate::critical::leave_local() };
-    Ok(pid)
+    Ok(new_process.id())
 }
 
 pub fn execute_session(
@@ -270,7 +240,7 @@ pub fn execute(
     environment: Vec<String>,
     standard_io: StandardIO,
 ) -> error::Result<isize> {
-    let current_process = get_current_thread_mut().get_process_mut();
+    let current_process = get_current_thread().process().unwrap();
     let session = current_process.session_id();
     do_execute(filepath, args, environment, standard_io, session)
 }
@@ -281,44 +251,33 @@ pub fn create_thread(entry: ThreadFunc) -> isize {
 }
 
 pub fn create_thread_raw(entry: usize, context: usize) -> isize {
-    let current_process = get_current_thread_mut().get_process_mut();
-    let tid = current_process.create_thread(entry, context);
-    queue_thread(current_process.get_thread_mut(tid).unwrap());
+    let current_process = get_current_thread().process().unwrap();
+    let new_thread = current_process.create_thread(entry, context).unwrap();
+    let tid = new_thread.id();
+    queue_thread(new_thread);
     tid
 }
 
 pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> isize {
-    match get_current_thread_mut_option() {
+    match get_current_thread_option() {
         Some(current_thread) => {
-            let current_process = current_thread.get_process_mut();
+            let current_process = current_thread.process().unwrap();
             match current_process.session_id() {
                 None => {
-                    let pid = daemon::create_process(entry as usize, 0, working_directory);
-                    queue_thread(
-                        daemon::get_daemon()
-                            .lock()
-                            .get_mut(pid)
-                            .unwrap()
-                            .get_thread_mut(0)
-                            .unwrap(),
-                    );
+                    let new_thread = daemon::create_process(entry as usize, 0, working_directory);
+                    let pid = new_thread.process().id();
+                    queue_thread(new_thread);
                     pid
                 }
                 Some(session_id) => match get_session_mut(session_id) {
                     Some(current_session) => {
-                        let pid = current_session.lock().create_process(
+                        let new_thread = current_session.lock().create_process(
                             entry as usize,
                             0,
                             working_directory,
                         );
-                        queue_thread(
-                            current_session
-                                .lock()
-                                .get_process_mut(pid)
-                                .unwrap()
-                                .get_thread_mut(0)
-                                .unwrap(),
-                        );
+                        let pid = new_thread.process().id();
+                        queue_thread(new_thread);
                         pid
                     }
                     None => panic!("Current session doesn't exist!"),
@@ -326,25 +285,19 @@ pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDesc
             }
         }
         None => {
-            let pid = daemon::create_process(entry as usize, 0, working_directory);
-            queue_thread(
-                daemon::get_daemon()
-                    .lock()
-                    .get_mut(pid)
-                    .unwrap()
-                    .get_thread_mut(0)
-                    .unwrap(),
-            );
+            let new_thread = daemon::create_process(entry as usize, 0, working_directory);
+            let pid = new_thread.process().id();
+            queue_thread(new_thread);
             pid
         }
     }
 }
 
-pub unsafe fn queue_thread_cli(thread: &mut Thread) {
-    THREAD_CONTROL.queue_execution(thread);
+pub unsafe fn queue_thread_cli(thread: ThreadOwner) {
+    THREAD_CONTROL.lock().queue_execution(thread);
 }
 
-pub fn queue_thread(thread: &mut Thread) {
+pub fn queue_thread(thread: ThreadOwner) {
     unsafe {
         crate::critical::enter_local();
         queue_thread_cli(thread);
@@ -353,90 +306,103 @@ pub fn queue_thread(thread: &mut Thread) {
 }
 
 pub fn queue_and_yield() {
-    queue_thread(get_current_thread_mut());
-
-    yield_thread();
+    yield_thread(Some(THREAD_CONTROL.lock().get_current_queue()));
 }
 
-pub fn yield_thread() {
+pub fn yield_thread(queue: Option<CurrentQueue>) {
     loop {
         unsafe {
             crate::critical::enter_local();
-            while let Some(next_thread) = THREAD_CONTROL.get_next_thread() {
-                let default_location: usize = 0;
-                let (save_location, load_location) = {
-                    (
-                        match THREAD_CONTROL.get_current_thread_mut() {
-                            None => &default_location as *const usize,
-                            Some(current_thread) => {
-                                current_thread.save_float();
+            let next_thread = THREAD_CONTROL.lock().get_next_thread();
+            match next_thread {
+                Some(next_thread) => {
+                    let default_location: usize = 0;
+                    let (save_location, load_location) = {
+                        (
+                            match THREAD_CONTROL.lock().get_current_thread() {
+                                None => &default_location as *const usize,
+                                Some(current_thread) => {
+                                    current_thread.save_float();
 
-                                current_thread.get_stack_pointer_location()
-                            }
-                        },
-                        {
-                            next_thread.get_process().set_address_space_as_current();
-                            next_thread.load_float();
-                            next_thread.set_interrupt_stack();
-                            next_thread.get_stack_pointer_location()
-                        },
-                    )
-                };
+                                    match current_thread.get_stack_pointer_location() {
+                                        Some(location) => location,
+                                        None => &default_location as *const usize,
+                                    }
+                                }
+                            },
+                            {
+                                next_thread.process().set_address_space_as_current();
+                                next_thread.load_float();
+                                next_thread.set_interrupt_stack();
+                                next_thread.get_stack_pointer_location()
+                            },
+                        )
+                    };
 
-                perform_yield(save_location, load_location, next_thread);
+                    (*NEXT_THREAD.lock()) = Some((next_thread, queue));
+                    perform_yield(save_location, load_location);
 
-                return;
-            }
-            {
-                asm!("sti; hlt")
+                    crate::critical::leave_local();
+                    return;
+                }
+                None => asm!("sti; hlt"),
             }
         }
     }
 }
 
 pub fn wait_thread(tid: isize) -> isize {
-    let current_thread = get_current_thread_mut();
-    match current_thread.get_process_mut().get_thread_mut(tid) {
+    let current_thread = get_current_thread();
+    let exit_queue = match current_thread.process().unwrap().get_thread(tid) {
         None => return isize::MIN,
-        Some(thread) => thread.insert_into_exit_queue(current_thread),
-    }
+        Some(thread) => match thread.get_exit_queue() {
+            Some(exit_queue) => exit_queue,
+            None => return isize::MIN,
+        },
+    };
 
-    yield_thread();
+    yield_thread(Some(exit_queue));
 
-    current_thread.get_queue_data()
+    current_thread.get_queue_data().unwrap()
 }
 
 pub fn wait_process(pid: isize) -> isize {
-    let current_thread = get_current_thread_mut();
-    match current_thread.get_process_mut().session_id() {
-        None => match daemon::get_daemon().lock().get_mut(pid) {
+    let current_thread = get_current_thread();
+    let exit_queue = match current_thread.process().unwrap().session_id() {
+        None => match daemon::get_daemon_process(pid) {
             None => return isize::MIN,
-            Some(process) => process.insert_into_exit_queue(current_thread),
+            Some(process) => match process.get_exit_queue() {
+                Some(queue) => queue,
+                None => return isize::MIN,
+            },
         },
         Some(session_id) => match get_session_mut(session_id) {
-            Some(session) => match session.lock().get_process_mut(pid) {
+            Some(session) => match session.lock().get_process(pid) {
                 None => return isize::MIN,
-                Some(process) => process.insert_into_exit_queue(current_thread),
+                Some(process) => match process.get_exit_queue() {
+                    Some(queue) => queue,
+                    None => return isize::MIN,
+                },
             },
             None => panic!("Current session does not exist!"),
         },
-    }
+    };
 
-    yield_thread();
+    yield_thread(Some(exit_queue));
 
-    current_thread.get_queue_data()
+    current_thread.get_queue_data().unwrap()
 }
 
 pub fn exit_thread(exit_status: isize) -> ! {
     unsafe {
         crate::critical::enter_local();
-        let current_thread = get_current_thread_mut_cli();
+        let current_thread = get_current_thread_cli();
 
         current_thread.pre_exit(exit_status);
-        current_thread.get_process_mut().pre_exit(exit_status);
+        current_thread.process().unwrap().pre_exit(exit_status);
 
         current_thread.clear_queue(false);
-        yield_thread();
+        yield_thread(None);
         panic!("Returned to thread after exit!");
     }
 }
@@ -444,8 +410,8 @@ pub fn exit_thread(exit_status: isize) -> ! {
 pub fn exit_process(exit_status: isize) -> ! {
     unsafe {
         crate::critical::enter_local();
-        let current_thread = get_current_thread_mut_cli();
-        let current_process = current_thread.get_process_mut();
+        let current_thread = get_current_thread_cli();
+        let current_process = current_thread.process().unwrap();
 
         current_process.kill_threads(current_thread.id());
 
@@ -457,12 +423,12 @@ pub fn exit_process(exit_status: isize) -> ! {
 pub fn kill_thread(tid: isize) {
     unsafe {
         crate::critical::enter_local();
-        let current_thread = get_current_thread_mut_cli();
-        let current_process = current_thread.get_process_mut();
+        let current_thread = get_current_thread_cli();
+        let current_process = current_thread.process().unwrap();
 
-        match current_process.get_thread_mut(tid) {
+        match current_process.get_thread(tid) {
             Some(thread) => {
-                if thread as *mut _ == current_thread as *mut _ {
+                if thread == current_thread {
                     exit_thread(128);
                 } else {
                     current_process.remove_thread(tid);
@@ -475,7 +441,7 @@ pub fn kill_thread(tid: isize) {
 }
 
 pub fn kill_process(pid: isize) {
-    let current_process = get_current_thread_mut().get_process_mut();
+    let current_process = get_current_thread().process().unwrap();
     let session_lock = match current_process.session_id() {
         Some(session) => match get_session_mut(session) {
             Some(session) => session,
@@ -488,9 +454,9 @@ pub fn kill_process(pid: isize) {
     unsafe {
         crate::critical::enter_local();
 
-        let remove = match session.get_process_mut(pid) {
+        let remove = match session.get_process(pid) {
             Some(process) => {
-                if process as *const _ == current_process as *const _ {
+                if process == current_process {
                     exit_process(128);
                 } else {
                     process.kill_threads(INVALID_ID);
@@ -509,7 +475,7 @@ pub fn kill_process(pid: isize) {
     }
 }
 
-pub fn get_current_thread() -> &'static Thread {
+pub fn get_current_thread() -> ThreadReference {
     unsafe {
         crate::critical::enter_local();
         let ret = get_current_thread_cli();
@@ -518,16 +484,16 @@ pub fn get_current_thread() -> &'static Thread {
     }
 }
 
-pub unsafe fn get_current_thread_cli() -> &'static Thread {
+pub unsafe fn get_current_thread_cli() -> ThreadReference {
     get_current_thread_option_cli().expect("No current thread when one required!")
 }
 
-pub unsafe fn get_current_thread_option_cli() -> Option<&'static Thread> {
-    THREAD_CONTROL.get_current_thread()
+pub unsafe fn get_current_thread_option_cli() -> Option<ThreadReference> {
+    THREAD_CONTROL.lock().get_current_thread()
 }
 
 #[allow(dead_code)]
-pub fn get_current_thread_option() -> Option<&'static Thread> {
+pub fn get_current_thread_option() -> Option<ThreadReference> {
     unsafe {
         crate::critical::enter_local();
         let ret = get_current_thread_option_cli();
@@ -536,35 +502,9 @@ pub fn get_current_thread_option() -> Option<&'static Thread> {
     }
 }
 
-pub fn get_current_thread_mut() -> &'static mut Thread {
-    unsafe {
-        crate::critical::enter_local();
-        let ret = get_current_thread_mut_cli();
-        crate::critical::leave_local();
-        ret
-    }
-}
-
-pub unsafe fn get_current_thread_mut_cli() -> &'static mut Thread {
-    get_current_thread_mut_option_cli().expect("No current thread when one required!")
-}
-
-pub fn get_current_thread_mut_option() -> Option<&'static mut Thread> {
-    unsafe {
-        crate::critical::enter_local();
-        let ret = get_current_thread_mut_option_cli();
-        crate::critical::leave_local();
-        ret
-    }
-}
-
-pub unsafe fn get_current_thread_mut_option_cli() -> Option<&'static mut Thread> {
-    THREAD_CONTROL.get_current_thread_mut()
-}
-
 pub fn preempt() {
     unsafe {
-        if !THREAD_CONTROL.is_next_thread() {
+        if !THREAD_CONTROL.lock().is_next_thread() {
             return;
         }
 
@@ -587,8 +527,8 @@ impl StandardIO {
 
     pub fn copy_descriptors(
         &mut self,
-        current_process: &mut Process,
-        new_process: &mut Process,
+        current_process: &ProcessReference,
+        new_process: &ProcessReference,
     ) -> error::Result<()> {
         self.stdout.copy_descriptors(current_process, new_process)?;
         self.stderr.copy_descriptors(current_process, new_process)?;
@@ -622,13 +562,15 @@ impl StandardIOType {
 
     pub fn copy_descriptors(
         &mut self,
-        current_process: &mut Process,
-        new_process: &mut Process,
+        current_process: &ProcessReference,
+        new_process: &ProcessReference,
     ) -> error::Result<()> {
         match self {
             StandardIOType::None | &mut StandardIOType::Console => Ok(()),
             StandardIOType::File(fd) => {
-                let descriptor = current_process.get_file(*fd)?;
+                let current_process_lock = current_process.upgrade().unwrap();
+                let mut current_process_inner = current_process_lock.lock();
+                let descriptor = current_process_inner.get_file(*fd)?;
                 *fd = new_process.clone_file(descriptor);
                 Ok(())
             }

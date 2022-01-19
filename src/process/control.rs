@@ -1,8 +1,8 @@
-use super::{Thread, ThreadQueue};
+use super::{thread::ThreadOwner, CurrentQueue, ThreadQueue, ThreadReference};
 
 pub struct ThreadControl {
     running_queue: ThreadQueue,
-    current_thread: Option<*mut Thread>,
+    current_thread: Option<ThreadOwner>,
 }
 
 impl ThreadControl {
@@ -13,33 +13,45 @@ impl ThreadControl {
         }
     }
 
-    pub fn get_current_thread(&self) -> Option<&'static Thread> {
-        match self.current_thread {
-            Some(thread) => Some(unsafe { &*thread }),
-            None => None,
-        }
+    pub fn get_current_thread(&self) -> Option<ThreadReference> {
+        self.current_thread
+            .as_ref()
+            .map(|thread| thread.reference())
     }
 
-    pub fn get_current_thread_mut(&self) -> Option<&'static mut Thread> {
-        match self.current_thread {
-            Some(thread) => Some(unsafe { &mut *thread }),
-            None => None,
-        }
-    }
+    pub fn set_current_thread(&mut self, new_thread: ThreadOwner, new_queue: Option<CurrentQueue>) {
+        let current_thread = match self.current_thread.take() {
+            Some(thread) => thread,
+            None => {
+                self.current_thread = Some(new_thread);
+                return;
+            }
+        };
 
-    pub fn set_current_thread(&mut self, new_thread: *mut Thread) {
+        match new_queue {
+            Some(queue) => unsafe {
+                current_thread.set_queue(queue.clone());
+                queue.add(current_thread);
+            },
+            None => drop(current_thread),
+        }
+
         self.current_thread = Some(new_thread);
     }
 
-    pub unsafe fn get_next_thread(&mut self) -> Option<&mut Thread> {
-        self.running_queue.pop_mut()
+    pub unsafe fn get_next_thread(&mut self) -> Option<ThreadOwner> {
+        self.running_queue.pop()
     }
 
     pub fn is_next_thread(&self) -> bool {
         self.running_queue.is_front()
     }
 
-    pub unsafe fn queue_execution(&mut self, thread: &mut Thread) {
-        self.running_queue.push(thread);
+    pub unsafe fn queue_execution(&self, thread: ThreadOwner) {
+        self.running_queue.push(thread)
+    }
+
+    pub fn get_current_queue(&self) -> CurrentQueue {
+        self.running_queue.into_current_queue()
     }
 }

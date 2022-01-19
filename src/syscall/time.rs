@@ -13,7 +13,7 @@ pub fn system_call(
     _arg5: usize,
 ) -> isize {
     match code {
-        GET_PROCESS_TIME_SYSCALL => process::get_current_thread().get_process().get_time(),
+        GET_PROCESS_TIME_SYSCALL => process::get_current_thread().process().unwrap().get_time(),
         GET_TIMEZONE_SYSCALL => time::get_timezone(),
         GET_EPOCH_TIME_SYSCALL => time::get_epoch_time(),
         _ => {

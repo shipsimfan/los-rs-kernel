@@ -291,8 +291,9 @@ impl Controller {
 
         if len == 0 {
             let current_session = match session::get_session_mut(
-                match process::get_current_thread_mut()
-                    .get_process_mut()
+                match process::get_current_thread()
+                    .process()
+                    .unwrap()
                     .session_id()
                 {
                     None => 1,

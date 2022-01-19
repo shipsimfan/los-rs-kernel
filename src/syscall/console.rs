@@ -26,8 +26,9 @@ pub fn system_call(
     _arg4: usize,
     _arg5: usize,
 ) -> isize {
-    let session_lock = match process::get_current_thread_mut()
-        .get_process_mut()
+    let session_lock = match process::get_current_thread()
+        .process()
+        .unwrap()
         .session_id()
     {
         Some(session_id) => match get_session_mut(session_id) {

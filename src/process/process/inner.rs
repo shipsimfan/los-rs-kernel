@@ -1,14 +1,20 @@
-use super::{Thread, ThreadQueue};
+use super::ProcessOwner;
 use crate::{
     error,
     filesystem::{self, DirectoryDescriptor, DirectoryEntry, FileDescriptor},
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
+    process::{
+        queue_thread,
+        thread::{ThreadOwner, ThreadReference},
+        CurrentQueue, ThreadQueue,
+    },
+    session::get_session_mut,
 };
 
-pub struct Process {
+pub struct ProcessInner {
     id: isize,
-    threads: Map<Thread>,
+    threads: Map<ThreadReference>,
     address_space: AddressSpace,
     session_id: Option<isize>,
     exit_queue: ThreadQueue,
@@ -18,12 +24,12 @@ pub struct Process {
     process_time: isize,
 }
 
-impl Process {
+impl ProcessInner {
     pub fn new(
         session_id: Option<isize>,
         current_working_directory: Option<DirectoryDescriptor>,
     ) -> Self {
-        Process {
+        ProcessInner {
             id: INVALID_ID,
             threads: Map::new(),
             address_space: AddressSpace::new(),
@@ -36,17 +42,22 @@ impl Process {
         }
     }
 
-    pub fn create_thread(&mut self, entry: usize, context: usize) -> isize {
-        let thread = Thread::new(self, entry, context);
-        let tid = self.threads.insert(thread);
-        tid
+    pub fn create_thread(
+        &mut self,
+        entry: usize,
+        context: usize,
+        self_owner: ProcessOwner,
+    ) -> ThreadOwner {
+        let thread = ThreadOwner::new(self_owner, entry, context);
+        self.threads.insert(thread.reference());
+        thread
     }
 
-    pub fn get_thread_mut(&mut self, tid: isize) -> Option<&mut Thread> {
-        self.threads.get_mut(tid)
+    pub fn get_thread(&self, tid: isize) -> Option<ThreadReference> {
+        self.threads.get(tid).map(|reference| reference.clone())
     }
 
-    pub unsafe fn remove_thread(&mut self, tid: isize) -> bool {
+    pub fn remove_thread(&mut self, tid: isize) -> bool {
         self.threads.remove(tid);
         self.threads.count() == 0
     }
@@ -59,15 +70,11 @@ impl Process {
         self.session_id
     }
 
-    pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
-        unsafe {
-            crate::critical::enter_local();
-            self.exit_queue.push(thread);
-            crate::critical::leave_local();
-        }
+    pub fn get_exit_queue(&self) -> CurrentQueue {
+        self.exit_queue.into_current_queue()
     }
 
-    pub unsafe fn kill_threads(&mut self, exception: isize) {
+    pub fn kill_threads(&mut self, exception: isize) {
         self.threads.remove_all_except(exception);
     }
 
@@ -76,9 +83,9 @@ impl Process {
             return;
         }
 
-        while let Some(thread) = self.exit_queue.pop_mut() {
+        while let Some(thread) = self.exit_queue.pop() {
             thread.set_queue_data(exit_status);
-            super::queue_thread(thread);
+            queue_thread(thread);
         }
     }
 
@@ -102,7 +109,7 @@ impl Process {
         self.file_descriptors.insert(descriptor.clone())
     }
 
-    pub fn get_current_working_directory(&mut self) -> Option<&mut DirectoryDescriptor> {
+    pub fn current_working_directory(&mut self) -> Option<&mut DirectoryDescriptor> {
         match &mut self.current_working_directory {
             Some(dir) => Some(dir),
             None => None,
@@ -138,7 +145,7 @@ impl Process {
     }
 }
 
-impl Mappable for Process {
+impl Mappable for ProcessInner {
     fn id(&self) -> isize {
         self.id
     }
@@ -148,12 +155,20 @@ impl Mappable for Process {
     }
 }
 
-impl Drop for Process {
+impl Drop for ProcessInner {
     fn drop(&mut self) {
         if self.threads.count() > 0 {
             panic!("Dropping process while it still has threads!");
         }
 
         unsafe { self.address_space.free() };
+
+        match self.session_id {
+            Some(sid) => match get_session_mut(sid) {
+                Some(session) => session.lock().remove_process(self.id),
+                None => {}
+            },
+            None => {}
+        }
     }
 }

@@ -53,12 +53,10 @@ perform_yield:
     mov [rdi], rsp
     mov rsp, [rsi]
 
-    mov rdi, rdx
     call switch_thread
 
     PopAllRegisters
 
-    sti
     ret
 
 GLOBAL thread_enter_user

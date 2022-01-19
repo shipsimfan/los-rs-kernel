@@ -44,8 +44,8 @@ pub fn get_epoch_time() -> isize {
 pub unsafe fn millisecond_tick() {
     SYSTEM_TIME += 1;
 
-    match process::get_current_thread_mut_option_cli() {
-        Some(thread) => thread.get_process_mut().increase_time(1000),
+    match process::get_current_thread_option_cli() {
+        Some(thread) => thread.process().unwrap().increase_time(1000),
         None => {}
     }
 

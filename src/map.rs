@@ -122,6 +122,22 @@ impl<T: Mappable> Map<T> {
         None
     }
 
+    pub fn get(&self, key: isize) -> Option<&T> {
+        if key == INVALID_ID {
+            logln!("Invalid key while getting from map!");
+            return None;
+        }
+
+        let hash = (key % HASH_SIZE) as usize;
+        for value in &self.data[hash] {
+            if value.id() == key {
+                return Some(value);
+            }
+        }
+
+        None
+    }
+
     pub fn count(&self) -> usize {
         self.count
     }

@@ -1,41 +1,27 @@
-use core::ffi::c_void;
-
-use super::{exit_thread, Process, ThreadFuncContext, ThreadQueue};
+use super::{queue::CurrentQueue, stack::Stack, ThreadFuncContext};
 use crate::{
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
+    process::{
+        exit_thread, process::ProcessOwner, queue_thread_cli, ProcessReference, ThreadQueue,
+    },
 };
-use core::sync::atomic::{AtomicPtr, Ordering};
+use core::ffi::c_void;
 
-struct Stack {
-    stack: &'static mut [u8],
-    top: usize,
-    pointer: usize,
-}
-
-struct CurrentQueue {
-    remove: unsafe fn(*mut c_void, *mut Thread),
-    object: AtomicPtr<c_void>,
-}
-
-pub struct Thread {
+pub struct ThreadInner {
     id: isize,
     kernel_stack: Stack,
     floating_point_storage: &'static mut [u8],
-    process: AtomicPtr<Process>,
+    process: ProcessOwner,
     queue: Option<CurrentQueue>,
     queue_data: isize,
     exit_queue: ThreadQueue,
     tls_base: usize,
 }
 
-const KERNEL_STACK_SIZE: usize = 32 * 1024;
 const FLOATING_POINT_STORAGE_SIZE: usize = 512;
-
 const FLOATING_POINT_STORAGE_LAYOUT: alloc::alloc::Layout =
     unsafe { alloc::alloc::Layout::from_size_align_unchecked(FLOATING_POINT_STORAGE_SIZE, 16) };
-const KERNEL_STACK_LAYOUT: alloc::alloc::Layout =
-    unsafe { alloc::alloc::Layout::from_size_align_unchecked(KERNEL_STACK_SIZE, 16) };
 
 extern "C" {
     fn float_save(floating_point_storage: *mut u8);
@@ -50,8 +36,8 @@ extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
     exit_thread(status);
 }
 
-impl Thread {
-    pub fn new(process: &mut Process, entry: usize, context: usize) -> Self {
+impl ThreadInner {
+    pub fn new(process: ProcessOwner, entry: usize, context: usize) -> Self {
         let mut kernel_stack = Stack::new();
         if entry >= KERNEL_VMA {
             kernel_stack.push(thread_enter_kernel as usize); // ret address
@@ -98,11 +84,11 @@ impl Thread {
         let fps =
             unsafe { core::slice::from_raw_parts_mut(fps, FLOATING_POINT_STORAGE_LAYOUT.size()) };
 
-        Thread {
+        ThreadInner {
             id: INVALID_ID,
             kernel_stack: kernel_stack,
             floating_point_storage: fps,
-            process: AtomicPtr::new(process),
+            process,
             queue: None,
             queue_data: 0,
             exit_queue: ThreadQueue::new(),
@@ -119,27 +105,21 @@ impl Thread {
     }
 
     pub fn set_interrupt_stack(&self) {
-        crate::interrupts::set_interrupt_stack(self.kernel_stack.top);
+        crate::interrupts::set_interrupt_stack(self.kernel_stack.top());
         unsafe { set_fs_base(self.tls_base) };
     }
 
-    pub unsafe fn set_queue(
-        &mut self,
-        remove: unsafe fn(*mut c_void, *mut Thread),
-        queue: *mut c_void,
-    ) {
+    pub unsafe fn set_queue(&mut self, queue: CurrentQueue) {
         self.clear_queue(false);
 
-        self.queue = Some(CurrentQueue {
-            remove,
-            object: AtomicPtr::new(queue),
-        })
+        self.queue = Some(queue)
     }
 
     pub unsafe fn clear_queue(&mut self, removed: bool) {
         if !removed {
+            let ptr = self as *mut _;
             match &mut self.queue {
-                Some(queue) => (queue.remove)(*queue.object.get_mut(), self),
+                Some(queue) => queue.remove(ptr),
                 None => {}
             }
         }
@@ -152,20 +132,12 @@ impl Thread {
         unsafe { set_fs_base(self.tls_base) };
     }
 
-    pub fn in_queue(&mut self) -> bool {
-        self.queue.is_some()
+    pub fn get_stack_pointer_location(&self) -> *const usize {
+        self.kernel_stack.pointer() as *const _
     }
 
-    pub fn get_stack_pointer_location(&self) -> *mut usize {
-        (&self.kernel_stack.pointer) as *const _ as *mut _
-    }
-
-    pub fn get_process(&self) -> &'static Process {
-        unsafe { &*self.process.load(Ordering::Acquire) }
-    }
-
-    pub fn get_process_mut(&mut self) -> &'static mut Process {
-        unsafe { &mut *self.process.load(Ordering::Acquire) }
+    pub fn process(&self) -> ProcessReference {
+        self.process.reference()
     }
 
     pub fn set_queue_data(&mut self, new_data: isize) {
@@ -176,23 +148,19 @@ impl Thread {
         self.queue_data
     }
 
-    pub fn insert_into_exit_queue(&mut self, thread: &mut Thread) {
-        unsafe {
-            crate::critical::enter_local();
-            self.exit_queue.push(thread);
-            crate::critical::leave_local();
-        }
+    pub fn get_exit_queue(&mut self) -> CurrentQueue {
+        self.exit_queue.into_current_queue()
     }
 
     pub unsafe fn pre_exit(&mut self, exit_status: isize) {
-        while let Some(thread) = self.exit_queue.pop_mut() {
+        while let Some(thread) = self.exit_queue.pop() {
             thread.set_queue_data(exit_status);
-            super::queue_thread_cli(thread);
+            queue_thread_cli(thread);
         }
     }
 }
 
-impl Mappable for Thread {
+impl Mappable for ThreadInner {
     fn id(&self) -> isize {
         self.id
     }
@@ -202,8 +170,10 @@ impl Mappable for Thread {
     }
 }
 
-impl Drop for Thread {
+impl Drop for ThreadInner {
     fn drop(&mut self) {
+        self.process.remove_thread(self.id);
+
         unsafe {
             self.pre_exit(128);
 
@@ -214,31 +184,5 @@ impl Drop for Thread {
                 FLOATING_POINT_STORAGE_LAYOUT,
             )
         };
-    }
-}
-
-impl Stack {
-    pub fn new() -> Self {
-        let stack = unsafe { alloc::alloc::alloc_zeroed(KERNEL_STACK_LAYOUT) };
-        let stack = unsafe { core::slice::from_raw_parts_mut(stack, KERNEL_STACK_LAYOUT.size()) };
-
-        // Set the kernel stack pointer appropriately
-        let top = stack.as_ptr() as usize + KERNEL_STACK_SIZE;
-        Stack {
-            stack: stack,
-            top: top,
-            pointer: top,
-        }
-    }
-
-    pub fn push(&mut self, value: usize) {
-        self.pointer -= core::mem::size_of::<usize>();
-        unsafe { *(self.pointer as *mut usize) = value };
-    }
-}
-
-impl Drop for Stack {
-    fn drop(&mut self) {
-        unsafe { alloc::alloc::dealloc(self.stack.as_mut_ptr(), KERNEL_STACK_LAYOUT) };
     }
 }

@@ -2,13 +2,13 @@ use crate::{
     device::{inb, outb, Device},
     error,
     event::{Event, KeyState, Keycode},
-    session::{Session, SessionBox},
+    session::SessionBox,
 };
 
 use super::controller;
 
 pub struct Keyboard {
-    session: &'static mut Session,
+    session: SessionBox,
     key_state: KeyState,
     ignore_next_irq: bool,
 }
@@ -28,11 +28,9 @@ impl Keyboard {
         controller.write_and_wait(port, controller::DEVICE_COMMAND_ENABLE_SCAN)?;
         controller.stop_initializing(port);
 
-        let session_ptr = (&mut *session.lock()) as *mut Session;
-
         // Return keyboard
         Ok(Keyboard {
-            session: unsafe { &mut *session_ptr },
+            session,
             key_state: KeyState::new(),
             ignore_next_irq: false,
         })
@@ -112,12 +110,12 @@ impl Keyboard {
         }
     }
 
-    unsafe fn irq(&mut self, data: u8) {
+    fn irq(&mut self, data: u8) {
         if self.ignore_next_irq {
             self.ignore_next_irq = false;
         } else {
             let event = self.scancode_to_event(data);
-            self.session.push_event(event);
+            self.session.lock().push_event(event);
         }
     }
 }
@@ -142,7 +140,7 @@ impl Device for Keyboard {
     fn ioctrl(&mut self, code: usize, argument: usize) -> error::Result<usize> {
         match code {
             0 => {
-                unsafe { self.irq(argument as u8) };
+                self.irq(argument as u8);
                 Ok(0)
             }
             _ => Err(error::Status::InvalidIOCtrl),

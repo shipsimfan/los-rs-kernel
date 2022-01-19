@@ -1,40 +1,66 @@
-use super::Thread;
-use crate::queue::Queue;
-use core::ffi::c_void;
+use super::{CurrentQueue, ThreadInner, ThreadOwner};
+use crate::{locks::Spinlock, queue::Queue};
+use core::{ffi::c_void, sync::atomic::AtomicPtr};
 
-pub struct ThreadQueue(Queue<*mut Thread>);
+enum QueuedThread {
+    Actual(ThreadOwner),
+    Compare(*const ThreadInner),
+}
 
-unsafe fn remove(queue: *mut c_void, thread: *mut Thread) {
+pub struct ThreadQueue(Spinlock<Queue<QueuedThread>>);
+
+unsafe fn remove(queue: *mut c_void, thread: *const ThreadInner) {
     let queue = &mut *(queue as *mut ThreadQueue);
-    queue.remove(&mut *thread);
+    queue.remove(thread);
+}
+
+unsafe fn add(queue: *mut c_void, thread: ThreadOwner) {
+    let queue = &mut *(queue as *mut ThreadQueue);
+    queue.push(thread)
 }
 
 impl ThreadQueue {
     pub const fn new() -> Self {
-        ThreadQueue(Queue::new())
+        ThreadQueue(Spinlock::new(Queue::new()))
     }
 
-    pub unsafe fn push(&mut self, thread: &mut Thread) {
-        thread.set_queue(remove, self as *mut _ as *mut _);
-        self.0.push(thread);
+    pub fn push(&self, thread: ThreadOwner) {
+        //thread.set_queue(self.into_current_queue());
+        self.0.lock().push(QueuedThread::Actual(thread));
     }
 
-    pub unsafe fn pop_mut(&mut self) -> Option<&mut Thread> {
-        match self.0.pop() {
-            Some(thread) => {
-                (*thread).clear_queue(true);
-                Some(&mut *(thread))
-            }
-            None => None,
-        }
+    pub fn pop(&self) -> Option<ThreadOwner> {
+        self.0.lock().pop().map(|queued| match queued {
+            QueuedThread::Actual(thread) => thread,
+            _ => panic!("\"Compare\" queued thread should never actually be in the queue!"),
+        })
     }
 
     pub fn is_front(&self) -> bool {
-        self.0.is_front()
+        self.0.lock().is_front()
     }
 
     // Called from thread on dropping
-    pub unsafe fn remove(&mut self, thread: &mut Thread) {
-        self.0.remove(thread);
+    pub unsafe fn remove(&self, thread: *const ThreadInner) {
+        self.0.lock().remove(QueuedThread::Compare(thread));
+    }
+
+    pub fn into_current_queue(&self) -> CurrentQueue {
+        CurrentQueue::new(remove, add, AtomicPtr::new(self as *const _ as *mut _))
+    }
+}
+
+impl PartialEq for QueuedThread {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            QueuedThread::Actual(us) => match other {
+                QueuedThread::Actual(other) => us == other,
+                QueuedThread::Compare(ptr) => us.matching(*ptr),
+            },
+            QueuedThread::Compare(us) => match other {
+                QueuedThread::Actual(other) => other.matching(*us),
+                QueuedThread::Compare(ptr) => *us == *ptr,
+            },
+        }
     }
 }

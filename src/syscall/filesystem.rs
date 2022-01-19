@@ -32,8 +32,9 @@ pub fn system_call(
                 Ok(str) => str,
                 Err(status) => return status.to_return_code(),
             };
-            match process::get_current_thread_mut()
-                .get_process_mut()
+            match process::get_current_thread()
+                .process()
+                .unwrap()
                 .open_file(filepath, arg2)
             {
                 Ok(fd) => fd,
@@ -41,16 +42,20 @@ pub fn system_call(
             }
         }
         CLOSE_FILE_SYSCALL => {
-            process::get_current_thread_mut()
-                .get_process_mut()
+            process::get_current_thread()
+                .process()
+                .unwrap()
                 .close_file((arg1 & 0x7FFFFFFFFFFF) as isize);
             0
         }
         SEEK_FILE_SYSCALL => {
-            let file = match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
-            {
+            let process_lock = process::get_current_thread()
+                .process()
+                .unwrap()
+                .upgrade()
+                .unwrap();
+            let mut process = process_lock.lock();
+            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };
@@ -58,10 +63,13 @@ pub fn system_call(
             (file.seek(arg2, SeekFrom::from(arg3)) & 0x7FFFFFFFFFFF) as isize
         }
         READ_FILE_SYSCALL => {
-            let file = match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
-            {
+            let process_lock = process::get_current_thread()
+                .process()
+                .unwrap()
+                .upgrade()
+                .unwrap();
+            let mut process = process_lock.lock();
+            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };
@@ -81,8 +89,9 @@ pub fn system_call(
                 Ok(str) => str,
                 Err(status) => return status.to_return_code(),
             };
-            match process::get_current_thread_mut()
-                .get_process_mut()
+            match process::get_current_thread()
+                .process()
+                .unwrap()
                 .open_directory(path)
             {
                 Ok(dd) => dd,
@@ -90,8 +99,9 @@ pub fn system_call(
             }
         }
         CLOSE_DIRECTORY_SYSCALL => {
-            process::get_current_thread_mut()
-                .get_process_mut()
+            process::get_current_thread()
+                .process()
+                .unwrap()
                 .close_directory((arg1 & 0x7FFFFFFFFFFF) as isize);
             0
         }
@@ -101,8 +111,9 @@ pub fn system_call(
                 Err(status) => return status.to_return_code(),
             };
 
-            match process::get_current_thread_mut()
-                .get_process_mut()
+            match process::get_current_thread()
+                .process()
+                .unwrap()
                 .read_directory((arg1 & 0x7FFFFFFFFFFF) as isize)
             {
                 Ok(directory_entry) => match directory_entry {
@@ -116,10 +127,13 @@ pub fn system_call(
             }
         }
         TRUNCATE_FILE_SYSCALL => {
-            match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
-            {
+            let process_lock = process::get_current_thread()
+                .process()
+                .unwrap()
+                .upgrade()
+                .unwrap();
+            let mut process = process_lock.lock();
+            match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file_descriptor) => match file_descriptor.set_length(arg2) {
                     Ok(()) => 0,
                     Err(status) => status.to_return_code(),
@@ -128,10 +142,13 @@ pub fn system_call(
             }
         }
         WRITE_FILE_SYSCALL => {
-            let file = match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
-            {
+            let process_lock = process::get_current_thread()
+                .process()
+                .unwrap()
+                .upgrade()
+                .unwrap();
+            let mut process = process_lock.lock();
+            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };
@@ -180,10 +197,13 @@ pub fn system_call(
             }
         }
         TELL_FILE_SYSCALL => {
-            let file = match process::get_current_thread_mut()
-                .get_process_mut()
-                .get_file((arg1 & 0x7FFFFFFFFFFF) as isize)
-            {
+            let process_lock = process::get_current_thread()
+                .process()
+                .unwrap()
+                .upgrade()
+                .unwrap();
+            let mut process = process_lock.lock();
+            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };

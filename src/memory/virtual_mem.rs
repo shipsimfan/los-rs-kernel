@@ -113,7 +113,7 @@ unsafe fn page_fault_handler(_registers: Registers, info: ExceptionInfo) {
 
     if (info.error_code & 1) == 0 {
         if cr2 < PAGE_SIZE {
-            match process::get_current_thread_mut_option_cli() {
+            match process::get_current_thread_option_cli() {
                 Some(_) => process::exit_process(129 + 32),
                 None => {
                     let rip = info.rip;

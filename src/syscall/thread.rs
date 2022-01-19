@@ -27,7 +27,7 @@ pub fn system_call(
             if arg1 >= KERNEL_VMA {
                 error::Status::ArgumentSecurity.to_return_code()
             } else {
-                process::get_current_thread_mut().set_tls_base(arg1 as usize);
+                process::get_current_thread().set_tls_base(arg1 as usize);
                 0
             }
         }

@@ -89,7 +89,7 @@ impl Console {
         Ok(self.output_device.lock().ioctrl(IOCTRL_GET_HEIGHT, 0)? as isize)
     }
 
-    pub unsafe fn push_event(&mut self, event: Event) {
+    pub fn push_event(&mut self, event: Event) {
         self.event_queue.push(event);
     }
 
