@@ -38,21 +38,24 @@ impl<T> Mutex<T> {
 
     #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T> {
-        unsafe { crate::critical::enter_local() };
+        let critical_state = unsafe { crate::critical::enter_local() };
         match unsafe { process::get_current_thread_option_cli() } {
-            None => {}
+            None => unsafe { crate::critical::leave_local(critical_state) },
             Some(_) => {
                 if self
                     .lock
                     .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
                     .is_err()
                 {
-                    process::yield_thread(Some(self.queue.lock().into_current_queue()));
+                    process::yield_thread(
+                        Some(self.queue.lock().into_current_queue()),
+                        Some(critical_state),
+                    );
+                } else {
+                    unsafe { crate::critical::leave_local(critical_state) };
                 }
             }
         }
-
-        unsafe { crate::critical::leave_local() };
 
         MutexGuard {
             lock: &self,
@@ -107,7 +110,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
         unsafe {
-            crate::critical::enter_local();
+            let critical_state = crate::critical::enter_local();
             let mutex = &mut *(self.lock as *const _ as *mut Mutex<T>);
 
             match mutex.queue.lock().pop() {
@@ -117,7 +120,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
                     process::queue_thread_cli(next_thread);
                 }
             }
-            crate::critical::leave_local();
+            crate::critical::leave_local(critical_state);
         }
     }
 }

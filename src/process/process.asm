@@ -61,6 +61,9 @@ perform_yield:
 
 GLOBAL thread_enter_user
 thread_enter_user:
+    mov rbx, LOCAL_CRITICAL_STATE
+    xor al, al
+    mov [rbx], al
     iretq
 
 GLOBAL set_fs_base
@@ -71,3 +74,8 @@ set_fs_base:
     mov ecx, 0xC0000100
     wrmsr
     ret
+
+SECTION .data
+
+GLOBAL LOCAL_CRITICAL_STATE
+LOCAL_CRITICAL_STATE: db 0

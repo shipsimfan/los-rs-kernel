@@ -145,7 +145,7 @@ fn do_execute(
     // Copy stdio descriptors
     standard_io.copy_descriptors(&current_process, &new_process)?;
 
-    unsafe { crate::critical::enter_local() };
+    let critical_state = unsafe { crate::critical::enter_local() };
 
     // Switch to new process address space
     new_process.set_address_space_as_current();
@@ -221,7 +221,7 @@ fn do_execute(
     current_process.set_address_space_as_current();
 
     // Return the process id
-    unsafe { crate::critical::leave_local() };
+    unsafe { crate::critical::leave_local(critical_state) };
     Ok(new_process.id())
 }
 
@@ -300,20 +300,23 @@ pub unsafe fn queue_thread_cli(thread: ThreadOwner) {
 
 pub fn queue_thread(thread: ThreadOwner) {
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = crate::critical::enter_local();
         queue_thread_cli(thread);
-        crate::critical::leave_local();
+        crate::critical::leave_local(critical_state);
     }
 }
 
 pub fn queue_and_yield() {
-    yield_thread(Some(THREAD_CONTROL.lock().get_current_queue()));
+    yield_thread(Some(THREAD_CONTROL.lock().get_current_queue()), None);
 }
 
-pub fn yield_thread(queue: Option<CurrentQueue>) {
+pub fn yield_thread(queue: Option<CurrentQueue>, critical_state: Option<bool>) {
     loop {
         unsafe {
-            crate::critical::enter_local();
+            let critical_state = match critical_state {
+                Some(state) => state,
+                None => crate::critical::enter_local(),
+            };
             let next_thread = THREAD_CONTROL.lock().get_next_thread();
             match next_thread {
                 Some(next_thread) => {
@@ -343,10 +346,13 @@ pub fn yield_thread(queue: Option<CurrentQueue>) {
                     (*NEXT_THREAD.lock()) = Some((next_thread, queue));
                     perform_yield(save_location, load_location);
 
-                    crate::critical::leave_local();
+                    crate::critical::leave_local(critical_state);
                     return;
                 }
-                None => asm!("sti; hlt"),
+                None => {
+                    crate::critical::leave_local(critical_state);
+                    asm!("hlt")
+                }
             }
         }
     }
@@ -362,14 +368,14 @@ pub fn wait_thread(tid: isize) -> isize {
         },
     };
 
-    yield_thread(Some(exit_queue));
+    yield_thread(Some(exit_queue), None);
 
     current_thread.get_queue_data().unwrap()
 }
 
 pub fn wait_process(pid: isize) -> isize {
     let current_thread = get_current_thread();
-    unsafe { critical::enter_local() };
+    let critical_state = unsafe { critical::enter_local() };
     let exit_queue = match current_thread.process().unwrap().session_id() {
         None => match daemon::get_daemon_process(pid) {
             None => return isize::MIN,
@@ -389,57 +395,60 @@ pub fn wait_process(pid: isize) -> isize {
             None => panic!("Current session does not exist!"),
         },
     };
-    unsafe { critical::leave_local() };
+    unsafe { critical::leave_local(critical_state) };
 
-    yield_thread(Some(exit_queue));
+    yield_thread(Some(exit_queue), None);
 
     current_thread.get_queue_data().unwrap()
 }
 
-pub fn exit_thread(exit_status: isize) -> ! {
+pub fn exit_thread(exit_status: isize, critical_state: Option<bool>) -> ! {
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = match critical_state {
+            Some(state) => state,
+            None => crate::critical::enter_local(),
+        };
         let current_thread = get_current_thread_cli();
 
         current_thread.pre_exit(exit_status);
         current_thread.process().unwrap().pre_exit(exit_status);
 
         current_thread.clear_queue(false);
-        yield_thread(None);
+        yield_thread(None, Some(critical_state));
         panic!("Returned to thread after exit!");
     }
 }
 
 pub fn exit_process(exit_status: isize) -> ! {
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = crate::critical::enter_local();
         let current_thread = get_current_thread_cli();
         let current_process = current_thread.process().unwrap();
 
         current_process.kill_threads(current_thread.id());
 
-        exit_thread(exit_status);
+        exit_thread(exit_status, Some(critical_state));
     }
 }
 
 #[allow(dead_code)]
 pub fn kill_thread(tid: isize) {
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = crate::critical::enter_local();
         let current_thread = get_current_thread_cli();
         let current_process = current_thread.process().unwrap();
 
         match current_process.get_thread(tid) {
             Some(thread) => {
                 if thread == current_thread {
-                    exit_thread(128);
+                    exit_thread(128, Some(critical_state));
                 } else {
                     current_process.remove_thread(tid);
                 }
             }
             None => {}
         }
-        crate::critical::leave_local();
+        crate::critical::leave_local(critical_state);
     }
 }
 
@@ -455,7 +464,7 @@ pub fn kill_process(pid: isize) {
     let mut session = session_lock.lock();
 
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = crate::critical::enter_local();
 
         let remove = match session.get_process(pid) {
             Some(process) => {
@@ -474,15 +483,15 @@ pub fn kill_process(pid: isize) {
             session.remove_process(pid);
         }
 
-        crate::critical::leave_local();
+        crate::critical::leave_local(critical_state);
     }
 }
 
 pub fn get_current_thread() -> ThreadReference {
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = crate::critical::enter_local();
         let ret = get_current_thread_cli();
-        crate::critical::leave_local();
+        crate::critical::leave_local(critical_state);
         ret
     }
 }
@@ -498,9 +507,9 @@ pub unsafe fn get_current_thread_option_cli() -> Option<ThreadReference> {
 #[allow(dead_code)]
 pub fn get_current_thread_option() -> Option<ThreadReference> {
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = crate::critical::enter_local();
         let ret = get_current_thread_option_cli();
-        crate::critical::leave_local();
+        crate::critical::leave_local(critical_state);
         ret
     }
 }

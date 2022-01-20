@@ -31,9 +31,10 @@ extern "C" {
 }
 
 extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
+    unsafe { crate::critical::leave_local(false) };
     let entry: ThreadFuncContext = unsafe { core::mem::transmute(entry) };
     let status = entry(context);
-    exit_thread(status);
+    exit_thread(status, None);
 }
 
 impl ThreadInner {

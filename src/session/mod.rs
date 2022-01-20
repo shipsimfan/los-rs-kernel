@@ -1,8 +1,9 @@
 use crate::{
+    critical::{CriticalLock, CriticalLockGuard},
     error,
     event::Event,
     filesystem::DirectoryDescriptor,
-    locks::{Spinlock, SpinlockGuard},
+    locks::Spinlock,
     map::{Map, Mappable, INVALID_ID},
     process::{self, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner},
 };
@@ -21,7 +22,7 @@ pub enum SubSession {
 }
 
 #[derive(Clone)]
-pub struct SessionBox(Arc<Spinlock<Session>>);
+pub struct SessionBox(Arc<CriticalLock<Session>>);
 
 static SESSIONS: Spinlock<Map<SessionBox>> = Spinlock::new(Map::with_starting_index(1));
 
@@ -30,7 +31,7 @@ pub fn create_console_session(output_device_path: &str) -> error::Result<isize> 
     let new_session = Session::new(SubSession::Console(console::Console::new(output_device)?));
     let sid = SESSIONS
         .lock()
-        .insert(SessionBox(Arc::new(Spinlock::new(new_session))));
+        .insert(SessionBox(Arc::new(CriticalLock::new(new_session))));
 
     let mut env = Vec::new();
     env.push("PATH=:1/los/bin".to_string());
@@ -110,7 +111,7 @@ impl SubSession {
 }
 
 impl SessionBox {
-    pub fn lock(&self) -> SpinlockGuard<Session> {
+    pub fn lock(&self) -> CriticalLockGuard<Session> {
         self.0.lock()
     }
 }

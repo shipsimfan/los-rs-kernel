@@ -33,7 +33,7 @@ pub fn kill_process(pid: isize) {
     let mut session = DAEMON_PROCESSES.lock();
 
     unsafe {
-        crate::critical::enter_local();
+        let critical_state = crate::critical::enter_local();
 
         let remove = match session.get(pid) {
             Some(process) => {
@@ -52,6 +52,6 @@ pub fn kill_process(pid: isize) {
             session.remove(pid);
         }
 
-        crate::critical::leave_local();
+        crate::critical::leave_local(critical_state);
     }
 }
