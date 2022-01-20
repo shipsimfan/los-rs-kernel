@@ -2,9 +2,7 @@ use super::{queue::CurrentQueue, stack::Stack, ThreadFuncContext};
 use crate::{
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
-    process::{
-        exit_thread, process::ProcessOwner, queue_thread_cli, ProcessReference, ThreadQueue,
-    },
+    process::{exit_thread, process::ProcessOwner, queue_thread, ProcessReference, ThreadQueue},
 };
 use core::ffi::c_void;
 
@@ -156,7 +154,7 @@ impl ThreadInner {
     pub unsafe fn pre_exit(&mut self, exit_status: isize) {
         while let Some(thread) = self.exit_queue.pop() {
             thread.set_queue_data(exit_status);
-            queue_thread_cli(thread);
+            queue_thread(thread);
         }
     }
 }

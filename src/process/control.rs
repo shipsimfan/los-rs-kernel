@@ -56,7 +56,7 @@ impl ThreadControl {
         self.running_queue.is_front()
     }
 
-    pub unsafe fn queue_execution(&self, thread: ThreadOwner) {
+    pub fn queue_execution(&self, thread: ThreadOwner) {
         self.running_queue.push(thread)
     }
 

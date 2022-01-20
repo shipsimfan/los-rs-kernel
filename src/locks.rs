@@ -39,7 +39,7 @@ impl<T> Mutex<T> {
     #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T> {
         let critical_state = unsafe { crate::critical::enter_local() };
-        match unsafe { process::get_current_thread_option_cli() } {
+        match process::get_current_thread_option() {
             None => unsafe { crate::critical::leave_local(critical_state) },
             Some(_) => {
                 if self
@@ -117,7 +117,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
                 None => mutex.lock.store(false, Ordering::Relaxed),
                 Some(next_thread) => {
                     mutex.lock.store(true, Ordering::Relaxed);
-                    process::queue_thread_cli(next_thread);
+                    process::queue_thread(next_thread);
                 }
             }
             crate::critical::leave_local(critical_state);

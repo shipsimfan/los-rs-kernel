@@ -215,7 +215,7 @@ fn do_execute(
         *stdio = standard_io.to_c_stdio();
 
         // Queue the new process
-        queue_thread_cli(new_thread);
+        queue_thread(new_thread);
     }
 
     // Return to current process address space
@@ -295,16 +295,8 @@ pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDesc
     }
 }
 
-pub unsafe fn queue_thread_cli(thread: ThreadOwner) {
-    THREAD_CONTROL.lock().queue_execution(thread);
-}
-
 pub fn queue_thread(thread: ThreadOwner) {
-    unsafe {
-        let critical_state = crate::critical::enter_local();
-        queue_thread_cli(thread);
-        crate::critical::leave_local(critical_state);
-    }
+    THREAD_CONTROL.lock().queue_execution(thread);
 }
 
 pub fn queue_and_yield(critical_state: Option<bool>) {
@@ -410,7 +402,7 @@ pub fn exit_thread(exit_status: isize, critical_state: Option<bool>) -> ! {
             Some(state) => state,
             None => crate::critical::enter_local(),
         };
-        let current_thread = get_current_thread_cli();
+        let current_thread = get_current_thread();
 
         current_thread.pre_exit(exit_status);
         current_thread.process().unwrap().pre_exit(exit_status);
@@ -424,7 +416,7 @@ pub fn exit_thread(exit_status: isize, critical_state: Option<bool>) -> ! {
 pub fn exit_process(exit_status: isize) -> ! {
     unsafe {
         let critical_state = crate::critical::enter_local();
-        let current_thread = get_current_thread_cli();
+        let current_thread = get_current_thread();
         let current_process = current_thread.process().unwrap();
 
         current_process.kill_threads(current_thread.id());
@@ -437,7 +429,7 @@ pub fn exit_process(exit_status: isize) -> ! {
 pub fn kill_thread(tid: isize) {
     unsafe {
         let critical_state = crate::critical::enter_local();
-        let current_thread = get_current_thread_cli();
+        let current_thread = get_current_thread();
         let current_process = current_thread.process().unwrap();
 
         match current_process.get_thread(tid) {
@@ -490,41 +482,20 @@ pub fn kill_process(pid: isize) {
 }
 
 pub fn get_current_thread() -> ThreadReference {
-    unsafe {
-        let critical_state = crate::critical::enter_local();
-        let ret = get_current_thread_cli();
-        crate::critical::leave_local(critical_state);
-        ret
-    }
+    get_current_thread_option().expect("No current thread when one required!")
 }
 
-pub unsafe fn get_current_thread_cli() -> ThreadReference {
-    get_current_thread_option_cli().expect("No current thread when one required!")
-}
-
-pub unsafe fn get_current_thread_option_cli() -> Option<ThreadReference> {
+pub fn get_current_thread_option() -> Option<ThreadReference> {
     THREAD_CONTROL.lock().get_current_thread()
 }
 
-#[allow(dead_code)]
-pub fn get_current_thread_option() -> Option<ThreadReference> {
-    unsafe {
-        let critical_state = crate::critical::enter_local();
-        let ret = get_current_thread_option_cli();
-        crate::critical::leave_local(critical_state);
-        ret
-    }
-}
-
 pub fn preempt() {
-    unsafe {
-        if !THREAD_CONTROL.lock().is_next_thread() {
-            return;
-        }
+    if !THREAD_CONTROL.lock().is_next_thread() {
+        return;
+    }
 
-        if get_current_thread_option_cli().is_none() {
-            return;
-        }
+    if get_current_thread_option().is_none() {
+        return;
     }
 
     queue_and_yield(Some(true));

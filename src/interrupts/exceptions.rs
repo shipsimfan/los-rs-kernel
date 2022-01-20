@@ -113,7 +113,7 @@ static mut EXCEPTION_HANDLERS: [Option<Handler>; 32] = [None; 32];
 unsafe extern "C" fn common_exception_handler(registers: Registers, info: ExceptionInfo) {
     match EXCEPTION_HANDLERS[info.interrupt as usize] {
         Some(handler) => handler(registers, info),
-        None => match process::get_current_thread_option_cli() {
+        None => match process::get_current_thread_option() {
             Some(_) => process::exit_process(129 + (info.interrupt as isize)),
             None => match EXCEPTION_STRINGS.get(info.interrupt as usize) {
                 Some(str) => panic!("{} has occurred", str),
