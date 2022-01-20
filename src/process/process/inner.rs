@@ -90,7 +90,8 @@ impl ProcessInner {
     }
 
     pub fn open_file(&mut self, filepath: &str, flags: usize) -> error::Result<isize> {
-        let file_descriptor = filesystem::open(filepath, flags)?;
+        let file_descriptor =
+            filesystem::open(filepath, flags, self.current_working_directory.as_ref())?;
         Ok(self.file_descriptors.insert(file_descriptor))
     }
 
@@ -121,7 +122,7 @@ impl ProcessInner {
     }
 
     pub fn open_directory(&mut self, path: &str) -> error::Result<isize> {
-        let descriptor = filesystem::open_directory(path)?;
+        let descriptor = filesystem::open_directory(path, self.current_working_directory.as_ref())?;
         Ok(self.directory_descriptors.insert(descriptor))
     }
 
@@ -157,10 +158,6 @@ impl Mappable for ProcessInner {
 
 impl Drop for ProcessInner {
     fn drop(&mut self) {
-        if self.threads.count() > 0 {
-            panic!("Dropping process while it still has threads!");
-        }
-
         unsafe { self.address_space.free() };
 
         match self.session_id {

@@ -101,7 +101,7 @@ pub fn system_call(
                 Err(status) => return status.to_return_code(),
             };
 
-            match filesystem::open_directory(path) {
+            match filesystem::open_directory(path, None) {
                 Ok(directory) => {
                     process::get_current_thread()
                         .process()

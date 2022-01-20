@@ -8,7 +8,7 @@ mod queue;
 mod thread;
 
 use crate::{
-    error,
+    critical, error,
     filesystem::{self, open_directory, DirectoryDescriptor},
     locks::Spinlock,
     map::{Mappable, INVALID_ID},
@@ -75,9 +75,10 @@ extern "C" {
 #[no_mangle]
 unsafe extern "C" fn switch_thread() {
     let (new_thread, new_queue) = NEXT_THREAD.lock().take().unwrap();
-    THREAD_CONTROL
+    let old_thread = THREAD_CONTROL
         .lock()
         .set_current_thread(new_thread, new_queue);
+    drop(old_thread);
 }
 
 fn do_execute(
@@ -116,7 +117,7 @@ fn do_execute(
 
                 path.pop();
 
-                open_directory(&path)?
+                open_directory(&path, None)?
             }
             Some(working_directory) => DirectoryDescriptor::new(working_directory.get_directory()),
         }
@@ -368,6 +369,7 @@ pub fn wait_thread(tid: isize) -> isize {
 
 pub fn wait_process(pid: isize) -> isize {
     let current_thread = get_current_thread();
+    unsafe { critical::enter_local() };
     let exit_queue = match current_thread.process().unwrap().session_id() {
         None => match daemon::get_daemon_process(pid) {
             None => return isize::MIN,
@@ -387,6 +389,7 @@ pub fn wait_process(pid: isize) -> isize {
             None => panic!("Current session does not exist!"),
         },
     };
+    unsafe { critical::leave_local() };
 
     yield_thread(Some(exit_queue));
 

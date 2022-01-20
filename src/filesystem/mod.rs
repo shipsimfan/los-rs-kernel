@@ -68,7 +68,11 @@ pub fn register_drive(drive_path: &str) -> error::Result<()> {
     detect_filesystem(drive_lock, 0, size)
 }
 
-pub fn open(filepath: &str, flags: usize) -> error::Result<FileDescriptor> {
+pub fn open(
+    filepath: &str,
+    flags: usize,
+    starting_root: Option<&DirectoryDescriptor>,
+) -> error::Result<FileDescriptor> {
     if flags & OPEN_READ_WRITE == 0 {
         return Err(error::Status::InvalidArgument);
     }
@@ -80,7 +84,7 @@ pub fn open(filepath: &str, flags: usize) -> error::Result<FileDescriptor> {
     }
 
     // Open filesystem
-    let root_directory = get_root_directory(fs_number)?;
+    let root_directory = get_root_directory(fs_number, starting_root)?;
 
     // Iterate path
     let (current_directory, filename) = get_directory(path, root_directory, true)?;
@@ -126,12 +130,15 @@ pub fn open(filepath: &str, flags: usize) -> error::Result<FileDescriptor> {
     Ok(FileDescriptor::new(file, read, write, starting_offset))
 }
 
-pub fn open_directory(path: &str) -> error::Result<DirectoryDescriptor> {
+pub fn open_directory(
+    path: &str,
+    starting_root: Option<&DirectoryDescriptor>,
+) -> error::Result<DirectoryDescriptor> {
     // Parse filepath
     let (fs_number, path) = parse_filepath(path, false)?;
 
     // Open filesystem
-    let root_directory = get_root_directory(fs_number)?;
+    let root_directory = get_root_directory(fs_number, starting_root)?;
 
     // Iterate path
     let (directory, _) = get_directory(path, root_directory, false)?;
@@ -144,7 +151,7 @@ pub fn read(filepath: &str) -> error::Result<Vec<u8>> {
     let (fs_number, path) = parse_filepath(filepath, true)?;
 
     // Open filesystem
-    let root_directory = get_root_directory(fs_number)?;
+    let root_directory = get_root_directory(fs_number, None)?;
 
     // Iterate path
     let (current_directory, filename) = get_directory(path, root_directory, true)?;
@@ -184,7 +191,7 @@ pub fn remove(path: &str) -> error::Result<()> {
     let (fs_number, path) = parse_filepath(path, false)?;
 
     // Open filesystem
-    let root_directory = get_root_directory(fs_number)?;
+    let root_directory = get_root_directory(fs_number, None)?;
 
     // Iterate path
     let (parent_directory_lock, filename) = get_directory(path, root_directory, true)?;
@@ -203,7 +210,7 @@ pub fn create_directory(path: &str) -> error::Result<()> {
     let (fs_number, path) = parse_filepath(path, false)?;
 
     // Open filesystem
-    let root_directory = get_root_directory(fs_number)?;
+    let root_directory = get_root_directory(fs_number, None)?;
 
     // Iterate path
     let (parent_directory_lock, directory_name) = get_directory(path, root_directory, true)?;
@@ -270,7 +277,10 @@ fn parse_filepath(filepath: &str, file: bool) -> error::Result<(Option<isize>, V
     Ok((drive_number, path))
 }
 
-fn get_root_directory(fs_number: Option<isize>) -> error::Result<DirectoryBox> {
+fn get_root_directory(
+    fs_number: Option<isize>,
+    provided_root: Option<&DirectoryDescriptor>,
+) -> error::Result<DirectoryBox> {
     match fs_number {
         Some(fs_number) => {
             let mut filesystems = FILESYSTEMS.lock();
@@ -279,18 +289,21 @@ fn get_root_directory(fs_number: Option<isize>) -> error::Result<DirectoryBox> {
                 None => Err(error::Status::NoFilesystem),
             }
         }
-        None => {
-            let process_lock = process::get_current_thread()
-                .process()
-                .unwrap()
-                .upgrade()
-                .unwrap();
-            let mut process = process_lock.lock();
-            match process.current_working_directory() {
-                Some(dir) => Ok(dir.get_directory()),
-                None => Err(error::Status::NotSupported),
+        None => match provided_root {
+            Some(root_descriptor) => Ok(root_descriptor.get_directory()),
+            None => {
+                let process_lock = process::get_current_thread()
+                    .process()
+                    .unwrap()
+                    .upgrade()
+                    .unwrap();
+                let mut process = process_lock.lock();
+                match process.current_working_directory() {
+                    Some(dir) => Ok(dir.get_directory()),
+                    None => Err(error::Status::NotSupported),
+                }
             }
-        }
+        },
     }
 }
 
