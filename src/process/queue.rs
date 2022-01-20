@@ -1,5 +1,5 @@
 use super::{CurrentQueue, ThreadInner, ThreadOwner};
-use crate::{locks::Spinlock, queue::Queue};
+use crate::{critical::CriticalLock, queue::Queue};
 use core::{ffi::c_void, sync::atomic::AtomicPtr};
 
 enum QueuedThread {
@@ -7,7 +7,7 @@ enum QueuedThread {
     Compare(*const ThreadInner),
 }
 
-pub struct ThreadQueue(Spinlock<Queue<QueuedThread>>);
+pub struct ThreadQueue(CriticalLock<Queue<QueuedThread>>);
 
 unsafe fn remove(queue: *mut c_void, thread: *const ThreadInner) {
     let queue = &mut *(queue as *mut ThreadQueue);
@@ -21,7 +21,7 @@ unsafe fn add(queue: *mut c_void, thread: ThreadOwner) {
 
 impl ThreadQueue {
     pub const fn new() -> Self {
-        ThreadQueue(Spinlock::new(Queue::new()))
+        ThreadQueue(CriticalLock::new(Queue::new()))
     }
 
     pub fn push(&self, thread: ThreadOwner) {

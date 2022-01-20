@@ -49,27 +49,28 @@ pub fn system_call(
             0
         }
         SEEK_FILE_SYSCALL => {
-            let process_lock = process::get_current_thread()
+            let process = process::get_current_thread()
                 .process()
                 .unwrap()
                 .upgrade()
                 .unwrap();
-            let mut process = process_lock.lock();
-            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
+
+            let file = match process.lock().get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };
 
+            let mut file = file.lock();
             (file.seek(arg2, SeekFrom::from(arg3)) & 0x7FFFFFFFFFFF) as isize
         }
         READ_FILE_SYSCALL => {
-            let process_lock = process::get_current_thread()
+            let process = process::get_current_thread()
                 .process()
                 .unwrap()
                 .upgrade()
                 .unwrap();
-            let mut process = process_lock.lock();
-            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
+
+            let file = match process.lock().get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };
@@ -79,6 +80,7 @@ pub fn system_call(
                 Err(status) => return status.to_return_code(),
             };
 
+            let mut file = file.lock();
             match file.read(buffer) {
                 Ok(bytes_read) => bytes_read,
                 Err(status) => status.to_return_code(),
@@ -127,28 +129,32 @@ pub fn system_call(
             }
         }
         TRUNCATE_FILE_SYSCALL => {
-            let process_lock = process::get_current_thread()
+            let process = process::get_current_thread()
                 .process()
                 .unwrap()
                 .upgrade()
                 .unwrap();
-            let mut process = process_lock.lock();
-            match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
-                Ok(file_descriptor) => match file_descriptor.set_length(arg2) {
-                    Ok(()) => 0,
-                    Err(status) => status.to_return_code(),
-                },
+            let file_descriptor = {
+                let process = process.lock();
+                match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
+                    Ok(file_descriptor) => file_descriptor,
+                    Err(status) => return status.to_return_code(),
+                }
+            };
+
+            let file_descriptor = file_descriptor.lock();
+            match file_descriptor.set_length(arg2) {
+                Ok(()) => 0,
                 Err(status) => status.to_return_code(),
             }
         }
         WRITE_FILE_SYSCALL => {
-            let process_lock = process::get_current_thread()
+            let process = process::get_current_thread()
                 .process()
                 .unwrap()
                 .upgrade()
                 .unwrap();
-            let mut process = process_lock.lock();
-            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
+            let file = match process.lock().get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };
@@ -158,6 +164,7 @@ pub fn system_call(
                 Err(status) => return status.to_return_code(),
             };
 
+            let mut file = file.lock();
             match file.write(buffer) {
                 Ok(bytes_read) => bytes_read,
                 Err(status) => status.to_return_code(),
@@ -197,18 +204,18 @@ pub fn system_call(
             }
         }
         TELL_FILE_SYSCALL => {
-            let process_lock = process::get_current_thread()
+            let process = process::get_current_thread()
                 .process()
                 .unwrap()
                 .upgrade()
                 .unwrap();
-            let mut process = process_lock.lock();
-            let file = match process.get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
+            let file = match process.lock().get_file((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Ok(file) => file,
                 Err(status) => return status.to_return_code(),
             };
 
-            (file.tell() & 0x7FFFFFFFFFFF) as isize
+            let ret = file.lock().tell();
+            (ret & 0x7FFFFFFFFFFF) as isize
         }
         _ => {
             logln!("Invalid filesystem system call: {}", code);

@@ -44,20 +44,18 @@ pub fn get_epoch_time() -> isize {
 pub unsafe fn millisecond_tick() {
     SYSTEM_TIME += 1;
 
-    /*
     match process::get_current_thread_option_cli() {
         Some(thread) => thread.process().unwrap().increase_time(1000),
         None => {}
-    }*/
+    }
 
     if SYSTEM_TIME % 1000 == SYSTEM_OFFSET {
         EPOCH_TIME += 1;
     }
 
-    /*
     if SYSTEM_TIME % 10 == 0 {
         crate::process::preempt();
-    }*/
+    }
 }
 
 pub fn sync_offset() {

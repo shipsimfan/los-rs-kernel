@@ -1,7 +1,8 @@
 use super::ProcessOwner;
 use crate::{
     error,
-    filesystem::{self, DirectoryDescriptor, DirectoryEntry, FileDescriptor},
+    filesystem::{DirectoryDescriptor, FileDescriptor},
+    locks::{Mutex, MutexGuard},
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
     process::{
@@ -11,6 +12,10 @@ use crate::{
     },
     session::get_session_mut,
 };
+use alloc::sync::Arc;
+
+#[derive(Clone)]
+pub struct Container<T: Mappable>(Arc<Mutex<T>>);
 
 pub struct ProcessInner {
     id: isize,
@@ -18,8 +23,8 @@ pub struct ProcessInner {
     address_space: AddressSpace,
     session_id: Option<isize>,
     exit_queue: ThreadQueue,
-    file_descriptors: Map<FileDescriptor>,
-    directory_descriptors: Map<DirectoryDescriptor>,
+    file_descriptors: Map<Container<FileDescriptor>>,
+    directory_descriptors: Map<Container<DirectoryDescriptor>>,
     current_working_directory: Option<DirectoryDescriptor>,
     process_time: isize,
 }
@@ -89,25 +94,25 @@ impl ProcessInner {
         }
     }
 
-    pub fn open_file(&mut self, filepath: &str, flags: usize) -> error::Result<isize> {
-        let file_descriptor =
-            filesystem::open(filepath, flags, self.current_working_directory.as_ref())?;
-        Ok(self.file_descriptors.insert(file_descriptor))
+    pub fn open_file(&mut self, file_descriptor: FileDescriptor) -> error::Result<isize> {
+        Ok(self
+            .file_descriptors
+            .insert(Container::new(file_descriptor)))
     }
 
     pub fn close_file(&mut self, fd: isize) {
         self.file_descriptors.remove(fd);
     }
 
-    pub fn get_file(&mut self, fd: isize) -> error::Result<&mut FileDescriptor> {
-        match self.file_descriptors.get_mut(fd) {
+    pub fn get_file(&self, fd: isize) -> error::Result<Container<FileDescriptor>> {
+        match self.file_descriptors.get(fd) {
             None => Err(error::Status::BadDescriptor),
-            Some(file_descriptor) => Ok(file_descriptor),
+            Some(file_descriptor) => Ok(file_descriptor.clone()),
         }
     }
 
-    pub fn clone_file(&mut self, descriptor: &mut FileDescriptor) -> isize {
-        self.file_descriptors.insert(descriptor.clone())
+    pub fn clone_file(&mut self, descriptor: Container<FileDescriptor>) -> isize {
+        self.file_descriptors.insert(descriptor)
     }
 
     pub fn current_working_directory(&mut self) -> Option<&mut DirectoryDescriptor> {
@@ -121,14 +126,18 @@ impl ProcessInner {
         self.current_working_directory = Some(directory);
     }
 
-    pub fn open_directory(&mut self, path: &str) -> error::Result<isize> {
-        let descriptor = filesystem::open_directory(path, self.current_working_directory.as_ref())?;
-        Ok(self.directory_descriptors.insert(descriptor))
+    pub fn open_directory(
+        &mut self,
+        directory_descriptor: DirectoryDescriptor,
+    ) -> error::Result<isize> {
+        Ok(self
+            .directory_descriptors
+            .insert(Container::new(directory_descriptor)))
     }
 
-    pub fn read_directory(&mut self, dd: isize) -> error::Result<Option<DirectoryEntry>> {
-        match self.directory_descriptors.get_mut(dd) {
-            Some(descriptor) => Ok(descriptor.next()),
+    pub fn get_directory(&self, dd: isize) -> error::Result<Container<DirectoryDescriptor>> {
+        match self.directory_descriptors.get(dd) {
+            Some(descriptor) => Ok(descriptor.clone()),
             None => Err(error::Status::BadDescriptor),
         }
     }
@@ -167,5 +176,25 @@ impl Drop for ProcessInner {
             },
             None => {}
         }
+    }
+}
+
+impl<T: Mappable> Container<T> {
+    pub fn new(inner: T) -> Self {
+        Container(Arc::new(Mutex::new(inner)))
+    }
+
+    pub fn lock(&self) -> MutexGuard<T> {
+        self.0.lock()
+    }
+}
+
+impl<T: Mappable> Mappable for Container<T> {
+    fn id(&self) -> isize {
+        self.0.lock().id()
+    }
+
+    fn set_id(&mut self, id: isize) {
+        self.0.lock().set_id(id)
     }
 }

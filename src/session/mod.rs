@@ -3,7 +3,6 @@ use crate::{
     error,
     event::Event,
     filesystem::DirectoryDescriptor,
-    locks::Spinlock,
     map::{Map, Mappable, INVALID_ID},
     process::{self, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner},
 };
@@ -24,7 +23,7 @@ pub enum SubSession {
 #[derive(Clone)]
 pub struct SessionBox(Arc<CriticalLock<Session>>);
 
-static SESSIONS: Spinlock<Map<SessionBox>> = Spinlock::new(Map::with_starting_index(1));
+static SESSIONS: CriticalLock<Map<SessionBox>> = CriticalLock::new(Map::with_starting_index(1));
 
 pub fn create_console_session(output_device_path: &str) -> error::Result<isize> {
     let output_device = crate::device::get_device(output_device_path)?;

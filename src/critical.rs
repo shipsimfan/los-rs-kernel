@@ -74,6 +74,12 @@ impl<T> CriticalLock<T> {
     }
 }
 
+impl<T: ?Sized> PartialEq for CriticalLock<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data.get() == other.data.get()
+    }
+}
+
 impl<'a, T> Deref for CriticalLockGuard<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {

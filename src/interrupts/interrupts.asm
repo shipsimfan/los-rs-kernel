@@ -75,8 +75,16 @@ irq_handler_%1:
     push r14
     push r15
 
+    mov rax, 1
+    mov rbx, LOCAL_CRITICAL_STATE
+    mov [rbx], rax
+
     mov rdi, %1
     call common_irq_handler
+
+    xor rax, rax
+    mov rbx, LOCAL_CRITICAL_STATE
+    mov [rbx], rax
 
     pop r15
     pop r14
@@ -101,6 +109,7 @@ irq_handler_%1:
 
 EXTERN common_exception_handler
 EXTERN common_irq_handler
+EXTERN LOCAL_CRITICAL_STATE
 
 common_interrupt_handler:
     push rax
@@ -120,7 +129,15 @@ common_interrupt_handler:
     push r14
     push r15
 
+    mov rax, 1
+    mov rbx, LOCAL_CRITICAL_STATE
+    mov [rbx], rax
+
     call common_exception_handler
+
+    xor rax, rax
+    mov rbx, LOCAL_CRITICAL_STATE
+    mov [rbx], rax
 
     pop r15
     pop r14

@@ -2,6 +2,7 @@ use super::{DirectoryBox, DirectoryEntry};
 use crate::map::{Mappable, INVALID_ID};
 use alloc::{string::String, sync::Arc};
 
+#[derive(Clone)]
 pub struct DirectoryDescriptor {
     id: isize,
     directory: DirectoryBox,

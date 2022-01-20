@@ -8,7 +8,8 @@ mod queue;
 mod thread;
 
 use crate::{
-    critical, error,
+    critical::{self, CriticalLock},
+    error,
     filesystem::{self, open_directory, DirectoryDescriptor},
     locks::Spinlock,
     map::{Mappable, INVALID_ID},
@@ -63,8 +64,8 @@ const STDIO_TYPE_NONE: usize = 0;
 const STDIO_TYPE_CONSOLE: usize = 1;
 const STDIO_TYPE_FILE: usize = 2;
 
-static THREAD_CONTROL: Spinlock<control::ThreadControl> =
-    Spinlock::new(control::ThreadControl::new());
+static THREAD_CONTROL: CriticalLock<control::ThreadControl> =
+    CriticalLock::new(control::ThreadControl::new());
 static NEXT_THREAD: Spinlock<Option<(ThreadOwner, Option<CurrentQueue>)>> = Spinlock::new(None);
 
 extern "C" {
@@ -306,8 +307,9 @@ pub fn queue_thread(thread: ThreadOwner) {
     }
 }
 
-pub fn queue_and_yield() {
-    yield_thread(Some(THREAD_CONTROL.lock().get_current_queue()), None);
+pub fn queue_and_yield(critical_state: Option<bool>) {
+    let running_queue = THREAD_CONTROL.lock().get_current_queue();
+    yield_thread(Some(running_queue), critical_state);
 }
 
 pub fn yield_thread(queue: Option<CurrentQueue>, critical_state: Option<bool>) {
@@ -525,7 +527,7 @@ pub fn preempt() {
         }
     }
 
-    queue_and_yield();
+    queue_and_yield(Some(true));
 }
 
 impl StandardIO {
@@ -581,7 +583,7 @@ impl StandardIOType {
             StandardIOType::None | &mut StandardIOType::Console => Ok(()),
             StandardIOType::File(fd) => {
                 let current_process_lock = current_process.upgrade().unwrap();
-                let mut current_process_inner = current_process_lock.lock();
+                let current_process_inner = current_process_lock.lock();
                 let descriptor = current_process_inner.get_file(*fd)?;
                 *fd = new_process.clone_file(descriptor);
                 Ok(())

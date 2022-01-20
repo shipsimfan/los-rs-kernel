@@ -1,26 +1,26 @@
 use super::{inner::ProcessInner, ProcessReference};
 use crate::{
+    critical::{CriticalLock, CriticalLockGuard},
     filesystem::DirectoryDescriptor,
-    locks::{Spinlock, SpinlockGuard},
     process::ThreadOwner,
 };
 use alloc::sync::Arc;
 
 #[derive(Clone)]
-pub struct ProcessOwner(Arc<Spinlock<ProcessInner>>);
+pub struct ProcessOwner(Arc<CriticalLock<ProcessInner>>);
 
 impl ProcessOwner {
     pub fn new(
         session_id: Option<isize>,
         current_working_directory: Option<DirectoryDescriptor>,
     ) -> Self {
-        ProcessOwner(Arc::new(Spinlock::new(ProcessInner::new(
+        ProcessOwner(Arc::new(CriticalLock::new(ProcessInner::new(
             session_id,
             current_working_directory,
         ))))
     }
 
-    pub fn new_raw(process: Arc<Spinlock<ProcessInner>>) -> Self {
+    pub fn new_raw(process: Arc<CriticalLock<ProcessInner>>) -> Self {
         ProcessOwner(process)
     }
 
@@ -36,7 +36,7 @@ impl ProcessOwner {
         self.0.lock().create_thread(entry, context, self.clone())
     }
 
-    pub fn lock(&self) -> SpinlockGuard<ProcessInner> {
+    pub fn lock(&self) -> CriticalLockGuard<ProcessInner> {
         self.0.lock()
     }
 }

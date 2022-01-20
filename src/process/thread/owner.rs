@@ -1,16 +1,16 @@
 use super::{inner::ThreadInner, queue::CurrentQueue, ThreadReference};
 use crate::{
-    locks::Spinlock,
+    critical::CriticalLock,
     map::Mappable,
     process::{process::ProcessOwner, ProcessReference},
 };
 use alloc::sync::Arc;
 
-pub struct ThreadOwner(Arc<Spinlock<ThreadInner>>);
+pub struct ThreadOwner(Arc<CriticalLock<ThreadInner>>);
 
 impl ThreadOwner {
     pub fn new(process: ProcessOwner, entry: usize, context: usize) -> ThreadOwner {
-        ThreadOwner(Arc::new(Spinlock::new(ThreadInner::new(
+        ThreadOwner(Arc::new(CriticalLock::new(ThreadInner::new(
             process, entry, context,
         ))))
     }

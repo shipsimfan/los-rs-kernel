@@ -1,17 +1,20 @@
-use super::{inner::ProcessInner, ProcessOwner};
+use super::{
+    inner::{Container, ProcessInner},
+    ProcessOwner,
+};
 use crate::{
+    critical::CriticalLock,
     filesystem::{DirectoryDescriptor, DirectoryEntry, FileDescriptor},
-    locks::Spinlock,
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
 };
 use alloc::sync::Weak;
 
 #[derive(Clone)]
-pub struct ProcessReference(Weak<Spinlock<ProcessInner>>);
+pub struct ProcessReference(Weak<CriticalLock<ProcessInner>>);
 
 impl ProcessReference {
-    pub fn new(process: Weak<Spinlock<ProcessInner>>) -> Self {
+    pub fn new(process: Weak<CriticalLock<ProcessInner>>) -> Self {
         ProcessReference(process)
     }
 
@@ -37,17 +40,24 @@ impl ProcessReference {
     }
 
     pub fn open_directory(&self, path: &str) -> crate::error::Result<isize> {
+        // Open directory first
+        let directory_descriptor = crate::filesystem::open_directory(path, None)?;
+
+        // Insert it into process
         match self.0.upgrade() {
-            Some(process) => process.lock().open_directory(path),
+            Some(process) => process.lock().open_directory(directory_descriptor),
             None => Err(crate::error::Status::NoProcess),
         }
     }
 
     pub fn read_directory(&self, dd: isize) -> crate::error::Result<Option<DirectoryEntry>> {
-        match self.0.upgrade() {
-            Some(process) => process.lock().read_directory(dd),
-            None => Err(crate::error::Status::NoProcess),
-        }
+        let directory = match self.0.upgrade() {
+            Some(process) => process.lock().get_directory(dd)?,
+            None => return Err(crate::error::Status::NoProcess),
+        };
+
+        let ret = directory.lock().next();
+        Ok(ret)
     }
 
     pub fn close_directory(&self, dd: isize) {
@@ -57,7 +67,7 @@ impl ProcessReference {
         }
     }
 
-    pub fn clone_file(&self, descriptor: &mut FileDescriptor) -> isize {
+    pub fn clone_file(&self, descriptor: Container<FileDescriptor>) -> isize {
         match self.0.upgrade() {
             Some(process) => process.lock().clone_file(descriptor),
             None => INVALID_ID,
@@ -65,8 +75,12 @@ impl ProcessReference {
     }
 
     pub fn open_file(&self, filepath: &str, flags: usize) -> crate::error::Result<isize> {
+        // Open the file
+        let file_descriptor = crate::filesystem::open(filepath, flags, None)?;
+
+        // Insert into process
         match self.0.upgrade() {
-            Some(process) => process.lock().open_file(filepath, flags),
+            Some(process) => process.lock().open_file(file_descriptor),
             None => Err(crate::error::Status::NoProcess),
         }
     }

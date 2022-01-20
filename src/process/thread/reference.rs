@@ -1,16 +1,16 @@
 use super::{inner::ThreadInner, CurrentQueue};
 use crate::{
-    locks::Spinlock,
+    critical::CriticalLock,
     map::{Mappable, INVALID_ID},
     process::ProcessReference,
 };
 use alloc::sync::Weak;
 
 #[derive(Clone)]
-pub struct ThreadReference(Weak<Spinlock<ThreadInner>>);
+pub struct ThreadReference(Weak<CriticalLock<ThreadInner>>);
 
 impl ThreadReference {
-    pub fn new(thread: Weak<Spinlock<ThreadInner>>) -> Self {
+    pub fn new(thread: Weak<CriticalLock<ThreadInner>>) -> Self {
         ThreadReference(thread)
     }
 
