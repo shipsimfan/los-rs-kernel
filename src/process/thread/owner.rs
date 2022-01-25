@@ -39,6 +39,10 @@ impl ThreadOwner {
         self.0.lock().get_stack_pointer_location()
     }
 
+    pub fn get_kernel_stack_base(&self) -> usize {
+        self.0.lock().get_kernel_stack_base()
+    }
+
     pub fn process(&self) -> ProcessReference {
         self.0.lock().process()
     }

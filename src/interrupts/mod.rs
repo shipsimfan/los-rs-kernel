@@ -10,7 +10,7 @@ struct CPUPointer {
 }
 
 extern "C" {
-    fn system_call_handler();
+    fn init_system_calls();
 }
 
 #[no_mangle]
@@ -22,5 +22,5 @@ pub fn set_interrupt_stack(stack_pointer: usize) {
 }
 
 pub fn initialize_system_calls() {
-    idt::install_interrupt_handler(0x80, system_call_handler as usize);
+    unsafe { init_system_calls() };
 }

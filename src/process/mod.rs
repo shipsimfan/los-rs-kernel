@@ -70,7 +70,11 @@ static NEXT_THREAD: Spinlock<Option<(ThreadOwner, Option<CurrentQueue>)>> = Spin
 
 extern "C" {
     #[allow(improper_ctypes)]
-    fn perform_yield(save_location: *const usize, load_location: *const usize);
+    fn perform_yield(
+        save_location: *const usize,
+        load_location: *const usize,
+        new_kernel_stack_base: usize,
+    );
 }
 
 #[no_mangle]
@@ -315,7 +319,7 @@ pub fn yield_thread(queue: Option<CurrentQueue>, critical_state: Option<bool>) {
             match next_thread {
                 Some(next_thread) => {
                     let default_location: usize = 0;
-                    let (save_location, load_location) = {
+                    let (save_location, (load_location, new_kernel_stack_base)) = {
                         (
                             match THREAD_CONTROL.lock().get_current_thread() {
                                 None => &default_location as *const usize,
@@ -332,13 +336,16 @@ pub fn yield_thread(queue: Option<CurrentQueue>, critical_state: Option<bool>) {
                                 next_thread.process().set_address_space_as_current();
                                 next_thread.load_float();
                                 next_thread.set_interrupt_stack();
-                                next_thread.get_stack_pointer_location()
+                                (
+                                    next_thread.get_stack_pointer_location(),
+                                    next_thread.get_kernel_stack_base(),
+                                )
                             },
                         )
                     };
 
                     (*NEXT_THREAD.lock()) = Some((next_thread, queue));
-                    perform_yield(save_location, load_location);
+                    perform_yield(save_location, load_location, new_kernel_stack_base);
 
                     crate::critical::leave_local(critical_state);
                     return;

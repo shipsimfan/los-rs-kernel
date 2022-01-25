@@ -135,6 +135,10 @@ impl ThreadInner {
         self.kernel_stack.pointer() as *const _
     }
 
+    pub fn get_kernel_stack_base(&self) -> usize {
+        self.kernel_stack.top()
+    }
+
     pub fn process(&self) -> ProcessReference {
         self.process.reference()
     }

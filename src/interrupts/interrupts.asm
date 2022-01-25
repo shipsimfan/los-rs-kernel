@@ -6,6 +6,36 @@ FarJump:
 
 SECTION .text
 
+GLOBAL init_system_calls
+EXTERN system_call_handler
+init_system_calls:
+    ; Enable syscall instruction in IA32_EFER
+    mov ecx, 0xC0000080 ; IA32_EFER
+    rdmsr
+    or eax, 1 ; Set system call bit
+    wrmsr
+
+    ; Set IA32_LSTAR MSR to the destination of "syscall"
+    mov rax, system_call_handler
+    mov rdx, rax
+    shr rdx, 32 ; EDX:EAX is the 64-bit address
+    mov rcx, 0xC0000082 ; IA32_LSTAR MSR
+    wrmsr
+
+    ; Set IA32_FMASK MSR to clear the interrupt flag
+    xor edx, edx
+    mov eax, 0x0200 ; Interrupt enable flag
+    mov rcx, 0xC0000084 ; IA32_FMASK MSR
+    wrmsr
+
+    ; Set IA32_STAR to the appropriate GDT selectors
+    xor eax, eax
+    mov edx, (0x10 << 16) | 0x08 ; Userspace: 0x10, Kernel: 0x08
+    mov ecx, 0xC0000081 ; IA32_STAR
+    wrmsr
+
+    ret
+
 GLOBAL install_gdt
 install_gdt:
     lgdt [rdi]

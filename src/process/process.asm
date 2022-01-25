@@ -45,14 +45,21 @@ float_load:
     ret
 
 EXTERN switch_thread
+EXTERN CURRENT_KERNEL_STACK
 
 GLOBAL perform_yield
 perform_yield:
     PushAllRegisters
 
+    ; Switch stackes
     mov [rdi], rsp
     mov rsp, [rsi]
 
+    ; Change syscall stack base
+    mov rax, CURRENT_KERNEL_STACK
+    mov [rax], rdx
+
+    ; Switch bookkeeping
     call switch_thread
 
     PopAllRegisters
