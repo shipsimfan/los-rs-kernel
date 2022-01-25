@@ -12,7 +12,7 @@ pub struct Spinlock<T: ?Sized> {
 
 pub struct Mutex<T: ?Sized> {
     lock: AtomicBool,
-    queue: Spinlock<ThreadQueue>,
+    queue: ThreadQueue,
     data: UnsafeCell<T>,
 }
 
@@ -31,7 +31,7 @@ impl<T> Mutex<T> {
     pub const fn new(data: T) -> Self {
         Mutex {
             lock: AtomicBool::new(false),
-            queue: Spinlock::new(ThreadQueue::new()),
+            queue: ThreadQueue::new(),
             data: UnsafeCell::new(data),
         }
     }
@@ -48,7 +48,7 @@ impl<T> Mutex<T> {
                     .is_err()
                 {
                     process::yield_thread(
-                        Some(self.queue.lock().into_current_queue()),
+                        Some(self.queue.into_current_queue()),
                         Some(critical_state),
                     );
                 } else {
@@ -113,7 +113,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
             let critical_state = crate::critical::enter_local();
             let mutex = &mut *(self.lock as *const _ as *mut Mutex<T>);
 
-            match mutex.queue.lock().pop() {
+            match mutex.queue.pop() {
                 None => mutex.lock.store(false, Ordering::Relaxed),
                 Some(next_thread) => {
                     mutex.lock.store(true, Ordering::Relaxed);
