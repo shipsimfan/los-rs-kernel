@@ -1,25 +1,16 @@
-use super::DirectoryBox;
-use crate::{error, locks::Mutex};
+use super::File;
+use crate::{filesystem::directory::DirectoryReference, locks::Mutex};
 use alloc::{boxed::Box, sync::Arc};
 
-pub type FileBox = Arc<Mutex<FileContainer>>;
-
-pub trait File: Send {
-    fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize>;
-    fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result<isize>;
-    fn set_length(&mut self, new_length: usize) -> error::Result<()>;
-    fn get_length(&self) -> usize;
-}
-
-pub struct FileContainer {
-    parent: DirectoryBox,
+pub struct FileOwner {
+    parent: DirectoryReference,
     file: Box<dyn File>,
     references: usize,
 }
 
-impl FileContainer {
-    pub fn new(file: Box<dyn File>, parent: DirectoryBox) -> Self {
-        FileContainer {
+impl FileOwner {
+    pub fn new(file: Box<dyn File>, parent: DirectoryReference) -> Self {
+        FileOwner {
             file: file,
             parent: parent,
             references: 0,
@@ -30,11 +21,11 @@ impl FileContainer {
         self.references += 1;
     }
 
-    pub fn read(&mut self, offset: usize, buffer: &mut [u8]) -> error::Result<isize> {
+    pub fn read(&mut self, offset: usize, buffer: &mut [u8]) -> crate::error::Result<isize> {
         self.file.read(offset, buffer)
     }
 
-    pub fn write(&mut self, offset: usize, buffer: &[u8]) -> error::Result<isize> {
+    pub fn write(&mut self, offset: usize, buffer: &[u8]) -> crate::error::Result<isize> {
         let file_length = self.file.get_length();
         if offset + buffer.len() > file_length {
             self.set_length(offset + buffer.len())?;
@@ -43,10 +34,10 @@ impl FileContainer {
         self.file.write(offset, buffer)
     }
 
-    pub fn close(&mut self, arc_ptr: *const Mutex<FileContainer>) {
+    pub fn close(&mut self, arc_ptr: *const Mutex<FileOwner>) {
         self.references -= 1;
         if self.references == 0 {
-            let ptr = Arc::as_ptr(&self.parent);
+            let ptr = Arc::as_ptr(self.parent.as_arc());
             self.parent.lock().close_file(arc_ptr, ptr);
         }
     }
@@ -55,7 +46,7 @@ impl FileContainer {
         self.file.get_length()
     }
 
-    pub fn set_length(&mut self, new_length: usize) -> error::Result<()> {
+    pub fn set_length(&mut self, new_length: usize) -> crate::error::Result<()> {
         // Update file
         self.file.set_length(new_length)?;
 

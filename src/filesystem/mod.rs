@@ -17,8 +17,7 @@ mod file_descriptor;
 mod filesystem;
 mod metadata;
 
-pub use directory::Directory;
-pub use directory::Parent;
+pub use directory::{Directory, Parent};
 pub use directory_descriptor::DirectoryDescriptor;
 pub use directory_entry::DirectoryEntry;
 pub use file::File;
@@ -26,10 +25,10 @@ pub use file_descriptor::FileDescriptor;
 pub use file_descriptor::SeekFrom;
 pub use metadata::Metadata;
 
-type DirectoryBox = directory::DirectoryBox;
-type DirectoryContainer = directory::DirectoryContainer;
-type FileBox = file::FileBox;
-type FileContainer = file::FileContainer;
+type DirectoryReference = directory::DirectoryReference;
+type DirectoryOwner = directory::DirectoryOwner;
+type FileReference = file::FileReference;
+type FileOwner = file::FileOwner;
 type DetectFilesystemFunction = filesystem::DetectFilesystemFunction;
 type Filesystem = filesystem::Filesystem;
 type FilesystemStarter = filesystem::FilesystemStarter;
@@ -280,7 +279,7 @@ fn parse_filepath(filepath: &str, file: bool) -> error::Result<(Option<isize>, V
 fn get_root_directory(
     fs_number: Option<isize>,
     provided_root: Option<&DirectoryDescriptor>,
-) -> error::Result<DirectoryBox> {
+) -> error::Result<DirectoryReference> {
     match fs_number {
         Some(fs_number) => {
             let mut filesystems = FILESYSTEMS.lock();
@@ -309,9 +308,9 @@ fn get_root_directory(
 
 fn get_directory(
     path: Vec<&str>,
-    root_directory: DirectoryBox,
+    root_directory: DirectoryReference,
     filename: bool,
-) -> error::Result<(DirectoryBox, Option<&str>)> {
+) -> error::Result<(DirectoryReference, Option<&str>)> {
     let mut iter = path.into_iter();
     let filename = if filename { iter.next_back() } else { None };
 

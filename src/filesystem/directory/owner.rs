@@ -1,48 +1,37 @@
-use super::{File, FileBox, FileContainer, Metadata};
-use crate::{error, locks::Mutex};
+use super::{inner::Directory, DirectoryReference};
+use crate::{
+    filesystem::{FileOwner, FileReference, Metadata},
+    locks::Mutex,
+};
 use alloc::{borrow::ToOwned, boxed::Box, format, string::String, sync::Arc, vec::Vec};
 use core::ffi::c_void;
 
-pub type DirectoryBox = Arc<Mutex<DirectoryContainer>>;
-
-pub trait Directory: Send {
-    fn get_children(&self) -> error::Result<Vec<(String, Metadata)>>; // Used to get sub files on initialization
-    fn open_file(&self, filename: &str) -> error::Result<Box<dyn File>>;
-    fn open_directory(&self, directory_name: &str) -> error::Result<Box<dyn Directory>>;
-    fn make_file(&self, filename: &str) -> error::Result<()>;
-    fn make_directory(&self, directory_name: &str) -> error::Result<()>;
-    fn rename_file(&self, old_name: &str, new_name: &str) -> error::Result<()>;
-    fn rename_directory(&self, old_name: &str, new_name: &str) -> error::Result<()>;
-    fn remove(&self, name: &str) -> error::Result<()>;
-    fn update_metadata(&self, name: &str, new_metadata: Metadata) -> error::Result<()>;
-}
-
 pub enum Parent {
     Root(isize),
-    Other(DirectoryBox),
+    Other(DirectoryReference),
 }
 
 pub enum Child {
-    File(FileBox),
-    Directory(DirectoryBox),
+    File(FileReference),
+    Directory(DirectoryReference),
 }
 
-pub struct DirectoryContainer {
+pub struct DirectoryOwner {
     parent: Parent,
     directory: Box<dyn Directory>,
     children: Vec<(String, Metadata, Option<Child>)>,
     references: usize,
 }
 
-impl DirectoryContainer {
-    pub fn new(directory: Box<dyn Directory>, parent: Parent) -> error::Result<Self> {
+impl DirectoryOwner {
+    pub fn new(directory: Box<dyn Directory>, parent: Parent) -> crate::error::Result<Self> {
         let driver_children = directory.get_children()?;
         let mut children = Vec::with_capacity(driver_children.len());
         for (name, metadata) in driver_children {
             children.push((name, metadata, None));
         }
 
-        Ok(DirectoryContainer {
+        Ok(DirectoryOwner {
             parent,
             directory,
             children,
@@ -50,24 +39,24 @@ impl DirectoryContainer {
         })
     }
 
-    pub fn get_parent(&self) -> Option<DirectoryBox> {
+    pub fn get_parent(&self) -> Option<DirectoryReference> {
         match &self.parent {
             Parent::Root(_) => None,
             Parent::Other(parent) => Some(parent.clone()),
         }
     }
 
-    pub fn get_metadata(&self, name: &str) -> error::Result<Metadata> {
+    pub fn get_metadata(&self, name: &str) -> crate::error::Result<Metadata> {
         for (sub_name, metadata, _) in &self.children {
             if sub_name == name {
                 return Ok(metadata.clone());
             }
         }
 
-        Err(error::Status::NoEntry)
+        Err(crate::error::Status::NoEntry)
     }
 
-    pub fn get_metadata_ptr(&self, ptr: *const c_void) -> error::Result<Metadata> {
+    pub fn get_metadata_ptr(&self, ptr: *const c_void) -> crate::error::Result<Metadata> {
         for (_, metadata, child) in &self.children {
             match child {
                 None => {}
@@ -86,14 +75,14 @@ impl DirectoryContainer {
             }
         }
 
-        Err(error::Status::NoEntry)
+        Err(crate::error::Status::NoEntry)
     }
 
     pub fn update_metadata(
         &mut self,
-        ptr: *const FileContainer,
+        ptr: *const FileOwner,
         new_metadata: Metadata,
-    ) -> error::Result<()> {
+    ) -> crate::error::Result<()> {
         for (name, metadata, child) in &mut self.children {
             match child {
                 None => continue,
@@ -116,7 +105,7 @@ impl DirectoryContainer {
             };
         }
 
-        Err(error::Status::NoEntry)
+        Err(crate::error::Status::NoEntry)
     }
 
     pub fn set_drive_number(&mut self, number: isize) {
@@ -162,15 +151,15 @@ impl DirectoryContainer {
     pub fn open_directory(
         &mut self,
         name: &str,
-        self_box: &DirectoryBox,
-    ) -> error::Result<DirectoryBox> {
+        self_box: &DirectoryReference,
+    ) -> crate::error::Result<DirectoryReference> {
         for (sub_name, metadata, child) in &mut self.children {
             if sub_name != name {
                 continue;
             }
 
             if !metadata.is_directory() {
-                return Err(error::Status::NotDirectory);
+                return Err(crate::error::Status::NotDirectory);
             }
 
             match child {
@@ -180,10 +169,10 @@ impl DirectoryContainer {
                 },
                 None => {
                     let new_directory = self.directory.open_directory(name)?;
-                    let new_directory = Arc::new(Mutex::new(DirectoryContainer::new(
+                    let new_directory = DirectoryReference::new(DirectoryOwner::new(
                         new_directory,
                         Parent::Other(self_box.clone()),
-                    )?));
+                    )?);
                     *child = Some(Child::Directory(new_directory.clone()));
                     self.references += 1;
                     return Ok(new_directory);
@@ -191,10 +180,14 @@ impl DirectoryContainer {
             }
         }
 
-        Err(error::Status::NoEntry)
+        Err(crate::error::Status::NoEntry)
     }
 
-    pub fn open_file(&mut self, name: &str, self_box: &DirectoryBox) -> error::Result<FileBox> {
+    pub fn open_file(
+        &mut self,
+        name: &str,
+        self_box: &DirectoryReference,
+    ) -> crate::error::Result<FileReference> {
         for (sub_name, metadata, child) in &mut self.children {
             if sub_name != name {
                 continue;
@@ -213,8 +206,7 @@ impl DirectoryContainer {
                 },
                 None => {
                     let new_file = self.directory.open_file(name)?;
-                    let new_file =
-                        Arc::new(Mutex::new(FileContainer::new(new_file, self_box.clone())));
+                    let new_file = FileReference::new(FileOwner::new(new_file, self_box.clone()));
                     *child = Some(Child::File(new_file.clone()));
                     self.references += 1;
                     return Ok(new_file);
@@ -222,7 +214,7 @@ impl DirectoryContainer {
             }
         }
 
-        Err(error::Status::NoEntry)
+        Err(crate::error::Status::NoEntry)
     }
 
     pub fn open(&mut self) {
@@ -231,8 +223,8 @@ impl DirectoryContainer {
 
     pub fn close_directory(
         &mut self,
-        directory_arc_ptr: *const Mutex<DirectoryContainer>,
-        arc_ptr: *const Mutex<DirectoryContainer>,
+        directory_arc_ptr: *const Mutex<DirectoryOwner>,
+        arc_ptr: *const Mutex<DirectoryOwner>,
     ) {
         for (_, metadata, child) in &mut self.children {
             if !metadata.is_directory() {
@@ -242,7 +234,7 @@ impl DirectoryContainer {
             let test_ptr = match child {
                 None => continue,
                 Some(child) => Arc::as_ptr(match child {
-                    Child::Directory(dir) => dir,
+                    Child::Directory(dir) => dir.as_arc(),
                     Child::File(_) => panic!("Entry is file despite metadata saying directory"),
                 }),
             };
@@ -254,7 +246,7 @@ impl DirectoryContainer {
                     match &self.parent {
                         Parent::Root(_) => {}
                         Parent::Other(parent) => {
-                            let ptr = Arc::as_ptr(parent);
+                            let ptr = Arc::as_ptr(parent.as_arc());
                             parent.lock().close_directory(arc_ptr, ptr)
                         }
                     }
@@ -265,8 +257,8 @@ impl DirectoryContainer {
 
     pub fn close_file(
         &mut self,
-        file_arc_ptr: *const Mutex<FileContainer>,
-        arc_ptr: *const Mutex<DirectoryContainer>,
+        file_arc_ptr: *const Mutex<FileOwner>,
+        arc_ptr: *const Mutex<DirectoryOwner>,
     ) {
         for (_, metadata, child) in &mut self.children {
             if metadata.is_directory() {
@@ -276,7 +268,7 @@ impl DirectoryContainer {
             let test_ptr = match child {
                 None => continue,
                 Some(child) => Arc::as_ptr(match child {
-                    Child::File(file) => file,
+                    Child::File(file) => file.as_arc(),
                     Child::Directory(_) => {
                         panic!("Entry is directory despite metadata saying file")
                     }
@@ -290,7 +282,7 @@ impl DirectoryContainer {
                     match &self.parent {
                         Parent::Root(_) => {}
                         Parent::Other(parent) => {
-                            let ptr = Arc::as_ptr(parent);
+                            let ptr = Arc::as_ptr(parent.as_arc());
                             parent.lock().close_directory(arc_ptr, ptr);
                         }
                     }
@@ -301,13 +293,13 @@ impl DirectoryContainer {
         }
     }
 
-    pub fn close(&mut self, arc_ptr: *const Mutex<DirectoryContainer>) {
+    pub fn close(&mut self, arc_ptr: *const Mutex<DirectoryOwner>) {
         self.references -= 1;
         if self.references == 0 {
             match &self.parent {
                 Parent::Root(_) => {}
                 Parent::Other(parent) => {
-                    let ptr = Arc::as_ptr(parent);
+                    let ptr = Arc::as_ptr(parent.as_arc());
                     parent.lock().close_directory(arc_ptr, ptr);
                 }
             }
@@ -321,14 +313,14 @@ impl DirectoryContainer {
         }
     }
 
-    pub fn remove(&mut self, name: &str) -> error::Result<()> {
-        let mut status = error::Status::NoEntry;
+    pub fn remove(&mut self, name: &str) -> crate::error::Result<()> {
+        let mut status = crate::error::Status::NoEntry;
         let directory = &self.directory;
         self.children.retain(|(sub_name, metadata, child)| -> bool {
             if sub_name == name {
                 return match child {
                     Some(_) => {
-                        status = error::Status::InUse;
+                        status = crate::error::Status::InUse;
                         true
                     }
                     None => {
@@ -352,14 +344,14 @@ impl DirectoryContainer {
                             .len()
                                 != 0
                             {
-                                status = error::Status::NotEmpty;
+                                status = crate::error::Status::NotEmpty;
                                 return true;
                             }
                         }
 
                         // Remove on disk
                         status = match directory.remove(name) {
-                            Ok(()) => error::Status::Success,
+                            Ok(()) => crate::error::Status::Success,
                             Err(status) => status,
                         };
                         false
@@ -370,18 +362,18 @@ impl DirectoryContainer {
             true
         });
 
-        if status == error::Status::Success {
+        if status == crate::error::Status::Success {
             Ok(())
         } else {
             Err(status)
         }
     }
 
-    pub fn create_file(&mut self, filename: &str) -> error::Result<()> {
+    pub fn create_file(&mut self, filename: &str) -> crate::error::Result<()> {
         // Verify file does not exist
         for (sub_name, _, _) in &self.children {
             if sub_name == filename {
-                return Err(error::Status::Exists);
+                return Err(crate::error::Status::Exists);
             }
         }
 
@@ -392,11 +384,11 @@ impl DirectoryContainer {
         Ok(())
     }
 
-    pub fn create_directory(&mut self, directory_name: &str) -> error::Result<()> {
+    pub fn create_directory(&mut self, directory_name: &str) -> crate::error::Result<()> {
         // Verify directory does not exist
         for (sub_name, _, _) in &self.children {
             if sub_name == directory_name {
-                return Err(error::Status::Exists);
+                return Err(crate::error::Status::Exists);
             }
         }
 

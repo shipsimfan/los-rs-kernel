@@ -1,14 +1,13 @@
+use super::FileReference;
 use crate::{
     error,
     map::{Mappable, INVALID_ID},
 };
-
-use super::FileBox;
 use alloc::sync::Arc;
 
 pub struct FileDescriptor {
     id: isize,
-    file: FileBox,
+    file: FileReference,
     current_offset: usize,
     read: bool,
     write: bool,
@@ -21,7 +20,7 @@ pub enum SeekFrom {
 }
 
 impl FileDescriptor {
-    pub fn new(file: FileBox, read: bool, write: bool, starting_offset: usize) -> Self {
+    pub fn new(file: FileReference, read: bool, write: bool, starting_offset: usize) -> Self {
         file.lock().open();
         FileDescriptor {
             id: INVALID_ID,
@@ -106,7 +105,7 @@ impl Mappable for FileDescriptor {
 
 impl Drop for FileDescriptor {
     fn drop(&mut self) {
-        let ptr = Arc::as_ptr(&self.file);
+        let ptr = Arc::as_ptr(&self.file.as_arc());
         self.file.lock().close(ptr);
     }
 }

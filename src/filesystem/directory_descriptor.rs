@@ -1,16 +1,16 @@
-use super::{DirectoryBox, DirectoryEntry};
+use super::{DirectoryEntry, DirectoryReference};
 use crate::map::{Mappable, INVALID_ID};
 use alloc::{string::String, sync::Arc};
 
 #[derive(Clone)]
 pub struct DirectoryDescriptor {
     id: isize,
-    directory: DirectoryBox,
+    directory: DirectoryReference,
     iter: usize,
 }
 
 impl DirectoryDescriptor {
-    pub fn new(directory: DirectoryBox) -> Self {
+    pub fn new(directory: DirectoryReference) -> Self {
         directory.lock().open();
         DirectoryDescriptor {
             id: INVALID_ID,
@@ -19,7 +19,7 @@ impl DirectoryDescriptor {
         }
     }
 
-    pub fn get_directory(&self) -> DirectoryBox {
+    pub fn get_directory(&self) -> DirectoryReference {
         self.directory.clone()
     }
 
@@ -53,7 +53,7 @@ impl Mappable for DirectoryDescriptor {
 
 impl Drop for DirectoryDescriptor {
     fn drop(&mut self) {
-        let ptr = Arc::as_ptr(&self.directory);
+        let ptr = Arc::as_ptr(&self.directory.as_arc());
         self.directory.lock().close(ptr);
     }
 }

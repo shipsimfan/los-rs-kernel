@@ -1,6 +1,6 @@
-use super::{Directory, DirectoryBox, DirectoryContainer, Parent};
-use crate::{device::DeviceBox, error, locks::Mutex, map::*};
-use alloc::{boxed::Box, string::String, sync::Arc};
+use super::{Directory, DirectoryOwner, DirectoryReference, Parent};
+use crate::{device::DeviceBox, error, map::*};
+use alloc::{boxed::Box, string::String};
 
 pub type DetectFilesystemFunction =
     fn(drive: DeviceBox, start: usize, size: usize) -> error::Result<Option<FilesystemStarter>>;
@@ -13,22 +13,22 @@ pub struct FilesystemStarter {
 pub struct Filesystem {
     number: isize,
     _volume_name: String,
-    root_directory: DirectoryBox,
+    root_directory: DirectoryReference,
 }
 
 impl Filesystem {
     pub fn new(filesystem_starter: FilesystemStarter) -> error::Result<Self> {
         Ok(Filesystem {
             number: INVALID_ID,
-            root_directory: Arc::new(Mutex::new(DirectoryContainer::new(
+            root_directory: DirectoryReference::new(DirectoryOwner::new(
                 filesystem_starter.root_directory,
                 Parent::Root(INVALID_ID),
-            )?)),
+            )?),
             _volume_name: filesystem_starter.volume_name,
         })
     }
 
-    pub fn root_directory(&self) -> &DirectoryBox {
+    pub fn root_directory(&self) -> &DirectoryReference {
         &self.root_directory
     }
 }
