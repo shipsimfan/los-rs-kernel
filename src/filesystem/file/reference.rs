@@ -10,8 +10,8 @@ impl FileReference {
         FileReference(Arc::new(Mutex::new(file)))
     }
 
-    pub fn as_arc(&self) -> &Arc<Mutex<FileOwner>> {
-        &self.0
+    pub fn as_ptr(&self) -> *const Mutex<FileOwner> {
+        Arc::as_ptr(&self.0)
     }
 
     pub fn lock(&self) -> MutexGuard<FileOwner> {

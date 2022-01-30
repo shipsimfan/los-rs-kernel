@@ -1,6 +1,6 @@
 use super::File;
 use crate::{filesystem::directory::DirectoryReference, locks::Mutex};
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 
 pub struct FileOwner {
     parent: DirectoryReference,
@@ -37,7 +37,7 @@ impl FileOwner {
     pub fn close(&mut self, arc_ptr: *const Mutex<FileOwner>) {
         self.references -= 1;
         if self.references == 0 {
-            let ptr = Arc::as_ptr(self.parent.as_arc());
+            let ptr = self.parent.as_ptr();
             self.parent.lock().close_file(arc_ptr, ptr);
         }
     }

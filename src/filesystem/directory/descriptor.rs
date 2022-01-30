@@ -1,6 +1,6 @@
 use super::{DirectoryReference, Entry};
 use crate::map::{Mappable, INVALID_ID};
-use alloc::{string::String, sync::Arc};
+use alloc::string::String;
 
 #[derive(Clone)]
 pub struct Descriptor {
@@ -53,7 +53,7 @@ impl Mappable for Descriptor {
 
 impl Drop for Descriptor {
     fn drop(&mut self) {
-        let ptr = Arc::as_ptr(&self.directory.as_arc());
+        let ptr = self.directory.as_ptr();
         self.directory.lock().close(ptr);
     }
 }

@@ -3,7 +3,6 @@ use crate::{
     error,
     map::{Mappable, INVALID_ID},
 };
-use alloc::sync::Arc;
 
 pub struct Descriptor {
     id: isize,
@@ -105,7 +104,7 @@ impl Mappable for Descriptor {
 
 impl Drop for Descriptor {
     fn drop(&mut self) {
-        let ptr = Arc::as_ptr(&self.file.as_arc());
+        let ptr = self.file.as_ptr();
         self.file.lock().close(ptr);
     }
 }

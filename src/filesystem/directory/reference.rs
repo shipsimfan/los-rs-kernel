@@ -10,8 +10,8 @@ impl DirectoryReference {
         DirectoryReference(Arc::new(Mutex::new(directory)))
     }
 
-    pub fn as_arc(&self) -> &Arc<Mutex<DirectoryOwner>> {
-        &self.0
+    pub fn as_ptr(&self) -> *const Mutex<DirectoryOwner> {
+        Arc::as_ptr(&self.0)
     }
 
     pub fn lock(&self) -> MutexGuard<DirectoryOwner> {

@@ -3,7 +3,7 @@ use crate::{
     filesystem::{FileOwner, FileReference, Metadata},
     locks::Mutex,
 };
-use alloc::{borrow::ToOwned, boxed::Box, format, string::String, sync::Arc, vec::Vec};
+use alloc::{borrow::ToOwned, boxed::Box, format, string::String, vec::Vec};
 use core::ffi::c_void;
 
 pub enum Parent {
@@ -233,10 +233,10 @@ impl DirectoryOwner {
 
             let test_ptr = match child {
                 None => continue,
-                Some(child) => Arc::as_ptr(match child {
-                    Child::Directory(dir) => dir.as_arc(),
+                Some(child) => match child {
+                    Child::Directory(dir) => dir.as_ptr(),
                     Child::File(_) => panic!("Entry is file despite metadata saying directory"),
-                }),
+                },
             };
 
             if test_ptr == directory_arc_ptr {
@@ -246,7 +246,7 @@ impl DirectoryOwner {
                     match &self.parent {
                         Parent::Root(_) => {}
                         Parent::Other(parent) => {
-                            let ptr = Arc::as_ptr(parent.as_arc());
+                            let ptr = parent.as_ptr();
                             parent.lock().close_directory(arc_ptr, ptr)
                         }
                     }
@@ -267,12 +267,12 @@ impl DirectoryOwner {
 
             let test_ptr = match child {
                 None => continue,
-                Some(child) => Arc::as_ptr(match child {
-                    Child::File(file) => file.as_arc(),
+                Some(child) => match child {
+                    Child::File(file) => file.as_ptr(),
                     Child::Directory(_) => {
                         panic!("Entry is directory despite metadata saying file")
                     }
-                }),
+                },
             };
 
             if test_ptr == file_arc_ptr {
@@ -282,7 +282,7 @@ impl DirectoryOwner {
                     match &self.parent {
                         Parent::Root(_) => {}
                         Parent::Other(parent) => {
-                            let ptr = Arc::as_ptr(parent.as_arc());
+                            let ptr = parent.as_ptr();
                             parent.lock().close_directory(arc_ptr, ptr);
                         }
                     }
@@ -299,7 +299,7 @@ impl DirectoryOwner {
             match &self.parent {
                 Parent::Root(_) => {}
                 Parent::Other(parent) => {
-                    let ptr = Arc::as_ptr(parent.as_arc());
+                    let ptr = parent.as_ptr();
                     parent.lock().close_directory(arc_ptr, ptr);
                 }
             }
