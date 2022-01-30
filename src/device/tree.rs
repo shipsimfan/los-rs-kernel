@@ -1,10 +1,10 @@
-use super::DeviceBox;
+use super::DeviceReference;
 use crate::error;
 use alloc::{string::String, vec::Vec};
 
 struct Container {
     pub name: String,
-    pub device: DeviceBox,
+    pub device: DeviceReference,
     pub children: Vec<Container>,
 }
 
@@ -45,7 +45,7 @@ impl Tree {
         }
     }
 
-    pub fn register_device(&mut self, path: &str, device: DeviceBox) -> error::Result<()> {
+    pub fn register_device(&mut self, path: &str, device: DeviceReference) -> error::Result<()> {
         match parse_path(path) {
             Err(err) => Err(err),
             Ok((path_parts, name)) => {
@@ -101,7 +101,7 @@ impl Tree {
         }
     }
 
-    pub fn get_device(&mut self, path: &str) -> error::Result<DeviceBox> {
+    pub fn get_device(&mut self, path: &str) -> error::Result<DeviceReference> {
         let (path_parts, name) = parse_path(path)?;
 
         let mut current_device = &self.root_devices;

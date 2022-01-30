@@ -1,12 +1,12 @@
 use crate::{
-    device::{self, DeviceBox},
+    device::{self, DeviceReference},
     error,
     locks::Mutex,
     process,
 };
 use core::arch::asm;
 
-static SYSTEM_TIMER: Mutex<Option<DeviceBox>> = Mutex::new(None);
+static SYSTEM_TIMER: Mutex<Option<DeviceReference>> = Mutex::new(None);
 static mut SYSTEM_TIME: usize = 0;
 
 static mut EPOCH_TIME: isize = 0;

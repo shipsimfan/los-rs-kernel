@@ -1,13 +1,12 @@
 use super::constants::*;
 use crate::{
-    device::{self, Device, DeviceBox},
+    device::{self, Device, DeviceReference},
     error,
-    locks::Mutex,
 };
-use alloc::{boxed::Box, format, string::String, sync::Arc};
+use alloc::{boxed::Box, format, string::String};
 
 pub struct ATAPI {
-    _controller: DeviceBox,
+    _controller: DeviceReference,
     _channel: Channel,
     _drive: Drive,
     _capabilities: u16,
@@ -31,13 +30,13 @@ impl ATAPI {
 
         device::register_device(
             &path,
-            Arc::new(Mutex::new(Box::new(ATAPI {
+            DeviceReference::new(Box::new(ATAPI {
                 _controller: controller,
                 _channel: channel,
                 _drive: drive,
                 _capabilities: capabilities,
                 size: size,
-            }))),
+            })),
         )
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    device::{self, DeviceBox},
+    device::{self, DeviceReference},
     error,
     locks::Mutex,
     map::Map,
@@ -220,7 +220,7 @@ pub fn create_directory(path: &str) -> error::Result<()> {
     parent_directory.create_directory(directory_name)
 }
 
-fn detect_filesystem(drive: DeviceBox, start: usize, size: usize) -> error::Result<()> {
+fn detect_filesystem(drive: DeviceReference, start: usize, size: usize) -> error::Result<()> {
     let drivers = FILESYSTEM_DRIVERS.lock();
 
     for filesystem in drivers.deref() {

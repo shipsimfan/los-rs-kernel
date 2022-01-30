@@ -1,11 +1,9 @@
 use crate::{
-    device::{self, acpi, Device},
-    error, interrupts,
-    locks::Mutex,
-    log, logln,
+    device::{self, acpi, Device, DeviceReference},
+    error, interrupts, log, logln,
     memory::KERNEL_VMA,
 };
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 
 struct HPET;
 
@@ -73,7 +71,7 @@ pub fn initialize() {
     }
 
     // Create and register the timer device
-    if device::register_device("/hpet", Arc::new(Mutex::new(Box::new(HPET {})))).is_err() {
+    if device::register_device("/hpet", DeviceReference::new(Box::new(HPET {}))).is_err() {
         logln!("Failed to register HPET device!");
         return;
     }

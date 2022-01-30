@@ -1,4 +1,4 @@
-use crate::{device::DeviceBox, error, filesystem::FilesystemStarter, locks::Mutex};
+use crate::{device::DeviceReference, error, filesystem::FilesystemStarter, locks::Mutex};
 use alloc::{
     boxed::Box,
     string::{String, ToString},
@@ -12,7 +12,7 @@ mod file;
 const SECTOR_SIZE: usize = 512;
 
 pub fn detect_fat32_filesystem(
-    drive_lock: DeviceBox,
+    drive_lock: DeviceReference,
     start: usize,
     _: usize,
 ) -> error::Result<Option<FilesystemStarter>> {

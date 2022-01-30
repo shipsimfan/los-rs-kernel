@@ -1,10 +1,8 @@
-use alloc::{boxed::Box, format, sync::Arc};
+use alloc::{boxed::Box, format};
 
 use crate::{
-    device::{self, inb, outb, Device, DeviceBox},
-    error, interrupts,
-    locks::Mutex,
-    logln, process,
+    device::{self, inb, outb, Device, DeviceReference},
+    error, interrupts, logln, process,
     session::{self},
     time,
 };
@@ -16,7 +14,7 @@ pub struct Controller {
     port_irq: [bool; 2],
     initializing: [bool; 2],
     port_data: [u8; 2],
-    devices: [Option<DeviceBox>; 2],
+    devices: [Option<DeviceReference>; 2],
 }
 
 pub const REGISTER_DATA: u16 = 0x60;
@@ -308,11 +306,9 @@ impl Controller {
                 }
             };
 
-            let keyboard: DeviceBox = Arc::new(Mutex::new(Box::new(keyboard::Keyboard::new(
-                self,
-                port,
-                current_session,
-            )?)));
+            let keyboard: DeviceReference = DeviceReference::new(Box::new(
+                keyboard::Keyboard::new(self, port, current_session)?,
+            ));
             let path = format!("/ps2/{}", port);
             device::register_device(&path, keyboard.clone())?;
             self.devices[port] = Some(keyboard);

@@ -1,8 +1,8 @@
 use super::Event;
-use crate::{device::DeviceBox, error, queue::Queue};
+use crate::{device::DeviceReference, error, queue::Queue};
 
 pub struct Console {
-    output_device: DeviceBox,
+    output_device: DeviceReference,
     event_queue: Queue<Event>,
 }
 
@@ -31,7 +31,7 @@ pub const IOCTRL_GET_WIDTH: usize = 6;
 pub const IOCTRL_GET_HEIGHT: usize = 7;
 
 impl Console {
-    pub fn new(output_device: DeviceBox) -> error::Result<Self> {
+    pub fn new(output_device: DeviceReference) -> error::Result<Self> {
         //output_device.lock().ioctrl(IOCTRL_CLEAR, 0)?;
 
         Ok(Console {

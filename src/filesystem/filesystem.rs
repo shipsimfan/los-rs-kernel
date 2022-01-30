@@ -1,9 +1,12 @@
 use super::{Directory, DirectoryOwner, DirectoryReference, Parent};
-use crate::{device::DeviceBox, error, map::*};
+use crate::{device::DeviceReference, error, map::*};
 use alloc::{boxed::Box, string::String};
 
-pub type DetectFilesystemFunction =
-    fn(drive: DeviceBox, start: usize, size: usize) -> error::Result<Option<FilesystemStarter>>;
+pub type DetectFilesystemFunction = fn(
+    drive: DeviceReference,
+    start: usize,
+    size: usize,
+) -> error::Result<Option<FilesystemStarter>>;
 
 pub struct FilesystemStarter {
     volume_name: String,

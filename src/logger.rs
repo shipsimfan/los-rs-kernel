@@ -1,10 +1,10 @@
 use crate::{
-    device::{get_device, DeviceBox},
+    device::{get_device, DeviceReference},
     locks::Mutex,
 };
 use core::fmt::{self, Write};
 
-struct BootVideoLogger(DeviceBox);
+struct BootVideoLogger(DeviceReference);
 
 static BOOT_VIDEO_LOGGER: Mutex<Option<BootVideoLogger>> = Mutex::new(None);
 

@@ -1,4 +1,4 @@
-use crate::{device::DeviceBox, error, locks::Mutex};
+use crate::{device::DeviceReference, error, locks::Mutex};
 use alloc::{sync::Arc, vec::Vec};
 
 pub type FATBox = Arc<Mutex<FAT>>;
@@ -11,7 +11,7 @@ pub enum ClusterState {
 }
 
 pub struct FAT {
-    drive: DeviceBox,
+    drive: DeviceReference,
     sectors_per_cluster: u32,
     bytes_per_cluster: usize,
     num_fats: usize,
@@ -27,7 +27,7 @@ pub struct FAT {
 
 impl FAT {
     pub fn new(
-        drive: DeviceBox,
+        drive: DeviceReference,
         sectors_per_cluster: u8,
         reserved_sector_count: u16,
         num_fats: u8,

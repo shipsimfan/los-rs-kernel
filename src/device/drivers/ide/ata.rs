@@ -2,14 +2,13 @@ use core::u8;
 
 use super::{constants::*, controller};
 use crate::{
-    device::{self, Device, DeviceBox},
+    device::{self, Device, DeviceReference},
     error,
-    locks::Mutex,
 };
-use alloc::{boxed::Box, format, string::String, sync::Arc};
+use alloc::{boxed::Box, format, string::String};
 
 pub struct ATA {
-    controller: DeviceBox,
+    controller: DeviceReference,
     channel: Channel,
     drive: Drive,
     capabilities: u16,
@@ -33,13 +32,13 @@ impl ATA {
 
         device::register_device(
             &path,
-            Arc::new(Mutex::new(Box::new(ATA {
+            DeviceReference::new(Box::new(ATA {
                 controller: controller,
                 channel: channel,
                 drive: drive,
                 capabilities: capabilities,
                 size: size,
-            }))),
+            })),
         )
     }
 }

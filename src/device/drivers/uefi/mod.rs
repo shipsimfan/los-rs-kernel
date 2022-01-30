@@ -1,11 +1,10 @@
 use crate::{
     bootloader,
-    device::{Device, DeviceBox},
+    device::{Device, DeviceReference},
     error,
-    locks::Mutex,
     session::console::{self, Color},
 };
-use alloc::{boxed::Box, str, sync::Arc};
+use alloc::{boxed::Box, str};
 use framebuffer::Framebuffer;
 
 mod font;
@@ -28,7 +27,7 @@ pub fn initialize(gmode: *const bootloader::GraphicsMode) {
     let mut framebuffer = Framebuffer::new(gmode);
     framebuffer.clear(0);
 
-    let console: DeviceBox = Arc::new(Mutex::new(Box::new(UEFIConsole {
+    let console = DeviceReference::new(Box::new(UEFIConsole {
         width: framebuffer.width() / 8,
         height: framebuffer.height() / 16,
         framebuffer: framebuffer,
@@ -39,7 +38,7 @@ pub fn initialize(gmode: *const bootloader::GraphicsMode) {
         dim: false,
         strikethrough: false,
         underline: false,
-    })));
+    }));
 
     crate::device::register_device("/boot_video", console)
         .expect("Failed to register UEFI boot video console!");

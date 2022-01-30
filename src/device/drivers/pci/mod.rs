@@ -1,8 +1,6 @@
+use crate::{device::DeviceReference, error, log, logln};
+use alloc::boxed::Box;
 use core::convert::{TryFrom, TryInto};
-
-use alloc::{boxed::Box, sync::Arc};
-
-use crate::{error, locks::Mutex, log, logln};
 
 const ADDRESS_PORT: u16 = 0xCF8;
 const DATA_PORT: u16 = 0xCFC;
@@ -127,8 +125,7 @@ fn write_config_d(bus: u8, device: u8, function: u8, offset: Register, value: u3
 }
 
 fn check_pci_function(bus: u8, device: u8, function: u8) {
-    let new_device: Arc<Mutex<Box<dyn crate::device::Device>>> =
-        Arc::new(Mutex::new(Box::new(PCIDevice::new(bus, device, function))));
+    let new_device = DeviceReference::new(Box::new(PCIDevice::new(bus, device, function)));
 
     let class = read_config_b(bus, device, function, Register::Class);
     let sub_class = read_config_b(bus, device, function, Register::SubClass);
@@ -181,7 +178,7 @@ fn check_pci_bus(bus: u8) {
 pub fn initialize() {
     log!("Initializing PCI . . . ");
 
-    match crate::device::register_device("/pci", Arc::new(Mutex::new(Box::new(PCIBus {})))) {
+    match crate::device::register_device("/pci", DeviceReference::new(Box::new(PCIBus))) {
         Ok(()) => {}
         Err(error) => {
             logln!("Error while registering PCI bus: {}", error);

@@ -1,9 +1,8 @@
 use crate::{
-    device::{self, acpi, DeviceBox},
-    locks::Mutex,
+    device::{self, acpi, DeviceReference},
     log, logln,
 };
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 
 mod controller;
 mod keyboard;
@@ -22,7 +21,7 @@ pub fn initialize() {
     }
 
     // Create the controller
-    let controller: DeviceBox = Arc::new(Mutex::new(Box::new(controller::Controller::new())));
+    let controller: DeviceReference = DeviceReference::new(Box::new(controller::Controller::new()));
 
     // Register the controller
     match device::register_device("/ps2", controller.clone()) {

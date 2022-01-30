@@ -3,13 +3,11 @@ use crate::{
     device::{
         self,
         drivers::ide::constants::{IDE_PATH, PCI_IDE_PATH},
-        Device,
+        Device, DeviceReference,
     },
-    error, filesystem,
-    locks::Mutex,
-    log, logln,
+    error, filesystem, log, logln,
 };
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 
 mod ata;
 mod atapi;
@@ -51,9 +49,9 @@ pub fn initialize() {
     // Create and register the IDE Controller
     match device::register_device(
         IDE_PATH,
-        Arc::new(Mutex::new(Box::new(controller::IDEController::new(
+        DeviceReference::new(Box::new(controller::IDEController::new(
             bar0, bar1, bar2, bar3, bar4,
-        )))),
+        ))),
     ) {
         Ok(()) => {}
         Err(status) => return logln!("\nError while registering IDE controller: {}", status),
