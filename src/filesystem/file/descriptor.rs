@@ -5,7 +5,7 @@ use crate::{
 };
 use alloc::sync::Arc;
 
-pub struct FileDescriptor {
+pub struct Descriptor {
     id: isize,
     file: FileReference,
     current_offset: usize,
@@ -19,10 +19,10 @@ pub enum SeekFrom {
     End,
 }
 
-impl FileDescriptor {
+impl Descriptor {
     pub fn new(file: FileReference, read: bool, write: bool, starting_offset: usize) -> Self {
         file.lock().open();
-        FileDescriptor {
+        Descriptor {
             id: INVALID_ID,
             file: file,
             current_offset: starting_offset,
@@ -82,9 +82,9 @@ impl FileDescriptor {
     }
 }
 
-impl Clone for FileDescriptor {
+impl Clone for Descriptor {
     fn clone(&self) -> Self {
-        FileDescriptor::new(
+        Descriptor::new(
             self.file.clone(),
             self.read,
             self.write,
@@ -93,7 +93,7 @@ impl Clone for FileDescriptor {
     }
 }
 
-impl Mappable for FileDescriptor {
+impl Mappable for Descriptor {
     fn id(&self) -> isize {
         self.id
     }
@@ -103,7 +103,7 @@ impl Mappable for FileDescriptor {
     }
 }
 
-impl Drop for FileDescriptor {
+impl Drop for Descriptor {
     fn drop(&mut self) {
         let ptr = Arc::as_ptr(&self.file.as_arc());
         self.file.lock().close(ptr);

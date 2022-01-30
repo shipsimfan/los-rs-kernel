@@ -8,21 +8,18 @@ use crate::{
 use alloc::vec::Vec;
 use core::ops::Deref;
 
-mod directory;
-mod directory_descriptor;
-mod directory_entry;
 pub mod drivers;
+
+mod directory;
 mod file;
-mod file_descriptor;
 mod filesystem;
 mod metadata;
 
+pub use directory::Descriptor as DirectoryDescriptor;
+pub use directory::Entry as DirectoryEntry;
 pub use directory::{Directory, Parent};
-pub use directory_descriptor::DirectoryDescriptor;
-pub use directory_entry::DirectoryEntry;
-pub use file::File;
-pub use file_descriptor::FileDescriptor;
-pub use file_descriptor::SeekFrom;
+pub use file::Descriptor as FileDescriptor;
+pub use file::{File, SeekFrom};
 pub use metadata::Metadata;
 
 type DirectoryReference = directory::DirectoryReference;
