@@ -14,7 +14,7 @@ struct Block {
 }
 
 const SIGNATURE: usize = 0x71926360D3B6CF37;
-const HEAP_START_OFFSET: usize = 0x100000000000;
+pub const HEAP_START_OFFSET: usize = 0x100000000000;
 const HEAP_SIZE: usize = 0x100000000000;
 
 #[global_allocator]

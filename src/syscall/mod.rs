@@ -4,6 +4,7 @@ mod console;
 mod device;
 mod event;
 mod filesystem;
+mod memory;
 mod process;
 mod thread;
 mod time;
@@ -35,6 +36,8 @@ extern "C" fn system_call(
         time::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0x6000 && code <= 0x6FFF {
         device::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x7000 && code <= 0x7FFF {
+        memory::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
         error::Status::InvalidRequestCode.to_return_code()

@@ -153,7 +153,7 @@ pub fn system_call(
             }
         }
         _ => {
-            logln!("Invalid filesystem system call: {}", code);
+            logln!("Invalid device system call: {}", code);
             error::Status::InvalidRequestCode.to_return_code()
         }
     }

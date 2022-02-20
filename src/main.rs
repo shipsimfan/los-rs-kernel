@@ -42,10 +42,11 @@ pub extern "C" fn kmain(
     device::drivers::uefi::initialize(gmode); // Also initializes the UEFI console as logger output
 
     logln!("Booting Lance OS version {} . . . ", VERSION);
+    let memory_usage = memory::get_memory_usage();
     logln!(
         "{} / {} MB of RAM available",
-        memory::get_free_memory() / 1024 / 1024,
-        memory::get_total_memory() / 1024 / 1024
+        memory_usage.free_memory() / 1024 / 1024,
+        memory_usage.available_memory() / 1024 / 1024
     );
     logln!();
 

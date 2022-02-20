@@ -159,6 +159,14 @@ impl AddressSpace {
             panic!("Address space should be a physical address!");
         }
 
+        if user {
+            super::MEMORY_USAGE.lock().userspace_pages += 1;
+        }
+
+        if virtual_address > super::heap::HEAP_START_OFFSET + KERNEL_VMA {
+            super::MEMORY_USAGE.lock().kernel_heap_pages += 1;
+        }
+
         unsafe {
             // Check PDPT
             let pml4 = (self.0 + KERNEL_VMA) as *mut PML4;
@@ -287,6 +295,14 @@ impl PhysicalDrop for Page {
         let addr = self as *const _ as usize - KERNEL_VMA;
         for i in self {
             *i = 0;
+        }
+
+        if addr < KERNEL_VMA {
+            super::MEMORY_USAGE.lock().userspace_pages -= 1;
+        }
+
+        if addr >= KERNEL_VMA + super::heap::HEAP_START_OFFSET {
+            super::MEMORY_USAGE.lock().userspace_pages -= 1;
         }
 
         physical::free(addr);

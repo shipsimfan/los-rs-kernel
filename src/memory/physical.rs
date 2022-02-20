@@ -93,22 +93,19 @@ pub unsafe fn initialize(mmap: *const bootloader::MemoryMap) {
 
         i += PAGE_SIZE;
     }
+
+    super::MEMORY_USAGE.lock().available_pages = BITMAP.total_pages;
+    super::MEMORY_USAGE.lock().free_pages = BITMAP.free_pages;
 }
 
 pub unsafe fn allocate() -> PhysicalAddress {
+    super::MEMORY_USAGE.lock().free_pages -= 1;
     BITMAP.allocate()
 }
 
 pub unsafe fn free(address: PhysicalAddress) {
+    super::MEMORY_USAGE.lock().free_pages += 1;
     BITMAP.free(address);
-}
-
-pub fn get_num_free_pages() -> usize {
-    unsafe { BITMAP.free_pages }
-}
-
-pub fn get_num_total_pages() -> usize {
-    unsafe { BITMAP.total_pages }
 }
 
 impl Bitmap {

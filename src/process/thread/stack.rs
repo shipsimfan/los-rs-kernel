@@ -1,3 +1,5 @@
+use crate::memory;
+
 pub struct Stack {
     stack: &'static mut [u8],
     top: usize,
@@ -12,6 +14,8 @@ impl Stack {
     pub fn new() -> Self {
         let stack = unsafe { alloc::alloc::alloc_zeroed(KERNEL_STACK_LAYOUT) };
         let stack = unsafe { core::slice::from_raw_parts_mut(stack, KERNEL_STACK_LAYOUT.size()) };
+
+        memory::allocate_kernel_stack(KERNEL_STACK_SIZE);
 
         // Set the kernel stack pointer appropriately
         let top = stack.as_ptr() as usize + KERNEL_STACK_SIZE;
@@ -40,6 +44,7 @@ impl Stack {
 
 impl Drop for Stack {
     fn drop(&mut self) {
+        memory::free_kernel_stack(KERNEL_STACK_SIZE);
         unsafe { alloc::alloc::dealloc(self.stack.as_mut_ptr(), KERNEL_STACK_LAYOUT) };
     }
 }
