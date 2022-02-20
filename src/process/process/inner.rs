@@ -1,5 +1,6 @@
 use super::ProcessOwner;
 use crate::{
+    device::DeviceReference,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
     locks::{Mutex, MutexGuard},
@@ -17,6 +18,8 @@ use alloc::sync::Arc;
 #[derive(Clone)]
 pub struct Container<T: Mappable>(Arc<Mutex<T>>);
 
+pub struct DeviceDescriptor(DeviceReference, isize);
+
 pub struct ProcessInner {
     id: isize,
     threads: Map<ThreadReference>,
@@ -25,6 +28,7 @@ pub struct ProcessInner {
     exit_queue: ThreadQueue,
     file_descriptors: Map<Container<FileDescriptor>>,
     directory_descriptors: Map<Container<DirectoryDescriptor>>,
+    device_descriptors: Map<DeviceDescriptor>,
     current_working_directory: Option<DirectoryDescriptor>,
     process_time: isize,
 }
@@ -42,6 +46,7 @@ impl ProcessInner {
             exit_queue: ThreadQueue::new(),
             file_descriptors: Map::new(),
             directory_descriptors: Map::new(),
+            device_descriptors: Map::new(),
             current_working_directory,
             process_time: 0,
         }
@@ -146,6 +151,23 @@ impl ProcessInner {
         self.directory_descriptors.remove(dd);
     }
 
+    pub fn open_device(&mut self, device: DeviceReference) -> error::Result<isize> {
+        Ok(self
+            .device_descriptors
+            .insert(DeviceDescriptor(device, INVALID_ID)))
+    }
+
+    pub fn close_device(&mut self, dd: isize) {
+        self.device_descriptors.remove(dd);
+    }
+
+    pub fn get_device(&self, dd: isize) -> error::Result<DeviceReference> {
+        match self.device_descriptors.get(dd) {
+            None => Err(error::Status::BadDescriptor),
+            Some(device_descriptor) => Ok(device_descriptor.0.clone()),
+        }
+    }
+
     pub fn get_time(&self) -> isize {
         self.process_time
     }
@@ -196,5 +218,15 @@ impl<T: Mappable> Mappable for Container<T> {
 
     fn set_id(&mut self, id: isize) {
         self.0.lock().set_id(id)
+    }
+}
+
+impl Mappable for DeviceDescriptor {
+    fn set_id(&mut self, id: isize) {
+        self.1 = id;
+    }
+
+    fn id(&self) -> isize {
+        self.1
     }
 }

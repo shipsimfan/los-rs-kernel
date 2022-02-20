@@ -1,6 +1,7 @@
 use crate::{error, logln, memory::KERNEL_VMA};
 
 mod console;
+mod device;
 mod event;
 mod filesystem;
 mod process;
@@ -32,6 +33,8 @@ extern "C" fn system_call(
         event::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0x5000 && code <= 0x5FFF {
         time::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x6000 && code <= 0x6FFF {
+        device::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
         error::Status::InvalidRequestCode.to_return_code()
@@ -39,11 +42,11 @@ extern "C" fn system_call(
 }
 
 // Argument translation functions
-fn to_slice_mut(ptr: usize, len: usize) -> error::Result<&'static mut [u8]> {
+fn to_slice_mut<T>(ptr: usize, len: usize) -> error::Result<&'static mut [T]> {
     if ptr >= KERNEL_VMA || ptr + len >= KERNEL_VMA {
         Err(error::Status::ArgumentSecurity)
     } else {
-        Ok(unsafe { core::slice::from_raw_parts_mut(ptr as *mut u8, len) })
+        Ok(unsafe { core::slice::from_raw_parts_mut(ptr as *mut T, len) })
     }
 }
 

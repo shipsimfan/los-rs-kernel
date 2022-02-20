@@ -1,4 +1,5 @@
 use crate::{error, locks::Mutex};
+use alloc::{string::String, vec::Vec};
 use core::arch::asm;
 
 pub mod acpi;
@@ -23,6 +24,10 @@ pub fn remove_device(path: &str) {
 
 pub fn get_device(path: &str) -> error::Result<DeviceReference> {
     DEVICE_TREE.lock().get_device(path)
+}
+
+pub fn get_children(path: &str) -> error::Result<Vec<String>> {
+    DEVICE_TREE.lock().get_children(path)
 }
 
 pub fn outb(port: u16, data: u8) {

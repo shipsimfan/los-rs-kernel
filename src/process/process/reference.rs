@@ -92,6 +92,23 @@ impl ProcessReference {
         }
     }
 
+    pub fn open_device(&self, path: &str) -> crate::error::Result<isize> {
+        // Open device
+        let device = crate::device::get_device(path)?;
+
+        match self.0.upgrade() {
+            Some(process) => process.lock().open_device(device),
+            None => Err(crate::error::Status::NoProcess),
+        }
+    }
+
+    pub fn close_device(&self, dd: isize) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().close_device(dd),
+            None => {}
+        }
+    }
+
     pub fn get_exit_queue(&self) -> Option<CurrentQueue> {
         match self.0.upgrade() {
             Some(process) => Some(process.lock().get_exit_queue()),

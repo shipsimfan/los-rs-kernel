@@ -1,6 +1,6 @@
 use super::DeviceReference;
 use crate::error;
-use alloc::{string::String, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
 struct Container {
     pub name: String,
@@ -102,6 +102,27 @@ impl Tree {
     }
 
     pub fn get_device(&mut self, path: &str) -> error::Result<DeviceReference> {
+        self.get_container(path)
+            .map(|container| container.device.clone())
+    }
+
+    pub fn get_children(&self, path: &str) -> error::Result<Vec<String>> {
+        if path == "" {
+            Ok(self.get_root_devices())
+        } else {
+            let device = self.get_container(path)?;
+
+            let mut children = Vec::with_capacity(device.children.len());
+
+            for child in &device.children {
+                children.push(child.name.to_owned())
+            }
+
+            Ok(children)
+        }
+    }
+
+    fn get_container(&self, path: &str) -> error::Result<&Container> {
         let (path_parts, name) = parse_path(path)?;
 
         let mut current_device = &self.root_devices;
@@ -118,10 +139,19 @@ impl Tree {
 
         for device in current_device {
             if device.name == name {
-                return Ok(device.device.clone());
+                return Ok(&device);
             }
         }
 
         Err(error::Status::NoDevice)
+    }
+
+    fn get_root_devices(&self) -> Vec<String> {
+        let mut ret = Vec::with_capacity(self.root_devices.len());
+        for device in &self.root_devices {
+            ret.push(device.name.clone())
+        }
+
+        ret
     }
 }
