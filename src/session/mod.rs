@@ -6,7 +6,11 @@ use crate::{
     map::{Map, Mappable, INVALID_ID},
     process::{self, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner},
 };
-use alloc::{string::ToString, sync::Arc, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 
 pub mod console;
 
@@ -68,14 +72,19 @@ impl Session {
         entry: usize,
         context: usize,
         working_directory: Option<DirectoryDescriptor>,
+        name: String,
     ) -> ThreadOwner {
-        let new_process = ProcessOwner::new(Some(self.id), working_directory);
+        let new_process = ProcessOwner::new(Some(self.id), working_directory, name);
         self.processes.insert(new_process.reference());
         new_process.create_thread(entry, context)
     }
 
     pub fn get_process(&self, pid: isize) -> Option<ProcessReference> {
         self.processes.get(pid).map(|reference| reference.clone())
+    }
+
+    pub fn get_processes(&self) -> Vec<isize> {
+        self.processes.ids()
     }
 
     pub fn remove_process(&mut self, id: isize) {

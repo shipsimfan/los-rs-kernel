@@ -22,7 +22,7 @@ pub fn system_call(
             0
         }
         _ => {
-            logln!("Invalid device system call: {}", code);
+            logln!("Invalid memory system call: {}", code);
             error::Status::InvalidRequestCode.to_return_code()
         }
     }

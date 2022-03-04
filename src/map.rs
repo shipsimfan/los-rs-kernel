@@ -85,7 +85,8 @@ impl<T: Mappable> Map<T> {
         let hash = (key % HASH_SIZE) as usize;
         let mut decrement = 0;
         self.data[hash].retain(|value| -> bool {
-            if key != value.id() {
+            let id = value.id();
+            if key != id && id != INVALID_ID {
                 true
             } else {
                 decrement += 1;
@@ -140,5 +141,16 @@ impl<T: Mappable> Map<T> {
 
     pub fn count(&self) -> usize {
         self.count
+    }
+
+    pub fn ids(&self) -> Vec<isize> {
+        let mut ret = Vec::with_capacity(self.count);
+        for arr in &self.data {
+            for val in arr {
+                ret.push(val.id())
+            }
+        }
+
+        ret
     }
 }

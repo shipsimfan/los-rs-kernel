@@ -4,7 +4,7 @@ use crate::{
     filesystem::DirectoryDescriptor,
     process::ThreadOwner,
 };
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc};
 
 #[derive(Clone)]
 pub struct ProcessOwner(Arc<CriticalLock<ProcessInner>>);
@@ -13,10 +13,12 @@ impl ProcessOwner {
     pub fn new(
         session_id: Option<isize>,
         current_working_directory: Option<DirectoryDescriptor>,
+        name: String,
     ) -> Self {
         ProcessOwner(Arc::new(CriticalLock::new(ProcessInner::new(
             session_id,
             current_working_directory,
+            name,
         ))))
     }
 

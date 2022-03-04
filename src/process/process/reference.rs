@@ -1,5 +1,5 @@
 use super::{
-    inner::{Container, ProcessInner},
+    inner::{Container, ProcessInfo, ProcessInner},
     ProcessOwner,
 };
 use crate::{
@@ -155,6 +155,13 @@ impl ProcessReference {
         match self.0.upgrade() {
             Some(process) => process.lock().get_time(),
             None => 0,
+        }
+    }
+
+    pub fn get_process_info(&self) -> Option<ProcessInfo> {
+        match self.0.upgrade() {
+            Some(process) => Some(process.lock().get_process_info()),
+            None => None,
         }
     }
 

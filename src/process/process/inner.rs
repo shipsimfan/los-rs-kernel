@@ -13,7 +13,7 @@ use crate::{
     },
     session::get_session_mut,
 };
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc};
 
 #[derive(Clone)]
 pub struct Container<T: Mappable>(Arc<Mutex<T>>);
@@ -31,12 +31,23 @@ pub struct ProcessInner {
     device_descriptors: Map<DeviceDescriptor>,
     current_working_directory: Option<DirectoryDescriptor>,
     process_time: isize,
+    name: String,
+}
+
+pub struct ProcessInfo {
+    pub num_threads: usize,
+    pub time: usize,
+    pub num_files: usize,
+    pub num_directories: usize,
+    pub working_directory: String,
+    pub name: String,
 }
 
 impl ProcessInner {
     pub fn new(
         session_id: Option<isize>,
         current_working_directory: Option<DirectoryDescriptor>,
+        name: String,
     ) -> Self {
         ProcessInner {
             id: INVALID_ID,
@@ -49,6 +60,7 @@ impl ProcessInner {
             device_descriptors: Map::new(),
             current_working_directory,
             process_time: 0,
+            name,
         }
     }
 
@@ -174,6 +186,22 @@ impl ProcessInner {
 
     pub fn increase_time(&mut self, amount: isize) {
         self.process_time += amount;
+    }
+
+    pub fn get_process_info(&self) -> ProcessInfo {
+        let working_directory = match &self.current_working_directory {
+            Some(dir) => dir.get_full_path(),
+            None => String::new(),
+        };
+
+        ProcessInfo {
+            num_threads: self.threads.count(),
+            time: self.process_time as usize,
+            num_files: self.file_descriptors.count(),
+            num_directories: self.directory_descriptors.count(),
+            working_directory,
+            name: self.name.clone(),
+        }
     }
 }
 

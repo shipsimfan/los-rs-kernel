@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 use super::{ProcessOwner, ProcessReference, ThreadOwner};
 use crate::{
     filesystem::DirectoryDescriptor,
@@ -11,8 +13,9 @@ pub fn create_process(
     entry: usize,
     context: usize,
     working_directory: Option<DirectoryDescriptor>,
+    name: String,
 ) -> ThreadOwner {
-    let new_process = ProcessOwner::new(None, working_directory);
+    let new_process = ProcessOwner::new(None, working_directory, name);
     let mut daemon_processes = DAEMON_PROCESSES.lock();
     daemon_processes.insert(new_process.reference());
     new_process.create_thread(entry, context)

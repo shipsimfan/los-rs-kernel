@@ -16,7 +16,7 @@ use crate::{
     memory::KERNEL_VMA,
     session::get_session_mut,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{arch::asm, usize};
 
 pub use process::*;
@@ -96,6 +96,8 @@ fn do_execute(
     // Load the executable
     let buffer = filesystem::read(filepath)?;
 
+    let name = filepath.split(&['/', '\\']).last().unwrap();
+
     // Parse the elf header
     let entry = loader::verify_executable(&buffer)?;
     if entry >= KERNEL_VMA {
@@ -135,6 +137,7 @@ fn do_execute(
                 entry,
                 USERSPACE_CONTEXT_LOCATION as usize,
                 Some(working_directory),
+                name.to_owned(),
             ),
             None => return Err(error::Status::InvalidSession),
         },
@@ -142,6 +145,7 @@ fn do_execute(
             entry,
             USERSPACE_CONTEXT_LOCATION as usize,
             Some(working_directory),
+            name.to_owned(),
         ),
     };
 
@@ -264,13 +268,18 @@ pub fn create_thread_raw(entry: usize, context: usize) -> isize {
     tid
 }
 
-pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDescriptor>) -> isize {
+pub fn create_process(
+    entry: ThreadFunc,
+    working_directory: Option<DirectoryDescriptor>,
+    name: String,
+) -> isize {
     match get_current_thread_option() {
         Some(current_thread) => {
             let current_process = current_thread.process().unwrap();
             match current_process.session_id() {
                 None => {
-                    let new_thread = daemon::create_process(entry as usize, 0, working_directory);
+                    let new_thread =
+                        daemon::create_process(entry as usize, 0, working_directory, name);
                     let pid = new_thread.process().id();
                     queue_thread(new_thread);
                     pid
@@ -281,6 +290,7 @@ pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDesc
                             entry as usize,
                             0,
                             working_directory,
+                            name,
                         );
                         let pid = new_thread.process().id();
                         queue_thread(new_thread);
@@ -291,7 +301,7 @@ pub fn create_process(entry: ThreadFunc, working_directory: Option<DirectoryDesc
             }
         }
         None => {
-            let new_thread = daemon::create_process(entry as usize, 0, working_directory);
+            let new_thread = daemon::create_process(entry as usize, 0, working_directory, name);
             let pid = new_thread.process().id();
             queue_thread(new_thread);
             pid

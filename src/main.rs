@@ -9,6 +9,8 @@
 #![feature(const_fn_trait_bound)]
 #![feature(trait_alias)]
 
+use alloc::borrow::ToOwned;
+
 mod bootloader;
 mod critical;
 mod device;
@@ -55,7 +57,7 @@ pub extern "C" fn kmain(
     interrupts::irq::initialize();
 
     log!("Creating kinit process . . . ");
-    process::create_process(kinit, None);
+    process::create_process(kinit, None, "kinit".to_owned());
     logln!("OK!");
     process::yield_thread(None, None);
 

@@ -6,6 +6,7 @@ mod event;
 mod filesystem;
 mod memory;
 mod process;
+mod session;
 mod thread;
 mod time;
 
@@ -38,6 +39,8 @@ extern "C" fn system_call(
         device::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0x7000 && code <= 0x7FFF {
         memory::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x8000 && code <= 0x8FFF {
+        session::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
         error::Status::InvalidRequestCode.to_return_code()
@@ -46,7 +49,7 @@ extern "C" fn system_call(
 
 // Argument translation functions
 fn to_slice_mut<T>(ptr: usize, len: usize) -> error::Result<&'static mut [T]> {
-    if ptr >= KERNEL_VMA || ptr + len >= KERNEL_VMA {
+    if ptr >= KERNEL_VMA || ptr + len * core::mem::size_of::<T>() >= KERNEL_VMA {
         Err(error::Status::ArgumentSecurity)
     } else {
         Ok(unsafe { core::slice::from_raw_parts_mut(ptr as *mut T, len) })
