@@ -1,6 +1,7 @@
 use super::{inner::ThreadInner, CurrentQueue};
 use crate::{
     critical::CriticalLock,
+    ipc::SignalHandler,
     map::{Mappable, INVALID_ID},
     process::ProcessReference,
 };
@@ -52,6 +53,20 @@ impl ThreadReference {
     pub fn set_tls_base(&self, new_tls_base: usize) {
         match self.0.upgrade() {
             Some(thread) => thread.lock().set_tls_base(new_tls_base),
+            None => {}
+        }
+    }
+
+    pub fn raise(&self, signal: u8) {
+        match self.0.upgrade() {
+            Some(thread) => thread.lock().raise(signal),
+            None => {}
+        }
+    }
+
+    pub fn set_signal_handler(&self, signal: u8, handler: SignalHandler) {
+        match self.0.upgrade() {
+            Some(thread) => thread.lock().set_signal_handler(signal, handler),
             None => {}
         }
     }

@@ -1,5 +1,6 @@
 use super::{queue::CurrentQueue, stack::Stack, ThreadFuncContext};
 use crate::{
+    ipc::{SignalHandler, Signals},
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
     process::{exit_thread, process::ProcessOwner, queue_thread, ProcessReference, ThreadQueue},
@@ -15,6 +16,7 @@ pub struct ThreadInner {
     queue_data: isize,
     exit_queue: ThreadQueue,
     tls_base: usize,
+    signals: Signals,
 }
 
 const FLOATING_POINT_STORAGE_SIZE: usize = 512;
@@ -36,7 +38,7 @@ extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
 }
 
 impl ThreadInner {
-    pub fn new(process: ProcessOwner, entry: usize, context: usize) -> Self {
+    pub fn new(process: ProcessOwner, entry: usize, context: usize, signals: Signals) -> Self {
         let mut kernel_stack = Stack::new();
         if entry >= KERNEL_VMA {
             kernel_stack.push(thread_enter_kernel as usize); // ret address
@@ -92,6 +94,7 @@ impl ThreadInner {
             queue_data: 0,
             exit_queue: ThreadQueue::new(),
             tls_base: 0,
+            signals,
         }
     }
 
@@ -153,6 +156,14 @@ impl ThreadInner {
 
     pub fn get_exit_queue(&mut self) -> CurrentQueue {
         self.exit_queue.into_current_queue()
+    }
+
+    pub fn raise(&mut self, signal: u8) {
+        self.signals.raise(signal);
+    }
+
+    pub fn set_signal_handler(&mut self, signal: u8, handler: SignalHandler) {
+        self.signals.set_handler(signal, handler);
     }
 
     pub unsafe fn pre_exit(&mut self, exit_status: isize) {

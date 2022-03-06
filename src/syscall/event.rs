@@ -1,4 +1,4 @@
-use crate::{error, event::CEvent, logln, process, session::get_session_mut};
+use crate::{error, event::CEvent, logln, process, session::get_session};
 
 const PEEK_EVENT_SYSCALL: usize = 0x4000;
 
@@ -18,7 +18,7 @@ pub fn system_call(
                     .unwrap()
                     .session_id()
                 {
-                    Some(session_id) => match get_session_mut(session_id) {
+                    Some(session_id) => match get_session(session_id) {
                         Some(session) => match session.lock().peek_event() {
                             None => 0,
                             Some(event) => {

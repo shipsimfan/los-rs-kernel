@@ -288,7 +288,7 @@ impl Controller {
         }
 
         if len == 0 {
-            let current_session = match session::get_session_mut(
+            let current_session = match session::get_session(
                 match process::get_current_thread()
                     .process()
                     .unwrap()

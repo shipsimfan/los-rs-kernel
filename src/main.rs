@@ -18,6 +18,7 @@ mod error;
 mod event;
 mod filesystem;
 mod interrupts;
+mod ipc;
 mod locks;
 mod logger;
 mod map;

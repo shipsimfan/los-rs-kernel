@@ -30,7 +30,7 @@ pub fn system_call(
             .unwrap()
             .session_id()
             .unwrap(),
-        GET_SESSION_PROCESSES_SYSCALL => match session::get_session_mut(arg1 as isize) {
+        GET_SESSION_PROCESSES_SYSCALL => match session::get_session(arg1 as isize) {
             Some(session) => {
                 let session = session.lock();
                 let processes = session.get_processes();
@@ -59,7 +59,7 @@ pub fn system_call(
             }
             None => error::Status::InvalidSession.to_return_code(),
         },
-        GET_PROCESS_INFO_SYSCALL => match session::get_session_mut(arg1 as isize) {
+        GET_PROCESS_INFO_SYSCALL => match session::get_session(arg1 as isize) {
             Some(session) => {
                 let output: *mut CProcessInfo = match super::to_ptr_mut(arg3) {
                     Ok(ptr) => ptr,

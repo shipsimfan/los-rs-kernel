@@ -11,14 +11,16 @@ use crate::{
     critical::{self, CriticalLock},
     error,
     filesystem::{self, open_directory, DirectoryDescriptor},
+    ipc::Signals,
     locks::Spinlock,
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
-    session::get_session_mut,
+    session::get_session,
 };
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{arch::asm, usize};
 
+pub use daemon::get_daemon_process;
 pub use process::*;
 pub use queue::ThreadQueue;
 pub use thread::*;
@@ -107,37 +109,43 @@ fn do_execute(
     // Get the current process
     let current_process = get_current_thread().process().unwrap();
 
-    // Figure out working directory
-    let working_directory = {
+    // Figure out working directory & signals
+    let (working_directory, signals) = {
         let process_lock = current_process.upgrade().unwrap();
         let mut process = process_lock.lock();
-        match process.current_working_directory() {
-            None => {
-                let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
-                iter.next_back();
+        (
+            match process.current_working_directory() {
+                None => {
+                    let mut iter = filepath.split(|c| -> bool { c == '\\' || c == '/' });
+                    iter.next_back();
 
-                let mut path = String::new();
-                while let Some(part) = iter.next() {
-                    path.push_str(part);
-                    path.push('/');
+                    let mut path = String::new();
+                    while let Some(part) = iter.next() {
+                        path.push_str(part);
+                        path.push('/');
+                    }
+
+                    path.pop();
+
+                    open_directory(&path, None)?
                 }
-
-                path.pop();
-
-                open_directory(&path, None)?
-            }
-            Some(working_directory) => DirectoryDescriptor::new(working_directory.get_directory()),
-        }
+                Some(working_directory) => {
+                    DirectoryDescriptor::new(working_directory.get_directory())
+                }
+            },
+            process.signals().clone(),
+        )
     };
 
     // Create a process
     let new_thread = match session_id {
-        Some(session_id) => match get_session_mut(session_id) {
+        Some(session_id) => match get_session(session_id) {
             Some(session) => session.lock().create_process(
                 entry,
                 USERSPACE_CONTEXT_LOCATION as usize,
                 Some(working_directory),
                 name.to_owned(),
+                signals,
             ),
             None => return Err(error::Status::InvalidSession),
         },
@@ -146,6 +154,7 @@ fn do_execute(
             USERSPACE_CONTEXT_LOCATION as usize,
             Some(working_directory),
             name.to_owned(),
+            signals,
         ),
     };
 
@@ -278,19 +287,25 @@ pub fn create_process(
             let current_process = current_thread.process().unwrap();
             match current_process.session_id() {
                 None => {
-                    let new_thread =
-                        daemon::create_process(entry as usize, 0, working_directory, name);
+                    let new_thread = daemon::create_process(
+                        entry as usize,
+                        0,
+                        working_directory,
+                        name,
+                        current_process.signals().unwrap_or(Signals::new()),
+                    );
                     let pid = new_thread.process().id();
                     queue_thread(new_thread);
                     pid
                 }
-                Some(session_id) => match get_session_mut(session_id) {
+                Some(session_id) => match get_session(session_id) {
                     Some(current_session) => {
                         let new_thread = current_session.lock().create_process(
                             entry as usize,
                             0,
                             working_directory,
                             name,
+                            current_process.signals().unwrap_or(Signals::new()),
                         );
                         let pid = new_thread.process().id();
                         queue_thread(new_thread);
@@ -301,7 +316,8 @@ pub fn create_process(
             }
         }
         None => {
-            let new_thread = daemon::create_process(entry as usize, 0, working_directory, name);
+            let new_thread =
+                daemon::create_process(entry as usize, 0, working_directory, name, Signals::new());
             let pid = new_thread.process().id();
             queue_thread(new_thread);
             pid
@@ -395,7 +411,7 @@ pub fn wait_process(pid: isize) -> isize {
                 None => return isize::MIN,
             },
         },
-        Some(session_id) => match get_session_mut(session_id) {
+        Some(session_id) => match get_session(session_id) {
             Some(session) => match session.lock().get_process(pid) {
                 None => return isize::MIN,
                 Some(process) => match process.get_exit_queue() {
@@ -466,7 +482,7 @@ pub fn kill_thread(tid: isize) {
 pub fn kill_process(pid: isize) {
     let current_process = get_current_thread().process().unwrap();
     let session_lock = match current_process.session_id() {
-        Some(session) => match get_session_mut(session) {
+        Some(session) => match get_session(session) {
             Some(session) => session,
             None => panic!("Current session does not exist!"),
         },

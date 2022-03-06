@@ -2,6 +2,7 @@ use super::{inner::ProcessInner, ProcessReference};
 use crate::{
     critical::{CriticalLock, CriticalLockGuard},
     filesystem::DirectoryDescriptor,
+    ipc::Signals,
     process::ThreadOwner,
 };
 use alloc::{string::String, sync::Arc};
@@ -14,11 +15,13 @@ impl ProcessOwner {
         session_id: Option<isize>,
         current_working_directory: Option<DirectoryDescriptor>,
         name: String,
+        signals: Signals,
     ) -> Self {
         ProcessOwner(Arc::new(CriticalLock::new(ProcessInner::new(
             session_id,
             current_working_directory,
             name,
+            signals,
         ))))
     }
 

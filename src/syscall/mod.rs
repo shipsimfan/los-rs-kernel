@@ -7,6 +7,7 @@ mod filesystem;
 mod memory;
 mod process;
 mod session;
+mod signal;
 mod thread;
 mod time;
 
@@ -41,6 +42,8 @@ extern "C" fn system_call(
         memory::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0x8000 && code <= 0x8FFF {
         session::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0x9000 && code <= 0x9FFF {
+        signal::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
         error::Status::InvalidRequestCode.to_return_code()
