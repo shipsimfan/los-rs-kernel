@@ -534,6 +534,16 @@ pub fn preempt() {
     queue_and_yield(Some(true));
 }
 
+pub fn handle_signals() {
+    match get_current_thread_option() {
+        Some(thread) => match thread.process().unwrap().handle_signals() {
+            Some(val) => exit_process(val),
+            None => {}
+        },
+        None => {}
+    }
+}
+
 impl StandardIO {
     pub fn new(stdout: StandardIOType, stderr: StandardIOType, stdin: StandardIOType) -> Self {
         StandardIO {

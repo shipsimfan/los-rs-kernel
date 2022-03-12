@@ -24,7 +24,7 @@ extern "C" fn system_call(
     arg4: usize,
     arg5: usize,
 ) -> isize {
-    if code <= 0x0FFF {
+    let ret = if code <= 0x0FFF {
         process::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0x1000 && code <= 0x1FFF {
         thread::system_call(code, arg1, arg2, arg3, arg4, arg5)
@@ -47,7 +47,11 @@ extern "C" fn system_call(
     } else {
         logln!("Invalid system call: {}", code);
         error::Status::InvalidRequestCode.to_return_code()
-    }
+    };
+
+    crate::process::handle_signals();
+
+    ret
 }
 
 // Argument translation functions

@@ -1,7 +1,5 @@
 use core::ops::{Index, IndexMut};
 
-use crate::process;
-
 #[derive(Clone, Copy)]
 pub enum SignalHandler {
     Terminate,
@@ -68,21 +66,25 @@ impl Signals {
         self[signal].handler = handler;
     }
 
-    pub fn mask(&mut self, signal: u8, mask: bool) {
+    pub fn _mask(&mut self, signal: u8, mask: bool) {
         if signal != SignalType::Kill as u8 {
             self[signal].mask = mask;
         }
     }
 
-    pub fn handle(&mut self) {
+    pub fn handle(&mut self) -> Option<isize> {
         for i in 0..=255 {
             if self[i].pending {
+                self[i].pending = false;
+
                 match self[i].handler {
                     SignalHandler::Ignore => {}
-                    SignalHandler::Terminate => process::exit_thread(128 + i as isize, None),
+                    SignalHandler::Terminate => return Some(128 + i as isize),
                 }
             }
         }
+
+        None
     }
 }
 

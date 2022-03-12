@@ -187,6 +187,13 @@ impl ProcessReference {
         }
     }
 
+    pub fn handle_signals(&self) -> Option<isize> {
+        match self.0.upgrade() {
+            Some(process) => process.lock().handle_signals(),
+            None => None,
+        }
+    }
+
     pub unsafe fn pre_exit(&self, exit_status: isize) {
         match self.0.upgrade() {
             Some(process) => process.lock().pre_exit(exit_status),

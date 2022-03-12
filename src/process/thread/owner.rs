@@ -1,7 +1,6 @@
 use super::{inner::ThreadInner, queue::CurrentQueue, ThreadReference};
 use crate::{
     critical::CriticalLock,
-    ipc::Signals,
     map::Mappable,
     process::{process::ProcessOwner, ProcessReference},
 };
@@ -10,14 +9,9 @@ use alloc::sync::Arc;
 pub struct ThreadOwner(Arc<CriticalLock<ThreadInner>>);
 
 impl ThreadOwner {
-    pub fn new(
-        process: ProcessOwner,
-        entry: usize,
-        context: usize,
-        signals: Signals,
-    ) -> ThreadOwner {
+    pub fn new(process: ProcessOwner, entry: usize, context: usize) -> ThreadOwner {
         ThreadOwner(Arc::new(CriticalLock::new(ThreadInner::new(
-            process, entry, context, signals,
+            process, entry, context,
         ))))
     }
 

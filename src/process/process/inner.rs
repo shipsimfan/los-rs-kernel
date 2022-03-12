@@ -74,7 +74,7 @@ impl ProcessInner {
         context: usize,
         self_owner: ProcessOwner,
     ) -> ThreadOwner {
-        let thread = ThreadOwner::new(self_owner, entry, context, self.signals.clone());
+        let thread = ThreadOwner::new(self_owner, entry, context);
         self.threads.insert(thread.reference());
         thread
     }
@@ -218,6 +218,10 @@ impl ProcessInner {
 
     pub fn set_signal_handler(&mut self, signal: u8, handler: SignalHandler) {
         self.signals.set_handler(signal, handler);
+    }
+
+    pub fn handle_signals(&mut self) -> Option<isize> {
+        self.signals.handle()
     }
 }
 
