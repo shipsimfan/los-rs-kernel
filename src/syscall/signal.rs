@@ -1,9 +1,9 @@
 use crate::{error, ipc::SignalHandler, logln, process, session};
 
-const RAISE_PROCESS_SYSCALL: usize = 0x9000;
-const RAISE_SYSCALL: usize = 0x9001;
+const RAISE_SESSION_SYSCALL: usize = 0x9000;
+const RAISE_PROCESS_SYSCALL: usize = 0x9001;
 const RAISE_SELF_SYSCALL: usize = 0x9002;
-const SET_PROCESS_SIGNAL_TYPE_SYSCALL: usize = 0x9003;
+const SET_SIGNAL_TYPE_SYSCALL: usize = 0x9003;
 
 pub fn system_call(
     code: usize,
@@ -14,7 +14,7 @@ pub fn system_call(
     _arg5: usize,
 ) -> isize {
     match code {
-        RAISE_PROCESS_SYSCALL => {
+        RAISE_SESSION_SYSCALL => {
             let session = match session::get_session((arg1 & 0x7FFFFFFFFFFF) as isize) {
                 Some(session) => session,
                 None => return error::Status::InvalidSession.to_return_code(),
@@ -28,7 +28,7 @@ pub fn system_call(
             process.raise((arg3 & 0xFF) as u8);
             0
         }
-        RAISE_SYSCALL => {
+        RAISE_PROCESS_SYSCALL => {
             let process = match process::get_current_thread()
                 .process()
                 .unwrap()
@@ -59,7 +59,7 @@ pub fn system_call(
                 .raise((arg1 & 0xFF) as u8);
             0
         }
-        SET_PROCESS_SIGNAL_TYPE_SYSCALL => {
+        SET_SIGNAL_TYPE_SYSCALL => {
             let handler = match SignalHandler::from(arg2) {
                 Some(handler) => handler,
                 None => return 0,
@@ -72,7 +72,7 @@ pub fn system_call(
             0
         }
         _ => {
-            logln!("Invalid memory system call: {}", code);
+            logln!("Invalid signal system call: {}", code);
             error::Status::InvalidRequestCode.to_return_code()
         }
     }

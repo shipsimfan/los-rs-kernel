@@ -20,13 +20,10 @@ pub struct Signals {
 
 #[repr(u8)]
 pub enum SignalType {
-    Abort = 0,
-    FloatingPointException = 1,
-    IllegalInstruction = 2,
+    Kill = 0,
+    Terminate = 1,
+    Abort = 2,
     Interrupt = 3,
-    SegmentationViolation = 4,
-    Terminate = 5,
-    Kill = 6,
 }
 
 impl Signal {
@@ -45,13 +42,10 @@ impl Signals {
             signals: [Signal::new(); 256],
         };
 
-        signals[SignalType::Abort].handler = SignalHandler::Terminate;
-        signals[SignalType::FloatingPointException].handler = SignalHandler::Terminate;
-        signals[SignalType::IllegalInstruction].handler = SignalHandler::Terminate;
-        signals[SignalType::Interrupt].handler = SignalHandler::Terminate;
-        signals[SignalType::SegmentationViolation].handler = SignalHandler::Terminate;
-        signals[SignalType::Terminate].handler = SignalHandler::Terminate;
         signals[SignalType::Kill].handler = SignalHandler::Terminate;
+        signals[SignalType::Terminate].handler = SignalHandler::Terminate;
+        signals[SignalType::Abort].handler = SignalHandler::Terminate;
+        signals[SignalType::Interrupt].handler = SignalHandler::Terminate;
 
         signals
     }
