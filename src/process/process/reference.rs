@@ -187,6 +187,13 @@ impl ProcessReference {
         }
     }
 
+    pub fn set_signal_mask(&self, signal: u8, mask: bool) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().set_signal_mask(signal, mask),
+            None => {}
+        }
+    }
+
     pub fn handle_signals(&self) -> Option<isize> {
         match self.0.upgrade() {
             Some(process) => process.lock().handle_signals(),

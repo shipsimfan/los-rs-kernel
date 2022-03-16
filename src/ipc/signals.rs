@@ -45,7 +45,7 @@ impl Signals {
         signals[SignalType::Kill].handler = SignalHandler::Terminate;
         signals[SignalType::Terminate].handler = SignalHandler::Terminate;
         signals[SignalType::Abort].handler = SignalHandler::Terminate;
-        signals[SignalType::Interrupt].handler = SignalHandler::Terminate;
+        signals[SignalType::Interrupt].handler = SignalHandler::Ignore;
 
         signals
     }
@@ -60,7 +60,7 @@ impl Signals {
         self[signal].handler = handler;
     }
 
-    pub fn _mask(&mut self, signal: u8, mask: bool) {
+    pub fn mask(&mut self, signal: u8, mask: bool) {
         if signal != SignalType::Kill as u8 {
             self[signal].mask = mask;
         }

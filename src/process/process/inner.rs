@@ -220,6 +220,10 @@ impl ProcessInner {
         self.signals.set_handler(signal, handler);
     }
 
+    pub fn set_signal_mask(&mut self, signal: u8, mask: bool) {
+        self.signals.mask(signal, mask);
+    }
+
     pub fn handle_signals(&mut self) -> Option<isize> {
         self.signals.handle()
     }
