@@ -3,6 +3,7 @@ use crate::{
     device::DeviceReference,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
+    ipc::{SignalHandler, Signals},
     locks::{Mutex, MutexGuard},
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
@@ -11,7 +12,7 @@ use crate::{
         thread::{ThreadOwner, ThreadReference},
         CurrentQueue, ThreadQueue,
     },
-    session::get_session_mut,
+    session::get_session,
 };
 use alloc::{string::String, sync::Arc};
 
@@ -32,6 +33,7 @@ pub struct ProcessInner {
     current_working_directory: Option<DirectoryDescriptor>,
     process_time: isize,
     name: String,
+    signals: Signals,
 }
 
 pub struct ProcessInfo {
@@ -48,6 +50,7 @@ impl ProcessInner {
         session_id: Option<isize>,
         current_working_directory: Option<DirectoryDescriptor>,
         name: String,
+        signals: Signals,
     ) -> Self {
         ProcessInner {
             id: INVALID_ID,
@@ -61,6 +64,7 @@ impl ProcessInner {
             current_working_directory,
             process_time: 0,
             name,
+            signals,
         }
     }
 
@@ -203,6 +207,26 @@ impl ProcessInner {
             name: self.name.clone(),
         }
     }
+
+    pub fn signals(&self) -> &Signals {
+        &self.signals
+    }
+
+    pub fn raise(&mut self, signal: u8) {
+        self.signals.raise(signal);
+    }
+
+    pub fn set_signal_handler(&mut self, signal: u8, handler: SignalHandler) {
+        self.signals.set_handler(signal, handler);
+    }
+
+    pub fn set_signal_mask(&mut self, signal: u8, mask: bool) {
+        self.signals.mask(signal, mask);
+    }
+
+    pub fn handle_signals(&mut self) -> Option<isize> {
+        self.signals.handle()
+    }
 }
 
 impl Mappable for ProcessInner {
@@ -220,7 +244,7 @@ impl Drop for ProcessInner {
         unsafe { self.address_space.free() };
 
         match self.session_id {
-            Some(sid) => match get_session_mut(sid) {
+            Some(sid) => match get_session(sid) {
                 Some(session) => session.lock().remove_process(self.id),
                 None => {}
             },

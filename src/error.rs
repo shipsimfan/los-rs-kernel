@@ -48,6 +48,7 @@ pub enum Status {
     OutOfResource,           // ENORESOURCE
     CorruptFilesystem,       // ECORRUPTFILESYSTEM
     IsFile,                  // EISFILE
+    InvalidThread,           // EINVTHREAD
 }
 
 pub type Result<T> = core::result::Result<T, Status>;
@@ -105,6 +106,7 @@ impl fmt::Display for Status {
             Status::OutOfResource => "Out of resource",
             Status::CorruptFilesystem => "Corrupt filesystem",
             Status::IsFile => "Is file",
+            Status::InvalidThread => "Invalid thread",
         })
     }
 }

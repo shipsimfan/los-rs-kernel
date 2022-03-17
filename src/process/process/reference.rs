@@ -5,6 +5,7 @@ use super::{
 use crate::{
     critical::CriticalLock,
     filesystem::{DirectoryDescriptor, DirectoryEntry, FileDescriptor},
+    ipc::{SignalHandler, Signals},
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
 };
@@ -161,6 +162,41 @@ impl ProcessReference {
     pub fn get_process_info(&self) -> Option<ProcessInfo> {
         match self.0.upgrade() {
             Some(process) => Some(process.lock().get_process_info()),
+            None => None,
+        }
+    }
+
+    pub fn signals(&self) -> Option<Signals> {
+        match self.0.upgrade() {
+            Some(process) => Some(process.lock().signals().clone()),
+            None => None,
+        }
+    }
+
+    pub fn raise(&self, signal: u8) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().raise(signal),
+            None => {}
+        }
+    }
+
+    pub fn set_signal_handler(&self, signal: u8, handler: SignalHandler) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().set_signal_handler(signal, handler),
+            None => {}
+        }
+    }
+
+    pub fn set_signal_mask(&self, signal: u8, mask: bool) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().set_signal_mask(signal, mask),
+            None => {}
+        }
+    }
+
+    pub fn handle_signals(&self) -> Option<isize> {
+        match self.0.upgrade() {
+            Some(process) => process.lock().handle_signals(),
             None => None,
         }
     }

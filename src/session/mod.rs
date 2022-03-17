@@ -3,6 +3,7 @@ use crate::{
     error,
     event::Event,
     filesystem::DirectoryDescriptor,
+    ipc::Signals,
     map::{Map, Mappable, INVALID_ID},
     process::{self, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner},
 };
@@ -54,8 +55,8 @@ pub fn create_console_session(output_device_path: &str) -> error::Result<isize> 
     Ok(sid)
 }
 
-pub fn get_session_mut(sid: isize) -> Option<SessionBox> {
-    SESSIONS.lock().get_mut(sid).map(|sbox| sbox.clone())
+pub fn get_session(sid: isize) -> Option<SessionBox> {
+    SESSIONS.lock().get(sid).map(|sbox| sbox.clone())
 }
 
 impl Session {
@@ -73,8 +74,9 @@ impl Session {
         context: usize,
         working_directory: Option<DirectoryDescriptor>,
         name: String,
+        signals: Signals,
     ) -> ThreadOwner {
-        let new_process = ProcessOwner::new(Some(self.id), working_directory, name);
+        let new_process = ProcessOwner::new(Some(self.id), working_directory, name, signals);
         self.processes.insert(new_process.reference());
         new_process.create_thread(entry, context)
     }
