@@ -63,6 +63,14 @@ impl<T: Mappable> Map<T> {
         }
     }
 
+    pub fn for_each(&mut self, f: fn(&mut T)) {
+        for vec in &mut self.data {
+            for val in vec {
+                (f)(val);
+            }
+        }
+    }
+
     pub fn insert(&mut self, value: T) -> isize {
         let id = self.next_id;
         let mut value = value;
