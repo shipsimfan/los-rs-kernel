@@ -5,6 +5,10 @@ pub struct KeyState {
     pub scroll_lock: bool,
     pub left_shift: bool,
     pub right_shift: bool,
+    pub left_ctrl: bool,
+    pub right_ctrl: bool,
+    pub left_alt: bool,
+    pub right_alt: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +123,10 @@ impl KeyState {
             scroll_lock: false,
             left_shift: false,
             right_shift: false,
+            left_ctrl: false,
+            right_ctrl: false,
+            left_alt: false,
+            right_alt: false,
         }
     }
 }

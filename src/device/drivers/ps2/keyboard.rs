@@ -50,9 +50,15 @@ impl Keyboard {
 
             let key = match scancode {
                 0x1C => Keycode::Enter,
-                0x1D => Keycode::RightControl,
+                0x1D => {
+                    self.key_state.right_ctrl = key_press;
+                    Keycode::RightControl
+                }
                 0x35 => Keycode::ForwardSlash,
-                0x38 => Keycode::RightAlt,
+                0x38 => {
+                    self.key_state.right_alt = key_press;
+                    Keycode::RightAlt
+                }
                 0x47 => Keycode::Home,
                 0x48 => Keycode::UpArrow,
                 0x49 => Keycode::PageUp,
@@ -89,19 +95,25 @@ impl Keyboard {
             (true, scancode)
         };
 
-        if scancode < 0x58 {
-            if SCANCODES[scancode as usize] == Keycode::LeftShift {
-                self.key_state.left_shift = !self.key_state.left_shift;
-            } else if SCANCODES[scancode as usize] == Keycode::RightShift {
-                self.key_state.right_shift = !self.key_state.right_shift;
-            }
-        }
-
         let key = if scancode > 0x58 {
             Keycode::Undefined
         } else {
             SCANCODES[scancode as usize]
         };
+
+        if key == Keycode::LeftShift {
+            self.key_state.left_shift = key_press;
+        } else if key == Keycode::RightShift {
+            self.key_state.right_shift = key_press;
+        } else if key == Keycode::LeftControl {
+            self.key_state.left_ctrl = key_press;
+        } else if key == Keycode::RightControl {
+            self.key_state.right_ctrl = key_press;
+        } else if key == Keycode::LeftAlt {
+            self.key_state.left_alt = key_press;
+        } else if key == Keycode::RightAlt {
+            self.key_state.right_alt = key_press;
+        }
 
         if key_press {
             Event::KeyPress(key, self.key_state)
