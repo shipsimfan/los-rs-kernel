@@ -94,6 +94,7 @@ fn do_execute(
     environment: Vec<String>,
     mut standard_io: StandardIO,
     session_id: Option<isize>,
+    inherit_signals: bool,
 ) -> error::Result<isize> {
     // Load the executable
     let buffer = filesystem::read(filepath)?;
@@ -133,7 +134,11 @@ fn do_execute(
                     DirectoryDescriptor::new(working_directory.get_directory())
                 }
             },
-            process.signals().clone(),
+            if inherit_signals {
+                process.signals().clone()
+            } else {
+                Signals::new()
+            },
         )
     };
 
@@ -249,8 +254,16 @@ pub fn execute_session(
     environment: Vec<String>,
     standard_io: StandardIO,
     session_id: Option<isize>,
+    inherit_signals: bool,
 ) -> error::Result<isize> {
-    do_execute(filepath, args, environment, standard_io, session_id)
+    do_execute(
+        filepath,
+        args,
+        environment,
+        standard_io,
+        session_id,
+        inherit_signals,
+    )
 }
 
 pub fn execute(
@@ -258,10 +271,18 @@ pub fn execute(
     args: Vec<String>,
     environment: Vec<String>,
     standard_io: StandardIO,
+    inherit_signals: bool,
 ) -> error::Result<isize> {
     let current_process = get_current_thread().process().unwrap();
     let session = current_process.session_id();
-    do_execute(filepath, args, environment, standard_io, session)
+    do_execute(
+        filepath,
+        args,
+        environment,
+        standard_io,
+        session,
+        inherit_signals,
+    )
 }
 
 #[allow(dead_code)]
@@ -558,9 +579,9 @@ impl StandardIO {
         current_process: &ProcessReference,
         new_process: &ProcessReference,
     ) -> error::Result<()> {
-        self.stdout.copy_descriptors(current_process, new_process)?;
-        self.stderr.copy_descriptors(current_process, new_process)?;
-        self.stdin.copy_descriptors(current_process, new_process)
+        self.stdout.copy_descriptor(current_process, new_process)?;
+        self.stderr.copy_descriptor(current_process, new_process)?;
+        self.stdin.copy_descriptor(current_process, new_process)
     }
 
     pub fn to_c_stdio(self) -> CStandardIO {
@@ -588,7 +609,7 @@ impl StandardIOType {
         }
     }
 
-    pub fn copy_descriptors(
+    pub fn copy_descriptor(
         &mut self,
         current_process: &ProcessReference,
         new_process: &ProcessReference,

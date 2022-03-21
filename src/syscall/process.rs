@@ -18,7 +18,7 @@ pub fn system_call(
     arg2: usize,
     arg3: usize,
     arg4: usize,
-    _arg5: usize,
+    arg5: usize,
 ) -> isize {
     match code {
         WAIT_PROCESS_SYSCALL => process::wait_process((arg1 & 0x7FFFFFFFFFFF) as isize),
@@ -66,7 +66,9 @@ pub fn system_call(
                 Err(status) => return status.to_return_code(),
             };
 
-            match process::execute(filepath, args, environment, stdio) {
+            let inherit_signals = arg5 != 0;
+
+            match process::execute(filepath, args, environment, stdio, inherit_signals) {
                 Ok(pid) => pid,
                 Err(status) => status.to_return_code(),
             }

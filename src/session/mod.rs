@@ -1,9 +1,9 @@
 use crate::{
     critical::{CriticalLock, CriticalLockGuard},
     error,
-    event::Event,
+    event::{Event, Keycode},
     filesystem::DirectoryDescriptor,
-    ipc::Signals,
+    ipc::{SignalType, Signals},
     map::{Map, Mappable, INVALID_ID},
     process::{self, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner},
 };
@@ -50,6 +50,7 @@ pub fn create_console_session(output_device_path: &str) -> error::Result<isize> 
             StandardIOType::Console,
         ),
         Some(sid),
+        false,
     )?;
 
     Ok(sid)
@@ -98,6 +99,23 @@ impl Session {
     }
 
     pub fn push_event(&mut self, event: Event) {
+        match self.sub {
+            SubSession::Console(_) => match event {
+                Event::KeyPress(keycode, keystate) => {
+                    match keystate.left_ctrl || keystate.right_ctrl {
+                        true => match keycode {
+                            Keycode::C => self
+                                .processes
+                                .for_each(|process| process.raise(SignalType::Interrupt as u8)),
+                            _ => {}
+                        },
+                        false => {}
+                    }
+                }
+                _ => {}
+            },
+        }
+
         self.sub.push_event(event);
     }
 
