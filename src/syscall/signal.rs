@@ -17,14 +17,23 @@ pub fn system_call(
 ) -> isize {
     match code {
         RAISE_SESSION_SYSCALL => {
-            let session = match session::get_session((arg1 & 0x7FFFFFFFFFFF) as isize) {
-                Some(session) => session,
-                None => return error::Status::InvalidSession.to_return_code(),
-            };
+            let process = match arg1 {
+                0 => match process::get_daemon_process((arg2 & 0x7FFFFFFFFFFF) as isize) {
+                    Some(process) => process,
+                    None => return error::Status::NoProcess.to_return_code(),
+                },
+                _ => {
+                    let session = match session::get_session((arg1 & 0x7FFFFFFFFFFF) as isize) {
+                        Some(session) => session,
+                        None => return error::Status::InvalidSession.to_return_code(),
+                    };
 
-            let process = match session.lock().get_process((arg2 & 0x7FFFFFFFFFFF) as isize) {
-                Some(process) => process,
-                None => return error::Status::NoProcess.to_return_code(),
+                    let session = session.lock();
+                    match session.get_process((arg2 & 0x7FFFFFFFFFFF) as isize) {
+                        Some(process) => process,
+                        None => return error::Status::NoProcess.to_return_code(),
+                    }
+                }
             };
 
             process.raise((arg3 & 0xFF) as u8);

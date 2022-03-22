@@ -1,5 +1,3 @@
-use alloc::string::String;
-
 use super::{ProcessOwner, ProcessReference, ThreadOwner};
 use crate::{
     filesystem::DirectoryDescriptor,
@@ -7,6 +5,7 @@ use crate::{
     locks::Mutex,
     map::{Map, INVALID_ID},
 };
+use alloc::{string::String, vec::Vec};
 
 static DAEMON_PROCESSES: Mutex<Map<ProcessReference>> = Mutex::new(Map::new());
 
@@ -28,6 +27,10 @@ pub fn get_daemon_process(pid: isize) -> Option<ProcessReference> {
         .lock()
         .get(pid)
         .map(|reference| reference.clone())
+}
+
+pub fn get_daemon_processes() -> Vec<isize> {
+    DAEMON_PROCESSES.lock().ids()
 }
 
 pub fn kill_process(pid: isize) {

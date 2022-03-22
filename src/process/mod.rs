@@ -20,7 +20,7 @@ use crate::{
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{arch::asm, usize};
 
-pub use daemon::get_daemon_process;
+pub use daemon::{get_daemon_process, get_daemon_processes};
 pub use process::*;
 pub use queue::ThreadQueue;
 pub use thread::*;
