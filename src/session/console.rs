@@ -1,9 +1,15 @@
 use super::Event;
-use crate::{device::DeviceReference, error, queue::Queue};
+use crate::{
+    device::DeviceReference,
+    error,
+    process::{self, CurrentQueue, ThreadQueue},
+    queue::Queue,
+};
 
 pub struct Console {
     output_device: DeviceReference,
     event_queue: Queue<Event>,
+    event_thread_queue: ThreadQueue,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +43,7 @@ impl Console {
         Ok(Console {
             output_device,
             event_queue: Queue::new(),
+            event_thread_queue: ThreadQueue::new(),
         })
     }
 
@@ -90,6 +97,11 @@ impl Console {
     }
 
     pub fn push_event(&mut self, event: Event) {
+        match self.event_thread_queue.pop() {
+            Some(thread) => process::queue_thread(thread),
+            None => {}
+        }
+
         self.event_queue.push(event);
     }
 
@@ -100,6 +112,10 @@ impl Console {
             crate::critical::leave_local(critical_state);
             res
         }
+    }
+
+    pub fn get_event_thread_queue(&self) -> CurrentQueue {
+        self.event_thread_queue.into_current_queue()
     }
 }
 

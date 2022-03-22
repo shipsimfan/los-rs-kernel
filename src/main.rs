@@ -87,7 +87,10 @@ fn kinit() -> isize {
     logln!("Loading device drivers . . . ");
     device::drivers::ps2::initialize();
 
-    process::exit_process(0);
+    // Idle process
+    loop {
+        process::queue_and_yield(None)
+    }
 }
 
 #[panic_handler]

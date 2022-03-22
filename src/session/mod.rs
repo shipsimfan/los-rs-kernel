@@ -5,7 +5,9 @@ use crate::{
     filesystem::DirectoryDescriptor,
     ipc::{SignalType, Signals},
     map::{Map, Mappable, INVALID_ID},
-    process::{self, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner},
+    process::{
+        self, CurrentQueue, ProcessOwner, ProcessReference, StandardIO, StandardIOType, ThreadOwner,
+    },
 };
 use alloc::{
     string::{String, ToString},
@@ -122,6 +124,10 @@ impl Session {
     pub fn peek_event(&mut self) -> Option<Event> {
         self.sub.peek_event()
     }
+
+    pub fn get_event_thread_queue(&self) -> CurrentQueue {
+        self.sub.get_event_thread_queue()
+    }
 }
 
 impl SubSession {
@@ -134,6 +140,12 @@ impl SubSession {
     pub fn peek_event(&mut self) -> Option<Event> {
         match self {
             SubSession::Console(console) => console.peek_event(),
+        }
+    }
+
+    pub fn get_event_thread_queue(&self) -> CurrentQueue {
+        match self {
+            SubSession::Console(console) => console.get_event_thread_queue(),
         }
     }
 }

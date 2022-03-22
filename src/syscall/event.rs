@@ -1,6 +1,7 @@
 use crate::{error, event::CEvent, logln, process, session::get_session};
 
 const PEEK_EVENT_SYSCALL: usize = 0x4000;
+const POLL_EVENT_SYSCALL: usize = 0x4001;
 
 pub fn system_call(
     code: usize,
@@ -11,26 +12,44 @@ pub fn system_call(
     _arg5: usize,
 ) -> isize {
     match code {
-        PEEK_EVENT_SYSCALL => match super::to_ptr_mut(arg1) {
+        PEEK_EVENT_SYSCALL | POLL_EVENT_SYSCALL => match super::to_ptr_mut(arg1) {
             Ok(ptr) => {
-                match process::get_current_thread()
+                let session_lock = match process::get_current_thread()
                     .process()
                     .unwrap()
                     .session_id()
                 {
                     Some(session_id) => match get_session(session_id) {
-                        Some(session) => match session.lock().peek_event() {
-                            None => 0,
-                            Some(event) => {
-                                let cevent = CEvent::from(event);
-                                unsafe { *ptr = cevent };
-                                1
-                            }
-                        },
+                        Some(session) => session,
                         None => return error::Status::InvalidSession.to_return_code(),
                     },
                     None => return error::Status::InvalidSession.to_return_code(),
-                }
+                };
+
+                let event = {
+                    let mut session = session_lock.lock();
+                    match session.peek_event() {
+                        None => match code == PEEK_EVENT_SYSCALL {
+                            true => return 0,
+                            false => loop {
+                                let queue = session.get_event_thread_queue();
+                                drop(session);
+                                process::yield_thread(Some(queue), None);
+
+                                session = session_lock.lock();
+                                match session.peek_event() {
+                                    Some(event) => break event,
+                                    None => {}
+                                }
+                            },
+                        },
+                        Some(event) => event,
+                    }
+                };
+
+                let cevent = CEvent::from(event);
+                unsafe { *ptr = cevent };
+                1
             }
             Err(status) => status.to_return_code(),
         },
