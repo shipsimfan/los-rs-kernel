@@ -49,7 +49,7 @@ extern "C" fn system_call(
         error::Status::InvalidRequestCode.to_return_code()
     };
 
-    crate::process::handle_signals();
+    crate::process::handle_signals(None);
 
     ret
 }

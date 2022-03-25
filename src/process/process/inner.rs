@@ -4,7 +4,7 @@ use crate::{
     device::DeviceReference,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
-    ipc::{SignalHandler, Signals},
+    ipc::{SignalHandler, Signals, UserspaceSignalContext},
     locks::{Mutex, MutexGuard},
     map::{Map, Mappable, MappedItem, INVALID_ID},
     memory::AddressSpace,
@@ -221,8 +221,15 @@ impl ProcessInner {
         self.signals.mask(signal, mask);
     }
 
-    pub fn handle_signals(&mut self) -> Option<isize> {
-        self.signals.handle()
+    pub fn set_userspace_signal_handler(&mut self, handler: usize) {
+        self.signals.set_userspace_handler(handler)
+    }
+
+    pub fn handle_signals(
+        &mut self,
+        userspace_context: Option<(UserspaceSignalContext, u64)>,
+    ) -> Option<isize> {
+        self.signals.handle(userspace_context)
     }
 }
 

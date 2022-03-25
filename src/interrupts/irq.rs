@@ -217,7 +217,7 @@ unsafe extern "C" fn common_irq_handler(irq: usize) {
         Some(handler) => (handler.handler)(handler.context),
     }
 
-    crate::process::handle_signals();
+    crate::process::handle_signals(None);
 }
 
 pub fn install_irq_handler(irq: u8, handler: Handler, context: usize) -> bool {

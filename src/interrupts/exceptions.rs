@@ -124,7 +124,7 @@ unsafe extern "C" fn common_exception_handler(registers: Registers, info: Except
         },
     }
 
-    crate::process::handle_signals();
+    crate::process::handle_signals(None);
 }
 
 pub fn initialize() {

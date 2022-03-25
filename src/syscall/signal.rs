@@ -6,6 +6,7 @@ const RAISE_SELF_SYSCALL: usize = 0x9002;
 const SET_SIGNAL_TYPE_SYSCALL: usize = 0x9003;
 const MASK_SIGNAL_SYSCALL: usize = 0x9004;
 const UNMASK_SIGNAL_SYSCALL: usize = 0x9005;
+const SET_USERSPACE_SIGNAL_HANDLER_SYSCALL: usize = 0x9006;
 
 pub fn system_call(
     code: usize,
@@ -94,6 +95,13 @@ pub fn system_call(
                 .process()
                 .unwrap()
                 .set_signal_mask((arg1 & 0xFF) as u8, false);
+            0
+        }
+        SET_USERSPACE_SIGNAL_HANDLER_SYSCALL => {
+            process::get_current_thread()
+                .process()
+                .unwrap()
+                .set_userspace_signal_handler(arg1);
             0
         }
         _ => {

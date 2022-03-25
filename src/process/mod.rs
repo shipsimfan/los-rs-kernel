@@ -11,7 +11,7 @@ use crate::{
     critical::{self, CriticalLock},
     error,
     filesystem::{self, open_directory, DirectoryDescriptor},
-    ipc::Signals,
+    ipc::{Signals, UserspaceSignalContext},
     locks::Spinlock,
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
@@ -555,9 +555,9 @@ pub fn preempt() {
     queue_and_yield(Some(true));
 }
 
-pub fn handle_signals() {
+pub fn handle_signals(userspace_context: Option<(UserspaceSignalContext, u64)>) {
     match get_current_thread_option() {
-        Some(thread) => match thread.process().unwrap().handle_signals() {
+        Some(thread) => match thread.process().unwrap().handle_signals(userspace_context) {
             Some(val) => exit_process(val),
             None => {}
         },
