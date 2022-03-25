@@ -5,7 +5,7 @@ use crate::{
     filesystem::{DirectoryDescriptor, FileDescriptor},
     ipc::{SignalHandler, Signals},
     locks::{Mutex, MutexGuard},
-    map::{Map, Mappable, INVALID_ID},
+    map::{Map, Mappable, MappedItem, INVALID_ID},
     memory::AddressSpace,
     process::{
         queue_thread,
@@ -17,9 +17,7 @@ use crate::{
 use alloc::{string::String, sync::Arc};
 
 #[derive(Clone)]
-pub struct Container<T: Mappable>(Arc<Mutex<T>>);
-
-pub struct DeviceDescriptor(DeviceReference, isize);
+pub struct Container<T>(Arc<Mutex<T>>);
 
 pub struct ProcessInner {
     id: isize,
@@ -27,9 +25,9 @@ pub struct ProcessInner {
     address_space: AddressSpace,
     session_id: Option<isize>,
     exit_queue: ThreadQueue,
-    file_descriptors: Map<Container<FileDescriptor>>,
-    directory_descriptors: Map<Container<DirectoryDescriptor>>,
-    device_descriptors: Map<DeviceDescriptor>,
+    file_descriptors: Map<MappedItem<Container<FileDescriptor>>>,
+    directory_descriptors: Map<MappedItem<Container<DirectoryDescriptor>>>,
+    device_descriptors: Map<MappedItem<DeviceReference>>,
     current_working_directory: Option<DirectoryDescriptor>,
     process_time: isize,
     name: String,
@@ -118,7 +116,7 @@ impl ProcessInner {
     pub fn open_file(&mut self, file_descriptor: FileDescriptor) -> error::Result<isize> {
         Ok(self
             .file_descriptors
-            .insert(Container::new(file_descriptor)))
+            .insert(MappedItem::new(Container::new(file_descriptor))))
     }
 
     pub fn close_file(&mut self, fd: isize) {
@@ -128,12 +126,12 @@ impl ProcessInner {
     pub fn get_file(&self, fd: isize) -> error::Result<Container<FileDescriptor>> {
         match self.file_descriptors.get(fd) {
             None => Err(error::Status::BadDescriptor),
-            Some(file_descriptor) => Ok(file_descriptor.clone()),
+            Some(file_descriptor) => Ok((*file_descriptor).clone()),
         }
     }
 
     pub fn clone_file(&mut self, descriptor: Container<FileDescriptor>) -> isize {
-        self.file_descriptors.insert(descriptor)
+        self.file_descriptors.insert(MappedItem::new(descriptor))
     }
 
     pub fn current_working_directory(&mut self) -> Option<&mut DirectoryDescriptor> {
@@ -153,12 +151,12 @@ impl ProcessInner {
     ) -> error::Result<isize> {
         Ok(self
             .directory_descriptors
-            .insert(Container::new(directory_descriptor)))
+            .insert(MappedItem::new(Container::new(directory_descriptor))))
     }
 
     pub fn get_directory(&self, dd: isize) -> error::Result<Container<DirectoryDescriptor>> {
         match self.directory_descriptors.get(dd) {
-            Some(descriptor) => Ok(descriptor.clone()),
+            Some(descriptor) => Ok((*descriptor).clone()),
             None => Err(error::Status::BadDescriptor),
         }
     }
@@ -168,9 +166,7 @@ impl ProcessInner {
     }
 
     pub fn open_device(&mut self, device: DeviceReference) -> error::Result<isize> {
-        Ok(self
-            .device_descriptors
-            .insert(DeviceDescriptor(device, INVALID_ID)))
+        Ok(self.device_descriptors.insert(MappedItem::new(device)))
     }
 
     pub fn close_device(&mut self, dd: isize) {
@@ -180,7 +176,7 @@ impl ProcessInner {
     pub fn get_device(&self, dd: isize) -> error::Result<DeviceReference> {
         match self.device_descriptors.get(dd) {
             None => Err(error::Status::BadDescriptor),
-            Some(device_descriptor) => Ok(device_descriptor.0.clone()),
+            Some(device_descriptor) => Ok((*device_descriptor).clone()),
         }
     }
 
@@ -253,32 +249,12 @@ impl Drop for ProcessInner {
     }
 }
 
-impl<T: Mappable> Container<T> {
+impl<T> Container<T> {
     pub fn new(inner: T) -> Self {
         Container(Arc::new(Mutex::new(inner)))
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
         self.0.lock()
-    }
-}
-
-impl<T: Mappable> Mappable for Container<T> {
-    fn id(&self) -> isize {
-        self.0.lock().id()
-    }
-
-    fn set_id(&mut self, id: isize) {
-        self.0.lock().set_id(id)
-    }
-}
-
-impl Mappable for DeviceDescriptor {
-    fn set_id(&mut self, id: isize) {
-        self.1 = id;
-    }
-
-    fn id(&self) -> isize {
-        self.1
     }
 }

@@ -1,3 +1,5 @@
+use core::ops::{Deref, DerefMut};
+
 use alloc::vec::Vec;
 
 use crate::logln;
@@ -11,6 +13,11 @@ pub struct Map<T: Mappable> {
     data: [Vec<T>; HASH_SIZE as usize],
     count: usize,
     next_id: isize,
+}
+
+pub struct MappedItem<T> {
+    data: T,
+    id: isize,
 }
 
 const HASH_SIZE: isize = 32;
@@ -160,5 +167,38 @@ impl<T: Mappable> Map<T> {
         }
 
         ret
+    }
+}
+
+impl<T> MappedItem<T> {
+    pub fn new(data: T) -> Self {
+        MappedItem {
+            data,
+            id: INVALID_ID,
+        }
+    }
+}
+
+impl<T> Deref for MappedItem<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<T> DerefMut for MappedItem<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+impl<T> Mappable for MappedItem<T> {
+    fn id(&self) -> isize {
+        self.id
+    }
+
+    fn set_id(&mut self, id: isize) {
+        self.id = id
     }
 }

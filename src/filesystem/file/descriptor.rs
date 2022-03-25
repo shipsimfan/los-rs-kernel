@@ -1,11 +1,7 @@
 use super::FileReference;
-use crate::{
-    error,
-    map::{Mappable, INVALID_ID},
-};
+use crate::error;
 
 pub struct Descriptor {
-    id: isize,
     file: FileReference,
     current_offset: usize,
     read: bool,
@@ -22,7 +18,6 @@ impl Descriptor {
     pub fn new(file: FileReference, read: bool, write: bool, starting_offset: usize) -> Self {
         file.lock().open();
         Descriptor {
-            id: INVALID_ID,
             file: file,
             current_offset: starting_offset,
             read,
@@ -89,16 +84,6 @@ impl Clone for Descriptor {
             self.write,
             self.current_offset,
         )
-    }
-}
-
-impl Mappable for Descriptor {
-    fn id(&self) -> isize {
-        self.id
-    }
-
-    fn set_id(&mut self, id: isize) {
-        self.id = id
     }
 }
 
