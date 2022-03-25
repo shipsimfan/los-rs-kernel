@@ -14,7 +14,6 @@ pub struct Registers {
     r9: u64,
     r8: u64,
     rbp: u64,
-    rsp: u64,
     rdi: u64,
     rsi: u64,
     rdx: u64,

@@ -94,7 +94,6 @@ irq_handler_%1:
     push rdx
     push rsi
     push rdi
-    push rsp
     push rbp
     push r8
     push r9
@@ -125,7 +124,6 @@ irq_handler_%1:
     pop r9
     pop r8
     pop rbp
-    pop rsp
     pop rdi
     pop rsi
     pop rdx
@@ -148,7 +146,6 @@ common_interrupt_handler:
     push rdx
     push rsi
     push rdi
-    push rsp
     push rbp
     push r8
     push r9
@@ -178,7 +175,6 @@ common_interrupt_handler:
     pop r9
     pop r8
     pop rbp
-    pop rsp
     pop rdi
     pop rsi
     pop rdx
