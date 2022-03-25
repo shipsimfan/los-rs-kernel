@@ -45,7 +45,6 @@ pub struct ProcessInfo {
     pub time: usize,
     pub num_files: usize,
     pub num_directories: usize,
-    pub num_mutexes usize,
     pub working_directory: String,
     pub name: String,
 }
@@ -198,6 +197,23 @@ impl ProcessInner {
         match self.mutex_descriptors.get(md) {
             None => Err(error::Status::BadDescriptor),
             Some(mutex_descriptor) => Ok(mutex_descriptor.0.clone()),
+        }
+    }
+
+    pub fn destroy_mutex(&self, md: isize) {
+        self.mutex_descriptors.remove(md)
+    }
+
+    pub fn lock_mutex(&self, md: isize) {
+        match self.get_mutex(md) {
+            Some(mutex_descriptor) => mutex_descriptor.0.lock()
+        }
+    }
+
+    pub fn try_lock_mutex(&self, md: isize) -> bool {
+        match self.get_mutex(md) {
+            None => false,
+            Some(mutex_descriptor) => mutex_descriptor.0.try_lock(),
         }
     }
 

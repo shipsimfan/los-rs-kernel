@@ -13,7 +13,41 @@ pub fn system_call(
     _arg5: usize,
 ) -> isize {
     match code {
-        CREATE_MUTEX_SYSCALL => UserspaceMutex.new()
-        LOCK_MUTEX_SYSCALL => 
+        CREATE_MUTEX_SYSCALL => {
+            match process::get_current_thread()
+                .process()
+                .unwrap()
+                .create_mutex()
+            {
+                Ok(md) => md,
+                Err(status) => status.to_return_code(),
+            }
+        }
+
+        DESTROY_MUTEX_SYSCALL => {
+            match process::get_current_thread()
+                .process()
+                .unwrap()
+                .destroy_mutex(arg1)
+            {
+                Ok(md) => md,
+                Err(status) => status.to_return_code(),
+            }
+        }
+ 
+        LOCK_MUTEX_SYSCALL => {
+            match process::get_current_thread()
+                .process()
+                .unwrap()
+                .lock_mutex(arg1)
+            0
+        }
+
+        TRY_LOCK_MUTEX_SYSCALL => {
+            match process::get_current_thread()
+                .process()
+                .unwrap()
+                .try_lock_mutex() as isize
+        }
     }
 }
