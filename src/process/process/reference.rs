@@ -4,12 +4,15 @@ use super::{
 };
 use crate::{
     critical::CriticalLock,
+    error,
     filesystem::{DirectoryDescriptor, DirectoryEntry, FileDescriptor},
     ipc::{SignalHandler, Signals},
+    ipc::{Pipe, PipeReader, PipeWriter},
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
+    locks::Mutex,
 };
-use alloc::sync::Weak;
+use alloc::sync::{Weak, Arc};
 
 #[derive(Clone)]
 pub struct ProcessReference(Weak<CriticalLock<ProcessInner>>);
@@ -214,7 +217,48 @@ impl ProcessReference {
             None => None,
         }
     }
+
+
+    /* Pipe funcs */ 
+    pub fn create_pipe(&mut self) -> Option<(Arc<Mutex<PipeReader>>, Arc<Mutex<PipeWriter>>)>{
+             
+        match self.0.upgrade(){
+            Some(process) => Some (process.lock().create_pipe()),
+            None => None,
+        }
+ 
+    }
+    
+    pub fn close_pipe_reader(&self, pr: isize) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().close_pipe_reader(pr),
+            None => {}
+        }
+    }
+
+    pub fn close_pipe_writer(&self, pw: isize) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().close_pipe_writer(pw),
+            None => {}
+        }
+    }
+
+    pub fn get_pipe_reader(&self, pr: isize) -> error::Result<Arc<Mutex<PipeReader>>> {
+        match self.0.upgrade() {
+            Some(process) => process.lock().get_pipe_reader(pr),
+            None => Err(error::Status::BadDescriptor),
+        }
+    }
+    
+    pub fn get_pipe_writer(&self, pw: isize) -> error::Result<Arc<Mutex<PipeWriter>>> {
+        match self.0.upgrade() {
+            Some(process) => process.lock().get_pipe_writer(pw),
+            None => Err(error::Status::BadDescriptor),
+        }
+    }
 }
+
+
 
 impl Mappable for ProcessReference {
     fn id(&self) -> isize {

@@ -262,6 +262,7 @@ impl ProcessInner {
             Some(pw_descriptor) => Ok(pw_descriptor.0.clone()),
         }
     }
+    
     pub fn close_pipe_reader(&mut self, pr: isize) {
         self.pipe_reader_descriptors.remove(pr);
     }
