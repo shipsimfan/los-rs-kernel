@@ -22,7 +22,7 @@ use core::{arch::asm, usize};
 
 pub use daemon::{get_daemon_process, get_daemon_processes};
 pub use process::*;
-pub use queue::ThreadQueue;
+pub use queue::{SortedThreadQueue, ThreadQueue};
 pub use thread::*;
 
 #[repr(packed(1))]

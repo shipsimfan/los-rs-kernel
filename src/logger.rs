@@ -17,6 +17,7 @@ pub fn enable_boot_video_logging() {
     (*BOOT_VIDEO_LOGGER.lock()) = Some(BootVideoLogger(boot_video_device));
 }
 
+#[allow(unused)]
 pub fn disable_boot_video_logging() {
     (*BOOT_VIDEO_LOGGER.lock()) = None;
 }

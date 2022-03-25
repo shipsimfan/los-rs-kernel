@@ -6,7 +6,7 @@ mod stack;
 
 pub use inner::ThreadInner;
 pub use owner::ThreadOwner;
-pub use queue::{CurrentQueue, RemoveFn};
+pub use queue::{AddFn, CurrentQueue, RemoveFn};
 pub use reference::ThreadReference;
 
 pub type ThreadFunc = fn() -> isize;

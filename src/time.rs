@@ -2,7 +2,7 @@ use crate::{
     device::{self, DeviceReference},
     error,
     locks::Mutex,
-    process,
+    process::{self, SortedThreadQueue},
 };
 use core::arch::asm;
 
@@ -12,6 +12,8 @@ static mut SYSTEM_TIME: usize = 0;
 static mut EPOCH_TIME: isize = 0;
 static mut SYSTEM_OFFSET: usize = 0;
 static mut TIME_ZONE: isize = 0;
+
+static SLEEPING_THREADS: SortedThreadQueue<usize> = SortedThreadQueue::new();
 
 pub fn register_system_timer(timer_path: &str) -> error::Result<()> {
     let timer = device::get_device(timer_path)?;
@@ -49,12 +51,16 @@ pub unsafe fn millisecond_tick() {
         None => {}
     }
 
+    while let Some(thread) = SLEEPING_THREADS.pop_le(SYSTEM_TIME) {
+        process::queue_thread(thread)
+    }
+
     if SYSTEM_TIME % 1000 == SYSTEM_OFFSET {
         EPOCH_TIME += 1;
     }
 
     if SYSTEM_TIME % 10 == 0 {
-        crate::process::preempt();
+        process::preempt();
     }
 }
 
@@ -71,7 +77,12 @@ pub fn sleep(duration: usize) {
     let start = current_time_millis();
     let end = start + duration;
 
-    while current_time_millis() < end {
-        unsafe { asm!("hlt") };
+    if duration < 10 {
+        while current_time_millis() < end {
+            unsafe { asm!("hlt") };
+        }
+    } else {
+        let sleeping_queue = SLEEPING_THREADS.into_current_queue(end);
+        process::yield_thread(Some(sleeping_queue), None)
     }
 }

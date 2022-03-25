@@ -5,16 +5,24 @@ use core::{
 };
 
 pub type RemoveFn = unsafe fn(*mut c_void, *const ThreadInner);
-pub type AddFn = unsafe fn(*mut c_void, ThreadOwner);
 
-pub struct CurrentQueue {
+#[derive(Clone, Copy)]
+pub enum AddFn<I: PartialOrd + Copy> {
+    Normal(unsafe fn(*mut c_void, ThreadOwner)),
+    Sorted(I, unsafe fn(*mut c_void, ThreadOwner, value: I)),
+}
+
+pub struct CurrentQueue<I = usize>
+where
+    I: PartialOrd + Copy,
+{
     remove: RemoveFn,
-    add: AddFn,
+    add: AddFn<I>,
     object: AtomicPtr<c_void>,
 }
 
-impl CurrentQueue {
-    pub fn new(remove: RemoveFn, add: AddFn, object: AtomicPtr<c_void>) -> Self {
+impl<I: PartialOrd + Copy> CurrentQueue<I> {
+    pub fn new(remove: RemoveFn, add: AddFn<I>, object: AtomicPtr<c_void>) -> Self {
         CurrentQueue {
             remove,
             add,
@@ -27,7 +35,10 @@ impl CurrentQueue {
     }
 
     pub unsafe fn add(&self, thread: ThreadOwner) {
-        (self.add)(self.object.load(Ordering::Acquire), thread);
+        match self.add {
+            AddFn::Normal(add) => (add)(self.object.load(Ordering::Acquire), thread),
+            AddFn::Sorted(value, add) => (add)(self.object.load(Ordering::Acquire), thread, value),
+        }
     }
 }
 
