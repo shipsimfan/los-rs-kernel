@@ -24,6 +24,7 @@ pub enum SignalType {
     Terminate = 1,
     Abort = 2,
     Interrupt = 3,
+    Alarm = 4,
 }
 
 impl Signal {
@@ -46,6 +47,7 @@ impl Signals {
         signals[SignalType::Terminate].handler = SignalHandler::Terminate;
         signals[SignalType::Abort].handler = SignalHandler::Terminate;
         signals[SignalType::Interrupt].handler = SignalHandler::Terminate;
+        signals[SignalType::Alarm].handler = SignalHandler::Ignore;
 
         signals
     }

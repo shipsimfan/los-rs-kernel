@@ -1,8 +1,11 @@
 use crate::{
+    critical::CriticalLock,
     device::{self, DeviceReference},
     error,
+    ipc::SignalType,
     locks::Mutex,
-    process::{self, SortedThreadQueue},
+    process::{self, ProcessReference, SortedThreadQueue},
+    queue::SortedQueue,
 };
 use core::arch::asm;
 
@@ -14,6 +17,8 @@ static mut SYSTEM_OFFSET: usize = 0;
 static mut TIME_ZONE: isize = 0;
 
 static SLEEPING_THREADS: SortedThreadQueue<usize> = SortedThreadQueue::new();
+static ALARMS: CriticalLock<SortedQueue<usize, ProcessReference>> =
+    CriticalLock::new(SortedQueue::new());
 
 pub fn register_system_timer(timer_path: &str) -> error::Result<()> {
     let timer = device::get_device(timer_path)?;
@@ -55,6 +60,14 @@ pub unsafe fn millisecond_tick() {
         process::queue_thread(thread)
     }
 
+    {
+        let mut alarms = ALARMS.lock();
+        while let Some(process) = alarms.pop_le(SYSTEM_TIME) {
+            process.raise(SignalType::Alarm as u8)
+        }
+        drop(alarms)
+    }
+
     if SYSTEM_TIME % 1000 == SYSTEM_OFFSET {
         EPOCH_TIME += 1;
     }
@@ -85,4 +98,13 @@ pub fn sleep(duration: usize) {
         let sleeping_queue = SLEEPING_THREADS.into_current_queue(end);
         process::yield_thread(Some(sleeping_queue), None)
     }
+}
+
+pub fn set_alarm(time: usize) {
+    let start = current_time_millis();
+    let end = start + time;
+
+    ALARMS
+        .lock()
+        .insert(process::get_current_thread().process().unwrap(), end)
 }
