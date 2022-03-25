@@ -35,6 +35,7 @@ pub const IOCTRL_SET_CURSOR_X: usize = 4;
 pub const IOCTRL_SET_CURSOR_Y: usize = 5;
 pub const IOCTRL_GET_WIDTH: usize = 6;
 pub const IOCTRL_GET_HEIGHT: usize = 7;
+pub const IOCTRL_SET_CURSOR_STATE: usize = 8;
 
 impl Console {
     pub fn new(output_device: DeviceReference) -> error::Result<Self> {
@@ -85,6 +86,13 @@ impl Console {
         let mut output_device = self.output_device.lock();
         output_device.ioctrl(IOCTRL_SET_CURSOR_X, x)?;
         output_device.ioctrl(IOCTRL_SET_CURSOR_Y, y)?;
+        Ok(())
+    }
+
+    pub fn set_cursor_state(&mut self, state: bool) -> error::Result<()> {
+        self.output_device
+            .lock()
+            .ioctrl(IOCTRL_SET_CURSOR_STATE, if state { 1 } else { 0 })?;
         Ok(())
     }
 

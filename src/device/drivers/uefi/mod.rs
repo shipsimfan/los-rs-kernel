@@ -21,6 +21,7 @@ struct UEFIConsole {
     dim: bool,
     strikethrough: bool,
     underline: bool,
+    cursor_state: bool,
 }
 
 pub fn initialize(gmode: *const bootloader::GraphicsMode) {
@@ -38,6 +39,7 @@ pub fn initialize(gmode: *const bootloader::GraphicsMode) {
         dim: false,
         strikethrough: false,
         underline: false,
+        cursor_state: false,
     }));
 
     crate::device::register_device("/boot_video", console)
@@ -46,7 +48,28 @@ pub fn initialize(gmode: *const bootloader::GraphicsMode) {
 }
 
 impl UEFIConsole {
-    fn render_character(&mut self, c: char) {
+    fn set_cursor_state(&mut self, state: bool) {
+        if self.cursor_state && !state {
+            self.clear_cursor();
+        }
+
+        self.cursor_state = state;
+        self.render_cursor();
+    }
+
+    fn render_cursor(&mut self) {
+        if self.cursor_state {
+            self.render_character('_', true);
+        }
+    }
+
+    fn clear_cursor(&mut self) {
+        if self.cursor_state {
+            self.render_character(' ', true);
+        }
+    }
+
+    fn render_character(&mut self, c: char, ignore_style: bool) {
         const MASK: [u8; 8] = [128, 64, 32, 16, 8, 4, 2, 1];
         let glyph = (c as u32) * 16;
 
@@ -56,9 +79,9 @@ impl UEFIConsole {
         for cy in 0..16 {
             for cx in 0..8 {
                 let color = if font::FONT[(glyph + cy) as usize] & MASK[cx as usize] == 0 {
-                    if self.strikethrough && cy == 8 && c != ' ' {
+                    if !ignore_style && self.strikethrough && cy == 8 && c != ' ' {
                         &self.foreground
-                    } else if self.underline && cy == 15 && c != ' ' {
+                    } else if !ignore_style && self.underline && cy == 15 && c != ' ' {
                         &self.foreground
                     } else {
                         &self.background
@@ -81,9 +104,12 @@ impl UEFIConsole {
 
     fn clear_screen(&mut self) {
         self.framebuffer.clear(self.background.as_usize() as u32);
+        self.render_cursor()
     }
 
     pub fn print(&mut self, string: &str) {
+        self.clear_cursor();
+
         let mut iter = string.chars();
         while let Some(c) = iter.next() {
             match c {
@@ -96,7 +122,7 @@ impl UEFIConsole {
                     // backspace
                     if self.cx > 0 {
                         self.cx -= 1;
-                        self.render_character(' ');
+                        self.render_character(' ', false);
                     }
                 }
                 '\t' => {
@@ -105,18 +131,18 @@ impl UEFIConsole {
                         self.cy += 1;
                     } else {
                         if self.cx % 4 == 0 {
-                            self.render_character(' ');
+                            self.render_character(' ', false);
                             self.cx += 1;
                         }
 
                         while self.cx % 4 != 0 {
-                            self.render_character(' ');
+                            self.render_character(' ', false);
                             self.cx += 1;
                         }
                     }
                 }
                 _ => {
-                    self.render_character(c);
+                    self.render_character(c, false);
                     self.cx += 1;
                 }
             }
@@ -131,6 +157,8 @@ impl UEFIConsole {
                 self.cy -= 1;
             }
         }
+
+        self.render_cursor()
     }
 }
 
@@ -182,7 +210,9 @@ impl Device for UEFIConsole {
             console::IOCTRL_SET_CURSOR_X => {
                 let argument = (argument & 0xFFFFFFFF) as u32;
                 if argument < self.width {
+                    self.clear_cursor();
                     self.cx = argument;
+                    self.render_cursor();
                     Ok(argument as usize)
                 } else {
                     Err(error::Status::OutOfRange)
@@ -191,7 +221,9 @@ impl Device for UEFIConsole {
             console::IOCTRL_SET_CURSOR_Y => {
                 let argument = (argument & 0xFFFFFFFF) as u32;
                 if argument < self.height {
+                    self.clear_cursor();
                     self.cy = argument;
+                    self.render_cursor();
                     Ok(argument as usize)
                 } else {
                     Err(error::Status::OutOfRange)
@@ -199,6 +231,10 @@ impl Device for UEFIConsole {
             }
             console::IOCTRL_GET_WIDTH => Ok(self.width as usize),
             console::IOCTRL_GET_HEIGHT => Ok(self.height as usize),
+            console::IOCTRL_SET_CURSOR_STATE => {
+                self.set_cursor_state(argument != 0);
+                Ok(0)
+            }
             _ => Err(error::Status::InvalidIOCtrl),
         }
     }

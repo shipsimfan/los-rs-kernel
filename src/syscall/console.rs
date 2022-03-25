@@ -17,6 +17,7 @@ const CONSOLE_SET_CURSOR_POS_SYSCALL: usize = 0x3008;
 const CONSOLE_GET_WIDTH: usize = 0x3009;
 const CONSOLE_GET_HEIGHT: usize = 0x300A;
 const CONSOLE_WRITE_SYSCALL: usize = 0x300B;
+const CONSOLE_SET_CURSOR_STATE: usize = 0x300C;
 
 pub fn system_call(
     code: usize,
@@ -91,6 +92,7 @@ pub fn system_call(
             Ok(slice) => console_session.write_str(&String::from_utf8_lossy(slice)),
             Err(status) => Err(status),
         },
+        CONSOLE_SET_CURSOR_STATE => console_session.set_cursor_state(arg1 != 0),
         _ => {
             logln!("Invalid console system call: {}", code);
             Err(error::Status::InvalidRequestCode)
