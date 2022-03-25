@@ -9,13 +9,13 @@ use crate::{
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
 };
-use alloc::sync::Weak;
+use alloc::{boxed::Box, sync::Weak};
 
 #[derive(Clone)]
-pub struct ProcessReference(Weak<CriticalLock<ProcessInner>>);
+pub struct ProcessReference(Weak<CriticalLock<Box<ProcessInner>>>);
 
 impl ProcessReference {
-    pub fn new(process: Weak<CriticalLock<ProcessInner>>) -> Self {
+    pub fn new(process: Weak<CriticalLock<Box<ProcessInner>>>) -> Self {
         ProcessReference(process)
     }
 
