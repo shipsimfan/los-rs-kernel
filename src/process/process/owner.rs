@@ -5,10 +5,10 @@ use crate::{
     ipc::Signals,
     process::ThreadOwner,
 };
-use alloc::{string::String, sync::Arc};
+use alloc::{boxed::Box, string::String, sync::Arc};
 
 #[derive(Clone)]
-pub struct ProcessOwner(Arc<CriticalLock<ProcessInner>>);
+pub struct ProcessOwner(Arc<CriticalLock<Box<ProcessInner>>>);
 
 impl ProcessOwner {
     pub fn new(
@@ -17,15 +17,15 @@ impl ProcessOwner {
         name: String,
         signals: Signals,
     ) -> Self {
-        ProcessOwner(Arc::new(CriticalLock::new(ProcessInner::new(
+        ProcessOwner(ProcessInner::new(
             session_id,
             current_working_directory,
             name,
             signals,
-        ))))
+        ))
     }
 
-    pub fn new_raw(process: Arc<CriticalLock<ProcessInner>>) -> Self {
+    pub fn new_raw(process: Arc<CriticalLock<Box<ProcessInner>>>) -> Self {
         ProcessOwner(process)
     }
 
@@ -41,7 +41,7 @@ impl ProcessOwner {
         self.0.lock().create_thread(entry, context, self.clone())
     }
 
-    pub fn lock(&self) -> CriticalLockGuard<ProcessInner> {
+    pub fn lock(&self) -> CriticalLockGuard<Box<ProcessInner>> {
         self.0.lock()
     }
 }

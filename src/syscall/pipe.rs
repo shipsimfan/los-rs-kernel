@@ -1,4 +1,4 @@
-
+use crate::{error, logln, process};
 
 const CLOSE_PIPE_READ_SYSCALL: usize = 0xA000;
 const CLOSE_PIPE_WRITE_SYSCALL: usize = 0xA001;
@@ -17,64 +17,85 @@ pub fn system_call(
     match code {
         CLOSE_PIPE_READ_SYSCALL => {
             //close pipe reader identified by prd (arg1)
-            let process = process::get_current_thread()
-                .process()
-                .unwrap()
-                .upgrade()
-                .unwrap();
-        
-            process.lock().close_pipe_reader((arg1 & 0x7FFFFFFFFFFF) as isize)
-            
+            let process = process::get_current_thread().process().unwrap();
+
+            process.close_pipe_reader((arg1 & 0x7FFFFFFFFFFF) as isize);
+
+            0
         }
         CLOSE_PIPE_WRITE_SYSCALL => {
             // close pipe writer identified by pwd (arg1)
-            let process = process::get_current_thread()
-                .process()
-                .unwrap()
-                .upgrade()
-                .unwrap();
-        
-            process.lock().close_pipe_writer((arg1 & 0x7FFFFFFFFFFF) as isize)
-            
+            let process = process::get_current_thread().process().unwrap();
+
+            process.close_pipe_writer((arg1 & 0x7FFFFFFFFFFF) as isize);
+
+            0
         }
-        
+
         CREATE_PIPE_SYSCALL => {
-            //create pipe and store refs in prd and pwd args (arg1,arg2)    
-            let process = process::get_current_thread()
-            .process()
-            .unwrap()
-            .upgrade()
-            .unwrap();
-    
-            let prw = process.lock().create_pipe();
-            //point arg1 to pr, point arg2 to pw
-            *arg1 = prw.0;
-            *arg2 = prw.1;
-        
-    }
-        READ_PIPE_SYSCALL => {
-            //read upto buffer_len from prd into buffer (arg1 prd, arg2 buffer, arg3 buffer_len)
-            let process = process::get_current_thread()
-                .process()
-                .unwrap()
-                .upgrade()
-                .unwrap();
-        
-            let pr = process.lock().get_pipe_reader((arg1 & 0x7FFFFFFFFFFF) as isize);
-            pr.read(arg2)
-            
+            let ptr1 = match super::to_ptr_mut(arg1) {
+                Ok(ptr) => ptr,
+                Err(error) => return error.to_return_code(),
+            };
+
+            let ptr2 = match super::to_ptr_mut(arg2) {
+                Ok(ptr) => ptr,
+                Err(error) => return error.to_return_code(),
+            };
+
+            //create pipe and store refs in prd and pwd args (arg1,arg2)
+            let mut process = process::get_current_thread().process().unwrap();
+
+            match process.create_pipe() {
+                Some((pr, pw)) => {
+                    //point arg1 to pr, point arg2 to pw
+                    unsafe {
+                        *ptr1 = pr;
+                        *ptr2 = pw;
+                        0
+                    }
+                }
+                None => error::Status::NoProcess.to_return_code(),
+            }
         }
-        
+        READ_PIPE_SYSCALL => {
+            let buffer = match super::to_slice_mut(arg2, arg3) {
+                Ok(buffer) => buffer,
+                Err(error) => return error.to_return_code(),
+            };
+
+            //read upto buffer_len from prd into buffer (arg1 prd, arg2 buffer, arg3 buffer_len)
+            let process = process::get_current_thread().process().unwrap();
+
+            let pr = match process.get_pipe_reader((arg1 & 0x7FFFFFFFFFFF) as isize) {
+                Ok(pr) => pr,
+                Err(error) => return error.to_return_code(),
+            };
+
+            let pr = pr.lock();
+            pr.read(buffer) as isize
+        }
+
         WRITE_PIPE_SYSCALL => {
+            let buffer = match super::to_slice_mut(arg2, arg3) {
+                Ok(buffer) => buffer,
+                Err(error) => return error.to_return_code(),
+            };
+
             //write upto buffer_len from buffer into pwd (arg1 pwd, arg2 buffer, arg3 buffer_len)
-            let process = process::get_current_thread()
-                .process()
-                .unwrap()
-                .upgrade()
-                .unwrap();
-        
-            let pw = process.lock().get_pipe_writer((arg1 & 0x7FFFFFFFFFFF) as isize);
-            pw.write(arg2)
+            let process = process::get_current_thread().process().unwrap();
+
+            let pw = match process.get_pipe_writer((arg1 & 0x7FFFFFFFFFFF) as isize) {
+                Ok(pw) => pw,
+                Err(error) => return error.to_return_code(),
+            };
+
+            pw.lock().write(buffer);
+            buffer.len() as isize
+        }
+        _ => {
+            logln!("Invalid pipe system call: {}", code);
+            error::Status::InvalidRequestCode.to_return_code()
         }
     }
 }

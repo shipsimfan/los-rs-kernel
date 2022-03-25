@@ -17,7 +17,7 @@ pub fn system_call(
         GET_TIMEZONE_SYSCALL => time::get_timezone(),
         GET_EPOCH_TIME_SYSCALL => time::get_epoch_time(),
         _ => {
-            logln!("Invalid thread system call: {}", code);
+            logln!("Invalid time system call: {}", code);
             error::Status::InvalidRequestCode.to_return_code()
         }
     }

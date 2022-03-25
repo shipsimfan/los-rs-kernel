@@ -1,10 +1,11 @@
 use super::ProcessOwner;
 use crate::{
+    critical::CriticalLock,
     device::DeviceReference,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
-    ipc::{SignalHandler, Signals},
     ipc::{Pipe, PipeReader, PipeWriter},
+    ipc::{SignalHandler, Signals},
     locks::{Mutex, MutexGuard},
     map::{Map, Mappable, INVALID_ID},
     memory::AddressSpace,
@@ -15,7 +16,7 @@ use crate::{
     },
     session::get_session,
 };
-use alloc::{string::String, sync::Arc};
+use alloc::{boxed::Box, string::String, sync::Arc};
 
 #[derive(Clone)]
 pub struct Container<T: Mappable>(Arc<Mutex<T>>);
@@ -59,8 +60,8 @@ impl ProcessInner {
         current_working_directory: Option<DirectoryDescriptor>,
         name: String,
         signals: Signals,
-    ) -> Self {
-        ProcessInner {
+    ) -> Arc<CriticalLock<Box<Self>>> {
+        Arc::new(CriticalLock::new(Box::new(ProcessInner {
             id: INVALID_ID,
             threads: Map::new(),
             address_space: AddressSpace::new(),
@@ -75,8 +76,7 @@ impl ProcessInner {
             signals,
             pipe_reader_descriptors: Map::new(),
             pipe_writer_descriptors: Map::new(),
-
-        }
+        })))
     }
 
     pub fn create_thread(
@@ -238,16 +238,17 @@ impl ProcessInner {
     pub fn handle_signals(&mut self) -> Option<isize> {
         self.signals.handle()
     }
-    pub fn create_pipe(&mut self) -> (Arc<Mutex<PipeReader>>, Arc<Mutex<PipeWriter>>){
+
+    pub fn create_pipe(&mut self) -> (isize, isize) {
         let pipe = Pipe::new();
-      
-        //remove 4 subsequent lines when sharing pipes between procs? (do we still need to store prd and pwd in proc which creates the pipe?) 
+
+        //remove 4 subsequent lines when sharing pipes between procs? (do we still need to store prd and pwd in proc which creates the pipe?)
         let prd = PipeReaderDescriptor(Arc::new(Mutex::new(pipe.0)), INVALID_ID);
         let pwd = PipeWriterDescriptor(Arc::new(Mutex::new(pipe.1)), INVALID_ID);
-        self.pipe_reader_descriptors.insert(prd.clone());
-        self.pipe_writer_descriptors.insert(pwd.clone());
+        let prd = self.pipe_reader_descriptors.insert(prd.clone());
+        let pwd = self.pipe_writer_descriptors.insert(pwd.clone());
 
-        (prd.0,pwd.0)
+        (prd, pwd)
     }
 
     pub fn get_pipe_reader(&self, pr: isize) -> error::Result<Arc<Mutex<PipeReader>>> {
@@ -262,15 +263,13 @@ impl ProcessInner {
             Some(pw_descriptor) => Ok(pw_descriptor.0.clone()),
         }
     }
-    
+
     pub fn close_pipe_reader(&mut self, pr: isize) {
         self.pipe_reader_descriptors.remove(pr);
     }
     pub fn close_pipe_writer(&mut self, pw: isize) {
         self.pipe_writer_descriptors.remove(pw);
     }
-    
-
 }
 
 impl Mappable for ProcessInner {
@@ -336,7 +335,6 @@ impl Mappable for PipeReaderDescriptor {
         self.1
     }
 }
-
 
 impl Mappable for PipeWriterDescriptor {
     fn set_id(&mut self, id: isize) {
