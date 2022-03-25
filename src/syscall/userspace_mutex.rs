@@ -1,3 +1,5 @@
+use crate::{process};
+
 const CREATE_MUTEX_SYSCALL: usize = 0xA000;
 const LOCK_MUTEX_SYSCALL: usize = 0xA001;
 const TRY_LOCK_MUTEX_SYSCALL: usize = 0xA002;

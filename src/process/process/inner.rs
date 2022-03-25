@@ -1,7 +1,7 @@
 use super::ProcessOwner;
 use crate::{
     device::DeviceReference,
-    userspace_locks:UserspaceMutex,
+    UserspaceMutex,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
     ipc::{SignalHandler, Signals},
