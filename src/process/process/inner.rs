@@ -1,6 +1,7 @@
 use super::ProcessOwner;
 use crate::{
     device::DeviceReference,
+    userspace_locks:UserspaceMutex,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
     ipc::{SignalHandler, Signals},
@@ -21,6 +22,8 @@ pub struct Container<T: Mappable>(Arc<Mutex<T>>);
 
 pub struct DeviceDescriptor(DeviceReference, isize);
 
+pub struct MutexDescriptor(Arc<UserspaceMutex>, isize);
+
 pub struct ProcessInner {
     id: isize,
     threads: Map<ThreadReference>,
@@ -30,6 +33,7 @@ pub struct ProcessInner {
     file_descriptors: Map<Container<FileDescriptor>>,
     directory_descriptors: Map<Container<DirectoryDescriptor>>,
     device_descriptors: Map<DeviceDescriptor>,
+    mutex_descriptors: Map<MutexDescriptor>,
     current_working_directory: Option<DirectoryDescriptor>,
     process_time: isize,
     name: String,
@@ -41,6 +45,7 @@ pub struct ProcessInfo {
     pub time: usize,
     pub num_files: usize,
     pub num_directories: usize,
+    pub num_mutexes usize,
     pub working_directory: String,
     pub name: String,
 }
@@ -61,6 +66,7 @@ impl ProcessInner {
             file_descriptors: Map::new(),
             directory_descriptors: Map::new(),
             device_descriptors: Map::new(),
+            mutex_descriptors: Map::new(),
             current_working_directory,
             process_time: 0,
             name,
@@ -181,6 +187,17 @@ impl ProcessInner {
         match self.device_descriptors.get(dd) {
             None => Err(error::Status::BadDescriptor),
             Some(device_descriptor) => Ok(device_descriptor.0.clone()),
+        }
+    }
+
+    pub fn create_mutex(&self) -> error::Result<isize> {
+        self.mutex_descriptors.insert(Arc::new(UserspaceMutex::new()));
+    }
+
+    pub fn get_mutex(&self, md: isize) -> error::Result<Arc<UserspaceMutex>> {
+        match self.mutex_descriptors.get(md) {
+            None => Err(error::Status::BadDescriptor),
+            Some(mutex_descriptor) => Ok(mutex_descriptor.0.clone()),
         }
     }
 
