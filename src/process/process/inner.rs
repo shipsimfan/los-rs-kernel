@@ -1,7 +1,6 @@
 use super::ProcessOwner;
 use crate::{
     device::DeviceReference,
-    UserspaceMutex,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
     ipc::{SignalHandler, Signals},
@@ -14,6 +13,7 @@ use crate::{
         CurrentQueue, ThreadQueue,
     },
     session::get_session,
+    userspace_mutex::UserspaceMutex,
 };
 use alloc::{string::String, sync::Arc};
 
@@ -189,8 +189,9 @@ impl ProcessInner {
         }
     }
 
-    pub fn create_mutex(&self) -> error::Result<isize> {
-        self.mutex_descriptors.insert(Arc::new(UserspaceMutex::new()));
+    pub fn create_mutex(&mut self) -> isize {
+        self.mutex_descriptors
+            .insert(MutexDescriptor(Arc::new(UserspaceMutex::new()), INVALID_ID))
     }
 
     pub fn get_mutex(&self, md: isize) -> error::Result<Arc<UserspaceMutex>> {
@@ -200,21 +201,8 @@ impl ProcessInner {
         }
     }
 
-    pub fn destroy_mutex(&self, md: isize) {
+    pub fn destroy_mutex(&mut self, md: isize) {
         self.mutex_descriptors.remove(md)
-    }
-
-    pub fn lock_mutex(&self, md: isize) {
-        match self.get_mutex(md) {
-            Some(mutex_descriptor) => mutex_descriptor.0.lock()
-        }
-    }
-
-    pub fn try_lock_mutex(&self, md: isize) -> bool {
-        match self.get_mutex(md) {
-            None => false,
-            Some(mutex_descriptor) => mutex_descriptor.0.try_lock(),
-        }
     }
 
     pub fn get_time(&self) -> isize {
@@ -307,6 +295,16 @@ impl<T: Mappable> Mappable for Container<T> {
 }
 
 impl Mappable for DeviceDescriptor {
+    fn set_id(&mut self, id: isize) {
+        self.1 = id;
+    }
+
+    fn id(&self) -> isize {
+        self.1
+    }
+}
+
+impl Mappable for MutexDescriptor {
     fn set_id(&mut self, id: isize) {
         self.1 = id;
     }

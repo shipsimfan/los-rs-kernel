@@ -28,6 +28,7 @@ mod queue;
 mod session;
 mod syscall;
 mod time;
+mod userspace_mutex;
 
 extern crate alloc;
 

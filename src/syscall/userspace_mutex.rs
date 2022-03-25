@@ -1,4 +1,4 @@
-use crate::{process};
+use crate::{error, logln, process};
 
 const CREATE_MUTEX_SYSCALL: usize = 0xA000;
 const LOCK_MUTEX_SYSCALL: usize = 0xA001;
@@ -25,31 +25,56 @@ pub fn system_call(
                 Err(status) => status.to_return_code(),
             }
         }
-
         DESTROY_MUTEX_SYSCALL => {
-            match process::get_current_thread()
+            process::get_current_thread()
                 .process()
                 .unwrap()
-                .destroy_mutex(arg1)
-            {
-                Ok(md) => md,
-                Err(status) => status.to_return_code(),
-            }
-        }
- 
-        LOCK_MUTEX_SYSCALL => {
-            match process::get_current_thread()
-                .process()
-                .unwrap()
-                .lock_mutex(arg1)
+                .destroy_mutex(arg1 as isize);
             0
         }
-
-        TRY_LOCK_MUTEX_SYSCALL => {
-            match process::get_current_thread()
+        LOCK_MUTEX_SYSCALL => {
+            let mutex = match process::get_current_thread()
                 .process()
                 .unwrap()
-                .try_lock_mutex() as isize
+                .get_mutex(arg1 as isize)
+            {
+                Ok(mutex) => mutex,
+                Err(error) => return error.to_return_code(),
+            };
+
+            mutex.lock();
+
+            0
+        }
+        TRY_LOCK_MUTEX_SYSCALL => {
+            let mutex = match process::get_current_thread()
+                .process()
+                .unwrap()
+                .get_mutex(arg1 as isize)
+            {
+                Ok(mutex) => mutex,
+                Err(error) => return error.to_return_code(),
+            };
+
+            mutex.try_lock() as isize
+        }
+        UNLOCK_MUTEX_SYSCALL => {
+            let mutex = match process::get_current_thread()
+                .process()
+                .unwrap()
+                .get_mutex(arg1 as isize)
+            {
+                Ok(mutex) => mutex,
+                Err(error) => return error.to_return_code(),
+            };
+
+            mutex.unlock();
+
+            0
+        }
+        _ => {
+            logln!("Invalid userspace mutex system call: {}", code);
+            error::Status::InvalidRequestCode.to_return_code()
         }
     }
 }
