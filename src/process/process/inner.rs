@@ -1,5 +1,6 @@
 use super::ProcessOwner;
 use crate::{
+    critical::CriticalLock,
     device::DeviceReference,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
@@ -15,7 +16,7 @@ use crate::{
     session::get_session,
     userspace_mutex::UserspaceMutex,
 };
-use alloc::{string::String, sync::Arc};
+use alloc::{boxed::Box, string::String, sync::Arc};
 
 #[derive(Clone)]
 pub struct Container<T: Mappable>(Arc<Mutex<T>>);
@@ -55,8 +56,8 @@ impl ProcessInner {
         current_working_directory: Option<DirectoryDescriptor>,
         name: String,
         signals: Signals,
-    ) -> Self {
-        ProcessInner {
+    ) -> Arc<CriticalLock<Box<Self>>> {
+        Arc::new(CriticalLock::new(Box::new(ProcessInner {
             id: INVALID_ID,
             threads: Map::new(),
             address_space: AddressSpace::new(),
@@ -70,7 +71,7 @@ impl ProcessInner {
             process_time: 0,
             name,
             signals,
-        }
+        })))
     }
 
     pub fn create_thread(

@@ -6,17 +6,21 @@ use crate::{
     critical::CriticalLock,
     filesystem::{DirectoryDescriptor, DirectoryEntry, FileDescriptor},
     ipc::{SignalHandler, Signals},
+    locks::Mutex,
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
     userspace_mutex::UserspaceMutex,
 };
-use alloc::sync::{Arc, Weak};
+use alloc::{
+    boxed::Box,
+    sync::{Arc, Weak},
+};
 
 #[derive(Clone)]
-pub struct ProcessReference(Weak<CriticalLock<ProcessInner>>);
+pub struct ProcessReference(Weak<CriticalLock<Box<ProcessInner>>>);
 
 impl ProcessReference {
-    pub fn new(process: Weak<CriticalLock<ProcessInner>>) -> Self {
+    pub fn new(process: Weak<CriticalLock<Box<ProcessInner>>>) -> Self {
         ProcessReference(process)
     }
 
