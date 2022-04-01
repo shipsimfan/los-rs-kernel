@@ -5,7 +5,7 @@ use super::{
 use crate::{
     critical::CriticalLock,
     filesystem::{DirectoryDescriptor, DirectoryEntry, FileDescriptor},
-    ipc::{SignalHandler, Signals, UserspaceSignalContext},
+    ipc::{SignalHandleReturn, SignalHandler, Signals, UserspaceSignalContext},
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
 };
@@ -204,10 +204,10 @@ impl ProcessReference {
     pub fn handle_signals(
         &self,
         userspace_context: Option<(UserspaceSignalContext, u64)>,
-    ) -> Option<isize> {
+    ) -> SignalHandleReturn {
         match self.0.upgrade() {
             Some(process) => process.lock().handle_signals(userspace_context),
-            None => None,
+            None => SignalHandleReturn::None,
         }
     }
 

@@ -1,5 +1,11 @@
 use core::ops::{Index, IndexMut};
 
+pub enum SignalHandleReturn {
+    None,
+    Kill(isize),
+    Userspace(u64, usize, u64),
+}
+
 #[derive(Clone, Copy)]
 pub enum SignalHandler {
     Terminate,
@@ -32,27 +38,23 @@ pub enum SignalType {
 #[repr(packed(1))]
 #[repr(C)]
 pub struct UserspaceSignalContext {
-    r15: u64,
-    r14: u64,
-    r13: u64,
-    r12: u64,
-    r11: u64,
-    r10: u64,
-    r9: u64,
-    r8: u64,
-    rbp: u64,
-    rdi: u64,
-    rsi: u64,
-    rdx: u64,
-    rcx: u64,
-    rbx: u64,
-    rax: u64,
-    rflags: u64,
-    rip: u64,
-}
-
-extern "C" {
-    fn handle_userspace_signal(rsp: u64, handler: usize) -> !;
+    pub r15: u64,
+    pub r14: u64,
+    pub r13: u64,
+    pub r12: u64,
+    pub r11: u64,
+    pub r10: u64,
+    pub r9: u64,
+    pub r8: u64,
+    pub rbp: u64,
+    pub rdi: u64,
+    pub rsi: u64,
+    pub rdx: u64,
+    pub rcx: u64,
+    pub rbx: u64,
+    pub rax: u64,
+    pub rflags: u64,
+    pub rip: u64,
 }
 
 impl Signal {
@@ -104,28 +106,33 @@ impl Signals {
     pub fn handle(
         &mut self,
         userspace_context: Option<(UserspaceSignalContext, u64)>,
-    ) -> Option<isize> {
+    ) -> SignalHandleReturn {
         for i in 0..=255 {
             if self[i].pending {
                 match self[i].handler {
                     SignalHandler::Ignore => self[i].pending = false,
                     SignalHandler::Terminate => {
                         self[i].pending = false;
-                        return Some(128 + i as isize);
+                        return SignalHandleReturn::Kill(128 + i as isize);
                     }
                     SignalHandler::Userspace => match userspace_context {
                         Some((context, rsp)) => {
                             self[i].pending = false;
+
                             unsafe {
                                 // Build the context on the userspace stack
                                 let stack: *mut UserspaceSignalContext = (rsp
-                                    + core::mem::size_of::<UserspaceSignalContext>() as u64)
+                                    - core::mem::size_of::<UserspaceSignalContext>() as u64)
                                     as *mut _;
 
                                 *stack = context;
 
                                 // Handle signal
-                                handle_userspace_signal(stack as u64, self.userspace_handler)
+                                return SignalHandleReturn::Userspace(
+                                    stack as u64,
+                                    self.userspace_handler,
+                                    i as u64,
+                                );
                             }
                         }
                         None => {}
@@ -134,7 +141,7 @@ impl Signals {
             }
         }
 
-        None
+        SignalHandleReturn::None
     }
 }
 

@@ -34,7 +34,12 @@ pub fn system_call(
                             false => loop {
                                 let queue = session.get_event_thread_queue();
                                 drop(session);
+                                process::get_current_thread().set_signal_interruptable();
                                 process::yield_thread(Some(queue), None);
+
+                                if process::get_current_thread().signal_interrupted() {
+                                    return error::Status::Interrupted.to_return_code();
+                                }
 
                                 session = session_lock.lock();
                                 match session.peek_event() {

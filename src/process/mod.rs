@@ -11,7 +11,7 @@ use crate::{
     critical::{self, CriticalLock},
     error,
     filesystem::{self, open_directory, DirectoryDescriptor},
-    ipc::{Signals, UserspaceSignalContext},
+    ipc::{SignalHandleReturn, Signals, UserspaceSignalContext},
     locks::Spinlock,
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
@@ -77,6 +77,7 @@ extern "C" {
         load_location: *const usize,
         new_kernel_stack_base: usize,
     );
+    fn handle_userspace_signal(rsp: u64, handler: usize, signal_number: u64) -> !;
 }
 
 #[no_mangle]
@@ -556,13 +557,21 @@ pub fn preempt() {
 }
 
 pub fn handle_signals(userspace_context: Option<(UserspaceSignalContext, u64)>) {
+    let critical_state = unsafe { crate::critical::enter_local() };
     match get_current_thread_option() {
-        Some(thread) => match thread.process().unwrap().handle_signals(userspace_context) {
-            Some(val) => exit_process(val),
-            None => {}
-        },
+        Some(thread) => {
+            let ret = thread.process().unwrap().handle_signals(userspace_context);
+            match ret {
+                SignalHandleReturn::Kill(status) => exit_process(status),
+                SignalHandleReturn::None => {}
+                SignalHandleReturn::Userspace(rsp, handler, signal_number) => unsafe {
+                    handle_userspace_signal(rsp, handler, signal_number)
+                },
+            }
+        }
         None => {}
     }
+    unsafe { crate::critical::leave_local(critical_state) };
 }
 
 impl StandardIO {

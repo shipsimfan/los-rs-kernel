@@ -60,26 +60,36 @@ impl<T: PartialEq> Queue<T> {
         }
     }
 
-    pub unsafe fn remove(&mut self, value: T) {
+    pub unsafe fn remove(&mut self, value: T) -> Option<T> {
         let mut none: Option<Box<Node<T>>> = None;
 
         let mut current_node: *mut Option<Box<Node<T>>> = &mut self.head;
         let mut previous_node: *mut Option<Box<Node<T>>> = &mut none;
         while let Some(node) = &mut *current_node {
             if node.data == value {
-                match &mut *previous_node {
-                    Some(previous_node) => previous_node.next = node.next.take(),
-                    None => self.head = node.next.take(),
-                }
+                let node = match &mut *previous_node {
+                    Some(previous_node) => {
+                        let mut node = previous_node.next.take().unwrap();
+                        previous_node.next = node.next.take();
+                        node
+                    }
+                    None => {
+                        let mut node = self.head.take().unwrap();
+                        self.head = node.next.take();
+                        node
+                    }
+                };
 
                 self.length -= 1;
 
-                return;
+                return Some(node.data);
             }
 
             previous_node = current_node;
             current_node = &mut node.next;
         }
+
+        None
     }
 
     pub fn is_front(&self) -> bool {
@@ -169,7 +179,7 @@ impl<I: PartialOrd, T: PartialEq> SortedQueue<I, T> {
         }
     }
 
-    pub unsafe fn remove(&mut self, value: T) {
+    pub unsafe fn remove(&mut self, value: T) -> Option<T> {
         let mut none: Option<Box<SortedNode<I, T>>> = None;
 
         let mut current_node: *mut Option<Box<SortedNode<I, T>>> = &mut self.head;
@@ -183,12 +193,14 @@ impl<I: PartialOrd, T: PartialEq> SortedQueue<I, T> {
 
                 self.length -= 1;
 
-                return;
+                return Some((*current_node).take().unwrap().data);
             }
 
             previous_node = current_node;
             current_node = &mut node.next;
         }
+
+        None
     }
 }
 

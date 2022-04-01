@@ -49,6 +49,7 @@ pub enum Status {
     CorruptFilesystem,       // ECORRUPTFILESYSTEM
     IsFile,                  // EISFILE
     InvalidThread,           // EINVTHREAD
+    Interrupted,             // EINT
 }
 
 pub type Result<T> = core::result::Result<T, Status>;
@@ -107,6 +108,7 @@ impl fmt::Display for Status {
             Status::CorruptFilesystem => "Corrupt filesystem",
             Status::IsFile => "Is file",
             Status::InvalidThread => "Invalid thread",
+            Status::Interrupted => "Interrupted",
         })
     }
 }
