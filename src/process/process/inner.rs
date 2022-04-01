@@ -15,6 +15,7 @@ use crate::{
         CurrentQueue, ThreadQueue,
     },
     session::get_session,
+    userspace_mutex::UserspaceMutex,
 };
 use alloc::{boxed::Box, string::String, sync::Arc};
 
@@ -26,6 +27,8 @@ pub struct PipeWriterDescriptor(Arc<Mutex<PipeWriter>>, isize);
 #[derive(Clone)]
 pub struct PipeReaderDescriptor(Arc<Mutex<PipeReader>>, isize);
 
+pub struct MutexDescriptor(Arc<UserspaceMutex>, isize);
+
 pub struct ProcessInner {
     id: isize,
     threads: Map<ThreadReference>,
@@ -36,6 +39,7 @@ pub struct ProcessInner {
     directory_descriptors: Map<MappedItem<Container<DirectoryDescriptor>>>,
     device_descriptors: Map<MappedItem<DeviceReference>>,
     current_working_directory: Option<DirectoryDescriptor>,
+    mutex_descriptors: Map<MutexDescriptor>,
     process_time: isize,
     name: String,
     signals: Signals,
@@ -68,6 +72,7 @@ impl ProcessInner {
             file_descriptors: Map::new(),
             directory_descriptors: Map::new(),
             device_descriptors: Map::new(),
+            mutex_descriptors: Map::new(),
             current_working_directory,
             process_time: 0,
             name,
@@ -189,6 +194,22 @@ impl ProcessInner {
             None => Err(error::Status::BadDescriptor),
             Some(device_descriptor) => Ok((*device_descriptor).clone()),
         }
+    }
+
+    pub fn create_mutex(&mut self) -> isize {
+        self.mutex_descriptors
+            .insert(MutexDescriptor(Arc::new(UserspaceMutex::new()), INVALID_ID))
+    }
+
+    pub fn get_mutex(&self, md: isize) -> error::Result<Arc<UserspaceMutex>> {
+        match self.mutex_descriptors.get(md) {
+            None => Err(error::Status::BadDescriptor),
+            Some(mutex_descriptor) => Ok(mutex_descriptor.0.clone()),
+        }
+    }
+
+    pub fn destroy_mutex(&mut self, md: isize) {
+        self.mutex_descriptors.remove(md)
     }
 
     pub fn get_time(&self) -> isize {
@@ -323,6 +344,16 @@ impl Mappable for PipeReaderDescriptor {
 }
 
 impl Mappable for PipeWriterDescriptor {
+    fn set_id(&mut self, id: isize) {
+        self.1 = id;
+    }
+
+    fn id(&self) -> isize {
+        self.1
+    }
+}
+
+impl Mappable for MutexDescriptor {
     fn set_id(&mut self, id: isize) {
         self.1 = id;
     }

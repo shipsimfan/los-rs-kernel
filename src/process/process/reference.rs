@@ -11,6 +11,7 @@ use crate::{
     locks::Mutex,
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
+    userspace_mutex::UserspaceMutex,
 };
 use alloc::{
     boxed::Box,
@@ -204,6 +205,27 @@ impl ProcessReference {
         match self.0.upgrade() {
             Some(process) => process.lock().handle_signals(),
             None => None,
+        }
+    }
+
+    pub fn create_mutex(&self) -> crate::error::Result<isize> {
+        match self.0.upgrade() {
+            Some(process) => Ok(process.lock().create_mutex()),
+            None => Err(crate::error::Status::NoProcess),
+        }
+    }
+
+    pub fn get_mutex(&self, md: isize) -> crate::error::Result<Arc<UserspaceMutex>> {
+        match self.0.upgrade() {
+            Some(process) => process.lock().get_mutex(md),
+            None => Err(crate::error::Status::NoProcess),
+        }
+    }
+
+    pub fn destroy_mutex(&self, md: isize) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().destroy_mutex(md),
+            None => {}
         }
     }
 

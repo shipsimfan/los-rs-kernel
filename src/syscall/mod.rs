@@ -11,6 +11,7 @@ mod session;
 mod signal;
 mod thread;
 mod time;
+mod userspace_mutex;
 
 trait NullTerminator: PartialEq {
     fn null_terminator() -> Self;
@@ -47,6 +48,8 @@ extern "C" fn system_call(
         signal::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else if code >= 0xA000 && code <= 0xAFFF {
         pipe::system_call(code, arg1, arg2, arg3, arg4, arg5)
+    } else if code >= 0xB000 && code <= 0xBFFF {
+        userspace_mutex::system_call(code, arg1, arg2, arg3, arg4, arg5)
     } else {
         logln!("Invalid system call: {}", code);
         error::Status::InvalidRequestCode.to_return_code()
