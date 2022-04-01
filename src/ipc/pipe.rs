@@ -1,10 +1,6 @@
+use crate::locks::Mutex;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use crate::locks::Mutex;
-
-
-
-
 
 pub struct Pipe {
     buffer: VecDeque<u8>,
@@ -20,19 +16,11 @@ pub struct PipeWriter {
 
 impl Pipe {
     pub fn new() -> (PipeReader, PipeWriter) {
-        let pipe = Arc::new(
-            Mutex::new(Pipe {
-                buffer: VecDeque::new(),
-            }));
-    
-        (
-            PipeReader {
-                pipe: pipe.clone(),
-            },
-            PipeWriter {
-                pipe,
-            }
-        )
+        let pipe = Arc::new(Mutex::new(Pipe {
+            buffer: VecDeque::new(),
+        }));
+
+        (PipeReader { pipe: pipe.clone() }, PipeWriter { pipe })
     }
 
     pub fn read(&mut self, buffer: &mut [u8]) -> usize {
@@ -42,18 +30,16 @@ impl Pipe {
                 None => return i,
             }
         }
-    
+
         buffer.len()
-    } 
-    
+    }
+
     pub fn write(&mut self, buffer: &[u8]) {
         for i in 0..buffer.len() {
             self.buffer.push_back(buffer[i])
         }
     }
-    
-} 
-    
+}
 
 impl PipeReader {
     pub fn read(&self, buffer: &mut [u8]) -> usize {
@@ -64,6 +50,5 @@ impl PipeReader {
 impl PipeWriter {
     pub fn write(&self, buffer: &mut [u8]) {
         self.pipe.lock().write(buffer)
-
     }
 }
