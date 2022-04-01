@@ -27,7 +27,7 @@ pub fn system_call(
             0
         }
         _ => {
-            logln!("Invalid thread system call: {}", code);
+            logln!("Invalid time system call: {}", code);
             error::Status::InvalidRequestCode.to_return_code()
         }
     }
