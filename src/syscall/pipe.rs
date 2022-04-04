@@ -72,8 +72,12 @@ pub fn system_call(
                 Err(error) => return error.to_return_code(),
             };
 
-            let pr = pr.lock();
-            pr.read(buffer) as isize
+            let ret = pr.lock().read(buffer);
+            
+            return match ret{
+                Ok(ret) => ret as isize,
+                Err(error) => error.to_return_code()
+            };
         }
 
         WRITE_PIPE_SYSCALL => {
@@ -90,8 +94,12 @@ pub fn system_call(
                 Err(error) => return error.to_return_code(),
             };
 
-            pw.lock().write(buffer);
-            buffer.len() as isize
+            return match pw.lock().write(buffer){
+                Ok(_ret) => buffer.len() as isize,
+                Err(error) => error.to_return_code()
+            };
+
+
         }
         _ => {
             logln!("Invalid pipe system call: {}", code);

@@ -50,6 +50,8 @@ pub enum Status {
     IsFile,                  // EISFILE
     InvalidThread,           // EINVTHREAD
     Interrupted,             // EINT
+    NoReaders,               // ENORD
+    NoWriters,               // ENOWR
 }
 
 pub type Result<T> = core::result::Result<T, Status>;
@@ -109,6 +111,8 @@ impl fmt::Display for Status {
             Status::IsFile => "Is file",
             Status::InvalidThread => "Invalid thread",
             Status::Interrupted => "Interrupted",
+            Status::NoReaders => "No readers",
+            Status::NoWriters => "No writers",
         })
     }
 }
