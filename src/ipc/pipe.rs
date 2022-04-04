@@ -34,11 +34,11 @@ impl Pipe {
         self.queue.into_current_queue()
     }
 
+    //    pub fn read(&mut self, buffer: &mut [u8]) -> usize {
     pub fn read(&mut self, buffer: &mut [u8]) -> error::Result<usize> {
         if self.writer_count < 1 {
             return Err(error::Status::NoWriters);
         }
-
         for i in 0..buffer.len() {
             match self.buffer.pop_front() {
                 Some(val) => buffer[i] = val,
