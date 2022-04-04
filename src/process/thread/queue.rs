@@ -4,7 +4,7 @@ use core::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-pub type RemoveFn = unsafe fn(*mut c_void, *const ThreadInner);
+pub type RemoveFn = unsafe fn(*mut c_void, *const ThreadInner) -> Option<ThreadOwner>;
 
 #[derive(Clone, Copy)]
 pub enum AddFn<I: PartialOrd + Copy> {
@@ -30,8 +30,8 @@ impl<I: PartialOrd + Copy> CurrentQueue<I> {
         }
     }
 
-    pub unsafe fn remove(&self, thread: *const ThreadInner) {
-        (self.remove)(self.object.load(Ordering::Acquire), thread);
+    pub unsafe fn remove(&self, thread: *const ThreadInner) -> Option<ThreadOwner> {
+        (self.remove)(self.object.load(Ordering::Acquire), thread)
     }
 
     pub unsafe fn add(&self, thread: ThreadOwner) {

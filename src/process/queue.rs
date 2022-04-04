@@ -14,14 +14,17 @@ pub struct ThreadQueue(CriticalLock<Queue<QueuedThread>>);
 
 pub struct SortedThreadQueue<I: PartialOrd + Copy>(CriticalLock<SortedQueue<I, QueuedThread>>);
 
-unsafe fn remove(queue: *mut c_void, thread: *const ThreadInner) {
+unsafe fn remove(queue: *mut c_void, thread: *const ThreadInner) -> Option<ThreadOwner> {
     let queue = &mut *(queue as *mut ThreadQueue);
-    queue.remove(thread);
+    queue.remove(thread)
 }
 
-unsafe fn remove_sorted<I: PartialOrd + Copy>(queue: *mut c_void, thread: *const ThreadInner) {
+unsafe fn remove_sorted<I: PartialOrd + Copy>(
+    queue: *mut c_void,
+    thread: *const ThreadInner,
+) -> Option<ThreadOwner> {
     let queue = &mut *(queue as *mut SortedThreadQueue<I>);
-    queue.remove(thread);
+    queue.remove(thread)
 }
 
 unsafe fn add(queue: *mut c_void, thread: ThreadOwner) {
@@ -56,8 +59,11 @@ impl ThreadQueue {
     }
 
     // Called from thread on dropping
-    pub unsafe fn remove(&self, thread: *const ThreadInner) {
-        self.0.lock().remove(QueuedThread::Compare(thread));
+    pub unsafe fn remove(&self, thread: *const ThreadInner) -> Option<ThreadOwner> {
+        self.0
+            .lock()
+            .remove(QueuedThread::Compare(thread))
+            .map(|thread| thread.into())
     }
 
     pub fn into_current_queue(&self) -> CurrentQueue {
@@ -66,6 +72,15 @@ impl ThreadQueue {
             AddFn::Normal(add),
             AtomicPtr::new(self as *const _ as *mut _),
         )
+    }
+}
+
+impl Into<ThreadOwner> for QueuedThread {
+    fn into(self) -> ThreadOwner {
+        match self {
+            QueuedThread::Actual(owner) => owner,
+            QueuedThread::Compare(_) => panic!("Queued thread should never actually be a compare"),
+        }
     }
 }
 
@@ -108,8 +123,11 @@ impl<I: PartialOrd + Copy> SortedThreadQueue<I> {
         })
     }
 
-    pub unsafe fn remove(&self, thread: *const ThreadInner) {
-        self.0.lock().remove(QueuedThread::Compare(thread));
+    pub unsafe fn remove(&self, thread: *const ThreadInner) -> Option<ThreadOwner> {
+        self.0
+            .lock()
+            .remove(QueuedThread::Compare(thread))
+            .map(|thread| thread.into())
     }
 
     pub fn into_current_queue(&self, value: I) -> CurrentQueue<I> {

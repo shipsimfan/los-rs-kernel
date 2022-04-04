@@ -6,8 +6,9 @@ use crate::{
     critical::CriticalLock,
     error,
     filesystem::{DirectoryDescriptor, DirectoryEntry, FileDescriptor},
-    ipc::{PipeReader, PipeWriter},
-    ipc::{SignalHandler, Signals},
+    ipc::{
+        PipeReader, PipeWriter, SignalHandleReturn, SignalHandler, Signals, UserspaceSignalContext,
+    },
     locks::Mutex,
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
@@ -201,10 +202,20 @@ impl ProcessReference {
         }
     }
 
-    pub fn handle_signals(&self) -> Option<isize> {
+    pub fn set_userspace_signal_handler(&self, handler: usize) {
         match self.0.upgrade() {
-            Some(process) => process.lock().handle_signals(),
-            None => None,
+            Some(process) => process.lock().set_userspace_signal_handler(handler),
+            None => {}
+        }
+    }
+
+    pub fn handle_signals(
+        &self,
+        userspace_context: Option<(UserspaceSignalContext, u64)>,
+    ) -> SignalHandleReturn {
+        match self.0.upgrade() {
+            Some(process) => process.lock().handle_signals(userspace_context),
+            None => SignalHandleReturn::None,
         }
     }
 

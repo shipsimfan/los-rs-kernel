@@ -109,11 +109,15 @@ pub enum Keycode {
     DownArrow,
 }
 
-const STATE_CAPS_LOCK: usize = 0x01;
-const STATE_NUM_LOCK: usize = 0x02;
-const STATE_SCROLL_LOCK: usize = 0x04;
-const STATE_LEFT_SHIFT: usize = 0x08;
-const STATE_RIGHT_SHIFT: usize = 0x10;
+const STATE_CAPS_LOCK: usize = 0x001;
+const STATE_NUM_LOCK: usize = 0x002;
+const STATE_SCROLL_LOCK: usize = 0x004;
+const STATE_LEFT_SHIFT: usize = 0x008;
+const STATE_RIGHT_SHIFT: usize = 0x010;
+const STATE_LEFT_CTRL: usize = 0x020;
+const STATE_RIGHT_CTRL: usize = 0x040;
+const STATE_LEFT_ALT: usize = 0x080;
+const STATE_RIGHT_ALT: usize = 0x100;
 
 impl KeyState {
     pub const fn new() -> Self {
@@ -153,6 +157,22 @@ impl Into<usize> for KeyState {
 
         if self.right_shift {
             state |= STATE_RIGHT_SHIFT;
+        }
+
+        if self.left_ctrl {
+            state |= STATE_LEFT_CTRL;
+        }
+
+        if self.right_ctrl {
+            state |= STATE_RIGHT_CTRL;
+        }
+
+        if self.left_alt {
+            state |= STATE_LEFT_ALT;
+        }
+
+        if self.right_alt {
+            state |= STATE_RIGHT_ALT;
         }
 
         state

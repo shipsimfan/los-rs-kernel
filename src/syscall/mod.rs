@@ -1,4 +1,4 @@
-use crate::{error, logln, memory::KERNEL_VMA};
+use crate::{error, ipc::UserspaceSignalContext, logln, memory::KERNEL_VMA};
 
 mod console;
 mod device;
@@ -25,6 +25,8 @@ extern "C" fn system_call(
     arg3: usize,
     arg4: usize,
     arg5: usize,
+    mut userspace_context: UserspaceSignalContext,
+    rsp: u64,
 ) -> isize {
     let ret = if code <= 0x0FFF {
         process::system_call(code, arg1, arg2, arg3, arg4, arg5)
@@ -55,7 +57,8 @@ extern "C" fn system_call(
         error::Status::InvalidRequestCode.to_return_code()
     };
 
-    crate::process::handle_signals();
+    userspace_context.rax = ret as u64;
+    crate::process::handle_signals(Some((userspace_context, rsp)));
 
     ret
 }

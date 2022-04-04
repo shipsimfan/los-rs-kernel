@@ -1,26 +1,5 @@
-use crate::process;
-
-use super::idt::install_interrupt_handler;
-
-#[repr(packed(1))]
-#[repr(C)]
-pub struct Registers {
-    r15: u64,
-    r14: u64,
-    r13: u64,
-    r12: u64,
-    r11: u64,
-    r10: u64,
-    r9: u64,
-    r8: u64,
-    rbp: u64,
-    rdi: u64,
-    rsi: u64,
-    rdx: u64,
-    rcx: u64,
-    rbx: u64,
-    rax: u64,
-}
+use super::{idt::install_interrupt_handler, Registers};
+use crate::{ipc::UserspaceSignalContext, process};
 
 #[repr(packed(1))]
 #[repr(C)]
@@ -34,7 +13,7 @@ pub struct ExceptionInfo {
     pub ss: u64,
 }
 
-pub type Handler = unsafe fn(Registers, ExceptionInfo);
+pub type Handler = unsafe fn(&Registers, &ExceptionInfo);
 
 extern "C" {
     fn exception_handler_0();
@@ -111,7 +90,7 @@ static mut EXCEPTION_HANDLERS: [Option<Handler>; 32] = [None; 32];
 #[no_mangle]
 unsafe extern "C" fn common_exception_handler(registers: Registers, info: ExceptionInfo) {
     match EXCEPTION_HANDLERS[info.interrupt as usize] {
-        Some(handler) => handler(registers, info),
+        Some(handler) => handler(&registers, &info),
         None => match process::get_current_thread_option() {
             Some(_) => process::exit_process(129 + (info.interrupt as isize)),
             None => match EXCEPTION_STRINGS.get(info.interrupt as usize) {
@@ -124,7 +103,34 @@ unsafe extern "C" fn common_exception_handler(registers: Registers, info: Except
         },
     }
 
-    crate::process::handle_signals();
+    let userspace_context = if info.rip < crate::memory::KERNEL_VMA as u64 {
+        Some((
+            UserspaceSignalContext {
+                r15: registers.r15,
+                r14: registers.r14,
+                r13: registers.r13,
+                r12: registers.r12,
+                r11: registers.r11,
+                r10: registers.r10,
+                r9: registers.r9,
+                r8: registers.r8,
+                rbp: registers.rbp,
+                rdi: registers.rdi,
+                rsi: registers.rsi,
+                rdx: registers.rdx,
+                rcx: registers.rcx,
+                rbx: registers.rbx,
+                rax: registers.rax,
+                rflags: info.rflags,
+                rip: info.rip,
+            },
+            info.rsp,
+        ))
+    } else {
+        None
+    };
+
+    crate::process::handle_signals(userspace_context);
 }
 
 pub fn initialize() {

@@ -1,9 +1,16 @@
 use core::ops::{Index, IndexMut};
 
+pub enum SignalHandleReturn {
+    None,
+    Kill(isize),
+    Userspace(u64, usize, u64),
+}
+
 #[derive(Clone, Copy)]
 pub enum SignalHandler {
     Terminate,
     Ignore,
+    Userspace,
 }
 
 #[derive(Copy)]
@@ -16,6 +23,7 @@ pub struct Signal {
 #[derive(Clone)]
 pub struct Signals {
     signals: [Signal; 256],
+    userspace_handler: usize,
 }
 
 #[repr(u8)]
@@ -25,6 +33,28 @@ pub enum SignalType {
     Abort = 2,
     Interrupt = 3,
     Alarm = 4,
+}
+
+#[repr(packed(1))]
+#[repr(C)]
+pub struct UserspaceSignalContext {
+    pub r15: u64,
+    pub r14: u64,
+    pub r13: u64,
+    pub r12: u64,
+    pub r11: u64,
+    pub r10: u64,
+    pub r9: u64,
+    pub r8: u64,
+    pub rbp: u64,
+    pub rdi: u64,
+    pub rsi: u64,
+    pub rdx: u64,
+    pub rcx: u64,
+    pub rbx: u64,
+    pub rax: u64,
+    pub rflags: u64,
+    pub rip: u64,
 }
 
 impl Signal {
@@ -41,6 +71,7 @@ impl Signals {
     pub fn new() -> Self {
         let mut signals = Signals {
             signals: [Signal::new(); 256],
+            userspace_handler: 0,
         };
 
         signals[SignalType::Kill].handler = SignalHandler::Terminate;
@@ -62,25 +93,55 @@ impl Signals {
         self[signal].handler = handler;
     }
 
+    pub fn set_userspace_handler(&mut self, handler: usize) {
+        self.userspace_handler = handler;
+    }
+
     pub fn mask(&mut self, signal: u8, mask: bool) {
         if signal != SignalType::Kill as u8 {
             self[signal].mask = mask;
         }
     }
 
-    pub fn handle(&mut self) -> Option<isize> {
+    pub fn handle(
+        &mut self,
+        userspace_context: Option<(UserspaceSignalContext, u64)>,
+    ) -> SignalHandleReturn {
         for i in 0..=255 {
             if self[i].pending {
-                self[i].pending = false;
-
                 match self[i].handler {
-                    SignalHandler::Ignore => {}
-                    SignalHandler::Terminate => return Some(128 + i as isize),
+                    SignalHandler::Ignore => self[i].pending = false,
+                    SignalHandler::Terminate => {
+                        self[i].pending = false;
+                        return SignalHandleReturn::Kill(128 + i as isize);
+                    }
+                    SignalHandler::Userspace => match userspace_context {
+                        Some((context, rsp)) => {
+                            self[i].pending = false;
+
+                            unsafe {
+                                // Build the context on the userspace stack
+                                let stack: *mut UserspaceSignalContext = (rsp
+                                    - core::mem::size_of::<UserspaceSignalContext>() as u64)
+                                    as *mut _;
+
+                                *stack = context;
+
+                                // Handle signal
+                                return SignalHandleReturn::Userspace(
+                                    stack as u64,
+                                    self.userspace_handler,
+                                    i as u64,
+                                );
+                            }
+                        }
+                        None => {}
+                    },
                 }
             }
         }
 
-        None
+        SignalHandleReturn::None
     }
 }
 
@@ -89,6 +150,7 @@ impl SignalHandler {
         match value {
             0 => Some(SignalHandler::Terminate),
             1 => Some(SignalHandler::Ignore),
+            2 => Some(SignalHandler::Userspace),
             _ => None,
         }
     }

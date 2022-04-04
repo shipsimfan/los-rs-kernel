@@ -4,8 +4,10 @@ use crate::{
     device::DeviceReference,
     error,
     filesystem::{DirectoryDescriptor, FileDescriptor},
-    ipc::{Pipe, PipeReader, PipeWriter},
-    ipc::{SignalHandler, Signals},
+    ipc::{
+        Pipe, PipeReader, PipeWriter, SignalHandleReturn, SignalHandler, Signals,
+        UserspaceSignalContext,
+    },
     locks::{Mutex, MutexGuard},
     map::{Map, Mappable, MappedItem, INVALID_ID},
     memory::AddressSpace,
@@ -242,6 +244,7 @@ impl ProcessInner {
 
     pub fn raise(&mut self, signal: u8) {
         self.signals.raise(signal);
+        self.threads.for_each(|thread| thread.signal_interrupt());
     }
 
     pub fn set_signal_handler(&mut self, signal: u8, handler: SignalHandler) {
@@ -252,8 +255,15 @@ impl ProcessInner {
         self.signals.mask(signal, mask);
     }
 
-    pub fn handle_signals(&mut self) -> Option<isize> {
-        self.signals.handle()
+    pub fn set_userspace_signal_handler(&mut self, handler: usize) {
+        self.signals.set_userspace_handler(handler)
+    }
+
+    pub fn handle_signals(
+        &mut self,
+        userspace_context: Option<(UserspaceSignalContext, u64)>,
+    ) -> SignalHandleReturn {
+        self.signals.handle(userspace_context)
     }
 
     pub fn create_pipe(&mut self) -> (isize, isize) {

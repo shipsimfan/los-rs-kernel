@@ -1,4 +1,8 @@
-use crate::{device::DeviceReference, error, log, logln};
+use crate::{
+    device::DeviceReference,
+    error::{self, Status},
+    log, logln,
+};
 use alloc::boxed::Box;
 use core::convert::{TryFrom, TryInto};
 
@@ -131,12 +135,43 @@ fn check_pci_function(bus: u8, device: u8, function: u8) {
     let sub_class = read_config_b(bus, device, function, Register::SubClass);
 
     let path = alloc::format!("/pci/{:X}_{:X}", class, sub_class);
-    match crate::device::register_device(&path, new_device) {
+    match crate::device::register_device(&path, new_device.clone()) {
         Ok(()) => {}
-        Err(error) => {
-            logln!("Error while registering PCI device: {}", error);
-            return;
-        }
+        Err(error) => match error {
+            Status::Exists => {
+                let mut i = 0;
+                loop {
+                    let path = alloc::format!("{}_{}", path, i);
+
+                    match crate::device::register_device(&path, new_device.clone()) {
+                        Ok(()) => break,
+                        Err(error) => match error {
+                            Status::Exists => {}
+                            _ => {
+                                logln!(
+                                    "Error while registering PCI device ({}, {}): {}",
+                                    error,
+                                    class,
+                                    sub_class
+                                );
+                                return;
+                            }
+                        },
+                    }
+
+                    i += 1;
+                }
+            }
+            _ => {
+                logln!(
+                    "Error while registering PCI device ({}, {}): {}",
+                    error,
+                    class,
+                    sub_class
+                );
+                return;
+            }
+        },
     }
 
     if class == 0x06 && sub_class == 0x04 {

@@ -52,7 +52,7 @@ impl ThreadOwner {
     }
 
     pub fn matching(&self, thread: *const ThreadInner) -> bool {
-        (&(*self.0.lock())) as *const _ == thread
+        self.0.data_eq(thread)
     }
 }
 

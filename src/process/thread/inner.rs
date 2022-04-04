@@ -1,10 +1,19 @@
-use super::{queue::CurrentQueue, stack::Stack, ThreadFuncContext};
+use super::{queue::CurrentQueue, stack::Stack, ThreadFuncContext, ThreadOwner};
 use crate::{
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
-    process::{exit_thread, process::ProcessOwner, queue_thread, ProcessReference, ThreadQueue},
+    process::{
+        self, exit_thread, process::ProcessOwner, queue_thread, ProcessReference, ThreadQueue,
+    },
 };
 use core::ffi::c_void;
+
+#[derive(PartialEq, Eq)]
+pub enum SignalInterruptState {
+    NotInterruptable,
+    Interruptable,
+    Interrupted,
+}
 
 pub struct ThreadInner {
     id: isize,
@@ -15,6 +24,7 @@ pub struct ThreadInner {
     queue_data: isize,
     exit_queue: ThreadQueue,
     tls_base: usize,
+    signal_interrupt_state: SignalInterruptState,
 }
 
 const FLOATING_POINT_STORAGE_SIZE: usize = 512;
@@ -92,6 +102,7 @@ impl ThreadInner {
             queue_data: 0,
             exit_queue: ThreadQueue::new(),
             tls_base: 0,
+            signal_interrupt_state: SignalInterruptState::NotInterruptable,
         }
     }
 
@@ -114,16 +125,20 @@ impl ThreadInner {
         self.queue = Some(queue)
     }
 
-    pub unsafe fn clear_queue(&mut self, removed: bool) {
-        if !removed {
+    pub unsafe fn clear_queue(&mut self, removed: bool) -> Option<ThreadOwner> {
+        let ret = if !removed {
             let ptr = self as *mut _;
             match &mut self.queue {
                 Some(queue) => queue.remove(ptr),
-                None => {}
+                None => None,
             }
-        }
+        } else {
+            None
+        };
 
         self.queue = None;
+
+        ret
     }
 
     pub fn set_tls_base(&mut self, new_tls_base: usize) {
@@ -153,6 +168,35 @@ impl ThreadInner {
 
     pub fn get_exit_queue(&mut self) -> CurrentQueue {
         self.exit_queue.into_current_queue()
+    }
+
+    pub fn signal_interrupted(&mut self) -> bool {
+        let ret = self.signal_interrupt_state == SignalInterruptState::Interrupted;
+        self.signal_interrupt_state = SignalInterruptState::NotInterruptable;
+        ret
+    }
+
+    pub fn set_signal_interruptable(&mut self) {
+        if self.signal_interrupt_state == SignalInterruptState::NotInterruptable {
+            self.signal_interrupt_state = SignalInterruptState::Interruptable;
+        }
+    }
+
+    pub fn signal_interrupt(&mut self) {
+        unsafe {
+            let critical_state = crate::critical::enter_local();
+
+            if self.signal_interrupt_state == SignalInterruptState::Interruptable {
+                match self.clear_queue(false) {
+                    Some(thread) => process::queue_thread(thread),
+                    None => {}
+                }
+
+                self.signal_interrupt_state = SignalInterruptState::Interrupted;
+            }
+
+            crate::critical::leave_local(critical_state);
+        }
     }
 
     pub unsafe fn pre_exit(&mut self, exit_status: isize) {

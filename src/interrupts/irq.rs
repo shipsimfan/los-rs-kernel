@@ -1,9 +1,12 @@
 use crate::{
     device::{acpi, outb},
+    ipc::UserspaceSignalContext,
     log, logln,
     memory::KERNEL_VMA,
 };
 use core::{mem::size_of, ptr::null_mut};
+
+use super::Registers;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -46,6 +49,16 @@ struct LocalAPICAddressOverrideEntry {
 struct HandlerWithContext {
     handler: Handler,
     context: usize,
+}
+
+#[repr(packed(1))]
+#[repr(C)]
+struct IRQInfo {
+    pub rip: u64,
+    pub cs: u64,
+    pub rflags: u64,
+    pub rsp: u64,
+    pub ss: u64,
 }
 
 pub type Handler = unsafe fn(context: usize);
@@ -208,7 +221,7 @@ pub fn initialize() {
 }
 
 #[no_mangle]
-unsafe extern "C" fn common_irq_handler(irq: usize) {
+unsafe extern "C" fn common_irq_handler(irq: usize, registers: Registers, info: IRQInfo) {
     end_irq(irq as u8);
     end_interrupt();
 
@@ -217,7 +230,34 @@ unsafe extern "C" fn common_irq_handler(irq: usize) {
         Some(handler) => (handler.handler)(handler.context),
     }
 
-    crate::process::handle_signals();
+    let userspace_context = if info.rip < crate::memory::KERNEL_VMA as u64 {
+        Some((
+            UserspaceSignalContext {
+                r15: registers.r15,
+                r14: registers.r14,
+                r13: registers.r13,
+                r12: registers.r12,
+                r11: registers.r11,
+                r10: registers.r10,
+                r9: registers.r9,
+                r8: registers.r8,
+                rbp: registers.rbp,
+                rdi: registers.rdi,
+                rsi: registers.rsi,
+                rdx: registers.rdx,
+                rcx: registers.rcx,
+                rbx: registers.rbx,
+                rax: registers.rax,
+                rflags: info.rflags,
+                rip: info.rip,
+            },
+            info.rsp,
+        ))
+    } else {
+        None
+    };
+
+    crate::process::handle_signals(userspace_context);
 }
 
 pub fn install_irq_handler(irq: u8, handler: Handler, context: usize) -> bool {

@@ -1,4 +1,4 @@
-use super::{inner::ThreadInner, CurrentQueue};
+use super::{inner::ThreadInner, CurrentQueue, ThreadOwner};
 use crate::{
     critical::CriticalLock,
     map::{Mappable, INVALID_ID},
@@ -56,6 +56,27 @@ impl ThreadReference {
         }
     }
 
+    pub fn signal_interrupted(&self) -> bool {
+        match self.0.upgrade() {
+            Some(thread) => thread.lock().signal_interrupted(),
+            None => false,
+        }
+    }
+
+    pub fn set_signal_interruptable(&self) {
+        match self.0.upgrade() {
+            Some(thread) => thread.lock().set_signal_interruptable(),
+            None => {}
+        }
+    }
+
+    pub fn signal_interrupt(&self) {
+        match self.0.upgrade() {
+            Some(thread) => thread.lock().signal_interrupt(),
+            None => {}
+        }
+    }
+
     pub unsafe fn pre_exit(&self, exit_status: isize) {
         match self.0.upgrade() {
             Some(thread) => thread.lock().pre_exit(exit_status),
@@ -63,10 +84,10 @@ impl ThreadReference {
         }
     }
 
-    pub unsafe fn clear_queue(&self, removed: bool) {
+    pub unsafe fn clear_queue(&self, removed: bool) -> Option<ThreadOwner> {
         match self.0.upgrade() {
             Some(thread) => thread.lock().clear_queue(removed),
-            None => {}
+            None => None,
         }
     }
 }

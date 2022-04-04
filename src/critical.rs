@@ -72,6 +72,10 @@ impl<T> CriticalLock<T> {
     pub fn is_locked(&self) -> bool {
         self.lock.load(Ordering::Relaxed)
     }
+
+    pub fn data_eq(&self, other: *const T) -> bool {
+        self.data.get() == other as *mut _
+    }
 }
 
 impl<T: ?Sized> PartialEq for CriticalLock<T> {
