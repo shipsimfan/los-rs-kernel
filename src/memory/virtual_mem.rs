@@ -5,7 +5,10 @@ use core::{
 
 use crate::{
     bootloader::{self, MemoryDescriptor},
-    interrupts::exceptions::{install_exception_handler, ExceptionInfo, Registers},
+    interrupts::{
+        exceptions::{install_exception_handler, ExceptionInfo},
+        Registers,
+    },
     process,
 };
 
@@ -108,7 +111,7 @@ pub fn allocate(virtual_address: VirtualAddress, physical_address: PhysicalAddre
     current_address_space.allocate(virtual_address, physical_address)
 }
 
-unsafe fn page_fault_handler(_registers: Registers, info: ExceptionInfo) {
+unsafe fn page_fault_handler(_registers: &Registers, info: &ExceptionInfo) {
     let cr2 = get_cr2();
 
     if (info.error_code & 1) == 0 {
