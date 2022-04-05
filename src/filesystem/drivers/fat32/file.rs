@@ -81,7 +81,7 @@ impl crate::filesystem::File for File {
 
             // Write final cluster
             fat.read_cluster(
-                cluster_chain[ending_cluster_index],
+                cluster_chain[ending_cluster_index - 1],
                 write_buffer.as_mut_slice(),
             )?;
 
@@ -91,7 +91,10 @@ impl crate::filesystem::File for File {
                 j += 1;
             }
 
-            fat.write_cluster(cluster_chain[ending_cluster_index], write_buffer.as_slice())?;
+            fat.write_cluster(
+                cluster_chain[ending_cluster_index - 1],
+                write_buffer.as_slice(),
+            )?;
         }
 
         Ok(buffer.len() as isize)
