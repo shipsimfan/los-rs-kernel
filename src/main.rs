@@ -29,6 +29,7 @@ mod session;
 mod syscall;
 mod time;
 mod userspace_mutex;
+mod conditional_variable;
 
 extern crate alloc;
 

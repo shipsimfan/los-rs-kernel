@@ -18,6 +18,7 @@ use crate::{
     },
     session::get_session,
     userspace_mutex::UserspaceMutex,
+    conditional_variable::ConditionalVariable,
 };
 use alloc::{boxed::Box, string::String, sync::Arc};
 
@@ -30,6 +31,7 @@ pub struct PipeWriterDescriptor(Arc<Mutex<PipeWriter>>, isize);
 pub struct PipeReaderDescriptor(Arc<Mutex<PipeReader>>, isize);
 
 pub struct MutexDescriptor(Arc<UserspaceMutex>, isize);
+pub struct CondVarDescriptor(Arc<ConditionalVariable>, isize);
 
 pub struct ProcessInner {
     id: isize,
@@ -42,6 +44,7 @@ pub struct ProcessInner {
     device_descriptors: Map<MappedItem<DeviceReference>>,
     current_working_directory: Option<DirectoryDescriptor>,
     mutex_descriptors: Map<MutexDescriptor>,
+    cond_var_descriptors: Map<CondVarDescriptor>,
     process_time: isize,
     name: String,
     signals: Signals,
@@ -75,6 +78,7 @@ impl ProcessInner {
             directory_descriptors: Map::new(),
             device_descriptors: Map::new(),
             mutex_descriptors: Map::new(),
+            cond_var_descriptors: Map::new(),
             current_working_directory,
             process_time: 0,
             name,
@@ -212,6 +216,22 @@ impl ProcessInner {
 
     pub fn destroy_mutex(&mut self, md: isize) {
         self.mutex_descriptors.remove(md)
+    }
+
+    pub fn create_cond_var(&mut self) -> isize {
+        self.cond_var_descriptors
+            .insert(CondVarDescriptor(Arc::new(ConditionalVariable::new()), INVALID_ID))
+    }
+
+    pub fn get_cond_var(&self, cond: isize) -> error::Result<Arc<ConditionalVariable>> {
+        match self.cond_var_descriptors.get(cond) {
+            None => Err(error::Status::BadDescriptor),
+            Some(cond_var_descriptor) => Ok(cond_var_descriptor.0.clone()),
+        }
+    }
+
+    pub fn destroy_cond_var(&mut self, cond: isize) {
+        self.cond_var_descriptors.remove(cond)
     }
 
     pub fn get_time(&self) -> isize {
@@ -364,6 +384,16 @@ impl Mappable for PipeWriterDescriptor {
 }
 
 impl Mappable for MutexDescriptor {
+    fn set_id(&mut self, id: isize) {
+        self.1 = id;
+    }
+
+    fn id(&self) -> isize {
+        self.1
+    }
+}
+
+impl Mappable for CondVarDescriptor {
     fn set_id(&mut self, id: isize) {
         self.1 = id;
     }

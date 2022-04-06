@@ -12,7 +12,7 @@ use crate::{
     locks::Mutex,
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
-    userspace_mutex::UserspaceMutex,
+    userspace_mutex::UserspaceMutex, conditional_variable::ConditionalVariable,
 };
 use alloc::{
     boxed::Box,
@@ -236,6 +236,28 @@ impl ProcessReference {
     pub fn destroy_mutex(&self, md: isize) {
         match self.0.upgrade() {
             Some(process) => process.lock().destroy_mutex(md),
+            None => {}
+        }
+    }
+
+
+    pub fn create_cond_var(&self) -> crate::error::Result<isize> {
+        match self.0.upgrade() {
+            Some(process) => Ok(process.lock().create_cond_var()),
+            None => Err(crate::error::Status::NoProcess),
+        }
+    }
+
+    pub fn get_cond_var(&self, cond: isize) -> crate::error::Result<Arc<ConditionalVariable>> {
+        match self.0.upgrade() {
+            Some(process) => process.lock().get_cond_var(cond),
+            None => Err(crate::error::Status::NoProcess),
+        }
+    }
+
+    pub fn destroy_cond_var(&self, cond: isize) {
+        match self.0.upgrade() {
+            Some(process) => process.lock().destroy_cond_var(cond),
             None => {}
         }
     }
