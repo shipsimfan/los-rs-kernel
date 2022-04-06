@@ -53,7 +53,7 @@ pub fn system_call(
                 Ok(cond_var) => cond_var,
                 Err(error) => return error.to_return_code(),
             };
-            cond_var.singal();
+            cond_var.signal();
             0
         }
         BROADCAST_COND_VAR => {
