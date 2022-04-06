@@ -1,6 +1,7 @@
 use crate::locks::Mutex;
 use crate::error;
 use crate::logln;
+use crate::process::{self, ThreadQueue, CurrentQueue, yield_thread};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 
@@ -8,6 +9,9 @@ pub struct Pipe {
     buffer: VecDeque<u8>,
     reader_count: usize,
     writer_count: usize,
+    queue: ThreadQueue,
+
+
 }
 
 pub struct PipeReader {
@@ -24,14 +28,17 @@ impl Pipe {
             buffer: VecDeque::new(),
             reader_count: 1,
             writer_count: 1,
-        
+            queue: ThreadQueue::new(),
+
         }));
         
 
         (PipeReader { pipe: pipe.clone() }, PipeWriter { pipe })
     }
+    pub fn get_queue(&self) -> CurrentQueue {
+        self.queue.into_current_queue()
+    }
 
-    //    pub fn read(&mut self, buffer: &mut [u8]) -> usize {
     pub fn read(&mut self, buffer: &mut [u8]) -> error::Result<usize> {
             
         if self.writer_count<1{
@@ -55,6 +62,16 @@ impl Pipe {
         for i in 0..buffer.len() {
             self.buffer.push_back(buffer[i])
         }
+
+        // what to do in None case?
+        //should this loop as well?
+        match self.queue.pop() {
+            None => (),
+            Some(next_thread) => {
+                process::queue_thread(next_thread)
+            }
+        };
+
         Ok(())
     }
 
@@ -78,7 +95,17 @@ impl Pipe {
 
 impl PipeReader {
     pub fn read(&self, buffer: &mut [u8]) -> error::Result<usize> {
-        self.pipe.lock().read(buffer)
+
+        //loop match statement, (while  some thread)
+        match self.pipe.lock().read(buffer) {
+            Err(e) => Err(e),
+            Ok(r) => {
+                if r > 0{
+                    process::yield_thread(Some(self.pipe.lock().get_queue()), None);                
+                }
+                Ok(r)
+            },
+        }
     }
 }
 impl Clone for PipeReader{
