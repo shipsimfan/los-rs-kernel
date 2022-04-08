@@ -230,8 +230,8 @@ unsafe extern "C" fn common_irq_handler(irq: usize, registers: Registers, info: 
         Some(handler) => (handler.handler)(handler.context),
     }
 
-    let userspace_context = if info.rip < crate::memory::KERNEL_VMA as u64 {
-        Some((
+    if info.rip < crate::memory::KERNEL_VMA as u64 {
+        let userspace_context = (
             UserspaceSignalContext {
                 r15: registers.r15,
                 r14: registers.r14,
@@ -252,12 +252,9 @@ unsafe extern "C" fn common_irq_handler(irq: usize, registers: Registers, info: 
                 rip: info.rip,
             },
             info.rsp,
-        ))
-    } else {
-        None
-    };
-
-    crate::process::handle_signals(userspace_context);
+        );
+        crate::process::handle_signals(userspace_context);
+    }
 }
 
 pub fn install_irq_handler(irq: u8, handler: Handler, context: usize) -> bool {

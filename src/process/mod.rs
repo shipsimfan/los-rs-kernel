@@ -556,7 +556,7 @@ pub fn preempt() {
     queue_and_yield(Some(true));
 }
 
-pub fn handle_signals(userspace_context: Option<(UserspaceSignalContext, u64)>) {
+pub fn handle_signals(userspace_context: (UserspaceSignalContext, u64)) {
     let critical_state = unsafe { crate::critical::enter_local() };
     match get_current_thread_option() {
         Some(thread) => {

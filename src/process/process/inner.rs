@@ -261,7 +261,7 @@ impl ProcessInner {
 
     pub fn handle_signals(
         &mut self,
-        userspace_context: Option<(UserspaceSignalContext, u64)>,
+        userspace_context: (UserspaceSignalContext, u64),
     ) -> SignalHandleReturn {
         self.signals.handle(userspace_context)
     }

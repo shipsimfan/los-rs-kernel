@@ -103,8 +103,8 @@ unsafe extern "C" fn common_exception_handler(registers: Registers, info: Except
         },
     }
 
-    let userspace_context = if info.rip < crate::memory::KERNEL_VMA as u64 {
-        Some((
+    if info.rip < crate::memory::KERNEL_VMA as u64 {
+        let userspace_context = (
             UserspaceSignalContext {
                 r15: registers.r15,
                 r14: registers.r14,
@@ -125,12 +125,9 @@ unsafe extern "C" fn common_exception_handler(registers: Registers, info: Except
                 rip: info.rip,
             },
             info.rsp,
-        ))
-    } else {
-        None
-    };
-
-    crate::process::handle_signals(userspace_context);
+        );
+        crate::process::handle_signals(userspace_context);
+    }
 }
 
 pub fn initialize() {

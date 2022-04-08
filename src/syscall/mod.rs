@@ -58,7 +58,7 @@ extern "C" fn system_call(
     };
 
     userspace_context.rax = ret as u64;
-    crate::process::handle_signals(Some((userspace_context, rsp)));
+    crate::process::handle_signals((userspace_context, rsp));
 
     ret
 }

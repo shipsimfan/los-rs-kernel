@@ -105,7 +105,7 @@ impl Signals {
 
     pub fn handle(
         &mut self,
-        userspace_context: Option<(UserspaceSignalContext, u64)>,
+        userspace_context: (UserspaceSignalContext, u64),
     ) -> SignalHandleReturn {
         for i in 0..=255 {
             if self[i].pending {
@@ -115,28 +115,27 @@ impl Signals {
                         self[i].pending = false;
                         return SignalHandleReturn::Kill(128 + i as isize);
                     }
-                    SignalHandler::Userspace => match userspace_context {
-                        Some((context, rsp)) => {
-                            self[i].pending = false;
+                    SignalHandler::Userspace => {
+                        self[i].pending = false;
 
-                            unsafe {
-                                // Build the context on the userspace stack
-                                let stack: *mut UserspaceSignalContext = (rsp
-                                    - core::mem::size_of::<UserspaceSignalContext>() as u64)
-                                    as *mut _;
+                        unsafe {
+                            let (context, rsp) = userspace_context;
 
-                                *stack = context;
+                            // Build the context on the userspace stack
+                            let stack: *mut UserspaceSignalContext = (rsp
+                                - core::mem::size_of::<UserspaceSignalContext>() as u64)
+                                as *mut _;
 
-                                // Handle signal
-                                return SignalHandleReturn::Userspace(
-                                    stack as u64,
-                                    self.userspace_handler,
-                                    i as u64,
-                                );
-                            }
+                            *stack = context;
+
+                            // Handle signal
+                            return SignalHandleReturn::Userspace(
+                                stack as u64,
+                                self.userspace_handler,
+                                i as u64,
+                            );
                         }
-                        None => {}
-                    },
+                    }
                 }
             }
         }

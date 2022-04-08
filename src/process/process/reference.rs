@@ -211,7 +211,7 @@ impl ProcessReference {
 
     pub fn handle_signals(
         &self,
-        userspace_context: Option<(UserspaceSignalContext, u64)>,
+        userspace_context: (UserspaceSignalContext, u64),
     ) -> SignalHandleReturn {
         match self.0.upgrade() {
             Some(process) => process.lock().handle_signals(userspace_context),
