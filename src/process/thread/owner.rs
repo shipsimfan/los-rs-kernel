@@ -9,9 +9,9 @@ use alloc::sync::Arc;
 pub struct ThreadOwner(Arc<CriticalLock<ThreadInner>>);
 
 impl ThreadOwner {
-    pub fn new(process: ProcessOwner, entry: usize, context: usize) -> ThreadOwner {
+    pub fn new(process: ProcessOwner, entry: usize, context: usize, special: bool) -> ThreadOwner {
         ThreadOwner(Arc::new(CriticalLock::new(ThreadInner::new(
-            process, entry, context,
+            process, entry, context, special,
         ))))
     }
 
@@ -45,6 +45,10 @@ impl ThreadOwner {
 
     pub fn process(&self) -> ProcessReference {
         self.0.lock().process()
+    }
+
+    pub unsafe fn clear_queue(&self, removed: bool) {
+        self.0.lock().clear_queue(removed);
     }
 
     pub fn reference(&self) -> ThreadReference {

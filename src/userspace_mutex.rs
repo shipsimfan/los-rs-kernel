@@ -20,7 +20,7 @@ impl UserspaceMutex {
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_err()
         {
-            process::yield_thread(Some(self.queue.into_current_queue()), None);
+            process::yield_thread(Some(self.queue.into_current_queue()));
         }
     }
 

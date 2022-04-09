@@ -11,6 +11,7 @@ const GET_CURRENT_WORKING_DIRECTORY: usize = 0x0002;
 const SET_CURRENT_WORKING_DIRECTORY: usize = 0x0003;
 const EXIT_PROCESS_SYSCALL: usize = 0x0004;
 const KILL_PROCESS_SYSCALL: usize = 0x0005;
+const KILL_THREAD_SYSCALL: usize = 0x0006;
 
 pub fn system_call(
     code: usize,
@@ -117,6 +118,10 @@ pub fn system_call(
         EXIT_PROCESS_SYSCALL => process::exit_process((arg1 & 0x7FFFFFFFFFFF) as isize),
         KILL_PROCESS_SYSCALL => {
             process::kill_process((arg1 & 0x7FFFFFFFFFFF) as isize);
+            0
+        }
+        KILL_THREAD_SYSCALL => {
+            process::kill_thread((arg1 & 0x7FFFFFFFFFFF) as isize);
             0
         }
         _ => {

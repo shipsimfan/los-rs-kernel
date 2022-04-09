@@ -12,6 +12,10 @@ pub struct Console {
     event_thread_queue: ThreadQueue,
 }
 
+pub struct ConsoleOutputDevice {
+    output_device: DeviceReference,
+}
+
 #[derive(Debug, Clone)]
 pub struct Color {
     pub red: u8,
@@ -48,6 +52,36 @@ impl Console {
         })
     }
 
+    pub fn push_event(&mut self, event: Event) {
+        match self.event_thread_queue.pop() {
+            Some(thread) => process::queue_thread(thread),
+            None => {}
+        }
+
+        self.event_queue.push(event);
+    }
+
+    pub fn peek_event(&mut self) -> Option<Event> {
+        unsafe {
+            crate::critical::enter_local();
+            let res = self.event_queue.pop();
+            crate::critical::leave_local();
+            res
+        }
+    }
+
+    pub fn get_event_thread_queue(&self) -> CurrentQueue {
+        self.event_thread_queue.into_current_queue()
+    }
+
+    pub fn get_output_device(&self) -> ConsoleOutputDevice {
+        ConsoleOutputDevice {
+            output_device: self.output_device.clone(),
+        }
+    }
+}
+
+impl ConsoleOutputDevice {
     pub fn write(&mut self, buffer: &[u8]) -> error::Result<()> {
         self.output_device.lock().write(0, buffer)
     }
@@ -102,28 +136,6 @@ impl Console {
 
     pub fn get_height(&mut self) -> error::Result<isize> {
         Ok(self.output_device.lock().ioctrl(IOCTRL_GET_HEIGHT, 0)? as isize)
-    }
-
-    pub fn push_event(&mut self, event: Event) {
-        match self.event_thread_queue.pop() {
-            Some(thread) => process::queue_thread(thread),
-            None => {}
-        }
-
-        self.event_queue.push(event);
-    }
-
-    pub fn peek_event(&mut self) -> Option<Event> {
-        unsafe {
-            let critical_state = crate::critical::enter_local();
-            let res = self.event_queue.pop();
-            crate::critical::leave_local(critical_state);
-            res
-        }
-    }
-
-    pub fn get_event_thread_queue(&self) -> CurrentQueue {
-        self.event_thread_queue.into_current_queue()
     }
 }
 

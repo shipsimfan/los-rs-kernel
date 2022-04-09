@@ -19,6 +19,10 @@ const CONSOLE_GET_HEIGHT: usize = 0x300A;
 const CONSOLE_WRITE_SYSCALL: usize = 0x300B;
 const CONSOLE_SET_CURSOR_STATE: usize = 0x300C;
 
+extern "C" {
+    static mut LOCAL_CRITICAL_COUNT: usize;
+}
+
 pub fn system_call(
     code: usize,
     arg1: usize,
@@ -27,7 +31,7 @@ pub fn system_call(
     _arg4: usize,
     _arg5: usize,
 ) -> isize {
-    let session_lock = match process::get_current_thread()
+    let session = match process::get_current_thread()
         .process()
         .unwrap()
         .session_id()
@@ -39,60 +43,59 @@ pub fn system_call(
         None => return error::Status::InvalidSession.to_return_code(),
     };
 
-    let mut session = session_lock.lock();
-    let console_session = match session.get_sub_session_mut() {
-        SubSession::Console(console) => console,
+    let mut console_output = match session.lock().get_sub_session() {
+        SubSession::Console(console) => console.get_output_device(),
     };
 
-    match match code {
+    let ret = match match code {
         CONSOLE_WRITE_CH_SYSCALL => {
             let c = (arg1 & 0xFF) as u8;
-            console_session.write(&[c])
+            console_output.write(&[c])
         }
         CONSOLE_WRITE_STR_SYSCALL => match super::to_str(arg1) {
-            Ok(str) => console_session.write_str(str),
+            Ok(str) => console_output.write_str(str),
             Err(status) => Err(status),
         },
-        CONSOLE_CLEAR_SYSCALL => console_session.clear(),
-        CONSOLE_SET_ATTRIBUTE_SYSCALL => console_session.set_attribute(arg1),
+        CONSOLE_CLEAR_SYSCALL => console_output.clear(),
+        CONSOLE_SET_ATTRIBUTE_SYSCALL => console_output.set_attribute(arg1),
         CONSOLE_SET_FOREGROUND_COLOR_SYSCALL => {
-            console_session.set_foreground_color(Color::from_usize(arg1))
+            console_output.set_foreground_color(Color::from_usize(arg1))
         }
         CONSOLE_SET_FOREGROUND_COLOR_RGB_SYSCALL => {
-            console_session.set_foreground_color(Color::new(
+            console_output.set_foreground_color(Color::new(
                 (arg1 & 0xFF) as u8,
                 (arg2 & 0xFF) as u8,
                 (arg3 & 0xFF) as u8,
             ))
         }
         CONSOLE_SET_BACKGROUND_COLOR_SYSCALL => {
-            console_session.set_background_color(Color::from_usize(arg1))
+            console_output.set_background_color(Color::from_usize(arg1))
         }
         CONSOLE_SET_BACKGROUND_COLOR_RGB_SYSCALL => {
-            console_session.set_background_color(Color::new(
+            console_output.set_background_color(Color::new(
                 (arg1 & 0xFF) as u8,
                 (arg2 & 0xFF) as u8,
                 (arg3 & 0xFF) as u8,
             ))
         }
-        CONSOLE_SET_CURSOR_POS_SYSCALL => console_session.set_cursor_pos(arg1, arg2),
+        CONSOLE_SET_CURSOR_POS_SYSCALL => console_output.set_cursor_pos(arg1, arg2),
         CONSOLE_GET_WIDTH => {
-            return match console_session.get_width() {
+            return match console_output.get_width() {
                 Ok(width) => width,
                 Err(status) => status.to_return_code(),
             }
         }
         CONSOLE_GET_HEIGHT => {
-            return match console_session.get_height() {
+            return match console_output.get_height() {
                 Ok(height) => height,
                 Err(status) => status.to_return_code(),
             }
         }
         CONSOLE_WRITE_SYSCALL => match super::to_slice_mut(arg1, arg2) {
-            Ok(slice) => console_session.write_str(&String::from_utf8_lossy(slice)),
+            Ok(slice) => console_output.write_str(&String::from_utf8_lossy(slice)),
             Err(status) => Err(status),
         },
-        CONSOLE_SET_CURSOR_STATE => console_session.set_cursor_state(arg1 != 0),
+        CONSOLE_SET_CURSOR_STATE => console_output.set_cursor_state(arg1 != 0),
         _ => {
             logln!("Invalid console system call: {}", code);
             Err(error::Status::InvalidRequestCode)
@@ -100,5 +103,9 @@ pub fn system_call(
     } {
         Ok(()) => 0,
         Err(status) => status.to_return_code(),
-    }
+    };
+
+    let _c = unsafe { LOCAL_CRITICAL_COUNT };
+
+    ret
 }

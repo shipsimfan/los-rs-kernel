@@ -3,6 +3,7 @@ use super::{
     ProcessOwner,
 };
 use crate::{
+    conditional_variable::ConditionalVariable,
     critical::CriticalLock,
     error,
     filesystem::{DirectoryDescriptor, DirectoryEntry, FileDescriptor},
@@ -12,11 +13,12 @@ use crate::{
     locks::Mutex,
     map::{Mappable, INVALID_ID},
     process::{CurrentQueue, ThreadOwner, ThreadReference},
-    userspace_mutex::UserspaceMutex, conditional_variable::ConditionalVariable,
+    userspace_mutex::UserspaceMutex,
 };
 use alloc::{
     boxed::Box,
     sync::{Arc, Weak},
+    vec::Vec,
 };
 
 #[derive(Clone)]
@@ -134,7 +136,7 @@ impl ProcessReference {
 
     pub fn create_thread(&self, entry: usize, context: usize) -> Option<ThreadOwner> {
         match self.upgrade() {
-            Some(process) => Some(process.create_thread(entry, context)),
+            Some(process) => Some(process.create_thread(entry, context, false)),
             None => None,
         }
     }
@@ -146,10 +148,10 @@ impl ProcessReference {
         }
     }
 
-    pub fn kill_threads(&self, exception: isize) {
+    pub fn get_threads(&self, exception: isize) -> Vec<ThreadReference> {
         match self.0.upgrade() {
-            Some(process) => process.lock().kill_threads(exception),
-            None => {}
+            Some(process) => process.lock().get_threads(exception),
+            None => Vec::new(),
         }
     }
 
@@ -239,7 +241,6 @@ impl ProcessReference {
             None => {}
         }
     }
-
 
     pub fn create_cond_var(&self) -> crate::error::Result<isize> {
         match self.0.upgrade() {

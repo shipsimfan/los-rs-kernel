@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use super::{inner::ThreadInner, ThreadOwner};
 use core::{
     ffi::c_void,
@@ -6,23 +8,18 @@ use core::{
 
 pub type RemoveFn = unsafe fn(*mut c_void, *const ThreadInner) -> Option<ThreadOwner>;
 
-#[derive(Clone, Copy)]
-pub enum AddFn<I: PartialOrd + Copy> {
-    Normal(unsafe fn(*mut c_void, ThreadOwner)),
-    Sorted(I, unsafe fn(*mut c_void, ThreadOwner, value: I)),
+pub trait AddFn: Send + Sync {
+    unsafe fn add(&self, queue: *mut c_void, thread: ThreadOwner);
 }
 
-pub struct CurrentQueue<I = usize>
-where
-    I: PartialOrd + Copy,
-{
+pub struct CurrentQueue {
     remove: RemoveFn,
-    add: AddFn<I>,
+    add: Box<dyn AddFn>,
     object: AtomicPtr<c_void>,
 }
 
-impl<I: PartialOrd + Copy> CurrentQueue<I> {
-    pub fn new(remove: RemoveFn, add: AddFn<I>, object: AtomicPtr<c_void>) -> Self {
+impl CurrentQueue {
+    pub fn new(remove: RemoveFn, add: Box<dyn AddFn>, object: AtomicPtr<c_void>) -> Self {
         CurrentQueue {
             remove,
             add,
@@ -35,19 +32,6 @@ impl<I: PartialOrd + Copy> CurrentQueue<I> {
     }
 
     pub unsafe fn add(&self, thread: ThreadOwner) {
-        match self.add {
-            AddFn::Normal(add) => (add)(self.object.load(Ordering::Acquire), thread),
-            AddFn::Sorted(value, add) => (add)(self.object.load(Ordering::Acquire), thread, value),
-        }
-    }
-}
-
-impl Clone for CurrentQueue {
-    fn clone(&self) -> Self {
-        CurrentQueue {
-            remove: self.remove,
-            add: self.add,
-            object: AtomicPtr::new(self.object.load(Ordering::Acquire)),
-        }
+        self.add.add(self.object.load(Ordering::Acquire), thread)
     }
 }

@@ -253,7 +253,9 @@ unsafe extern "C" fn common_irq_handler(irq: usize, registers: Registers, info: 
             },
             info.rsp,
         );
+        crate::critical::leave_local_without_sti();
         crate::process::handle_signals(userspace_context);
+        crate::critical::enter_local();
     }
 }
 

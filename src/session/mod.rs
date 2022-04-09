@@ -53,6 +53,7 @@ pub fn create_console_session(output_device_path: &str) -> error::Result<isize> 
         ),
         Some(sid),
         false,
+        true,
     )?;
 
     Ok(sid)
@@ -78,10 +79,11 @@ impl Session {
         working_directory: Option<DirectoryDescriptor>,
         name: String,
         signals: Signals,
+        special: bool,
     ) -> ThreadOwner {
         let new_process = ProcessOwner::new(Some(self.id), working_directory, name, signals);
         self.processes.insert(new_process.reference());
-        new_process.create_thread(entry, context)
+        new_process.create_thread(entry, context, special)
     }
 
     pub fn get_process(&self, pid: isize) -> Option<ProcessReference> {
@@ -96,8 +98,8 @@ impl Session {
         self.processes.remove(id);
     }
 
-    pub fn get_sub_session_mut(&mut self) -> &mut SubSession {
-        &mut self.sub
+    pub fn get_sub_session(&self) -> &SubSession {
+        &self.sub
     }
 
     pub fn push_event(&mut self, event: Event) {
@@ -106,9 +108,11 @@ impl Session {
                 Event::KeyPress(keycode, keystate) => {
                     match keystate.left_ctrl || keystate.right_ctrl {
                         true => match keycode {
-                            Keycode::C => self
-                                .processes
-                                .for_each(|process| process.raise(SignalType::Interrupt as u8)),
+                            Keycode::C => {
+                                for process in &self.processes {
+                                    process.raise(SignalType::Interrupt as u8)
+                                }
+                            }
                             _ => {}
                         },
                         false => {}

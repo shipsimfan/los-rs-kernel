@@ -13,28 +13,31 @@ pub struct CriticalLock<T: ?Sized> {
 pub struct CriticalLockGuard<'a, T: ?Sized + 'a> {
     lock: &'a AtomicBool,
     data: &'a mut T,
-    local_critical_state: bool,
 }
 
 // Does not require lock or atomic due to being independent between cores
 extern "C" {
-    static mut LOCAL_CRITICAL_STATE: bool;
+    static mut LOCAL_CRITICAL_COUNT: usize;
 }
 
 #[inline(always)]
-pub unsafe fn enter_local() -> bool {
+pub unsafe fn enter_local() {
+    assert!(LOCAL_CRITICAL_COUNT <= 1000);
+
     asm!("cli");
-    let old_state = LOCAL_CRITICAL_STATE;
-    LOCAL_CRITICAL_STATE = true;
-    old_state
+    LOCAL_CRITICAL_COUNT += 1;
 }
 
 #[inline(always)]
-pub unsafe fn leave_local(old_state: bool) {
-    LOCAL_CRITICAL_STATE = old_state;
-    if !old_state {
+pub unsafe fn leave_local() {
+    LOCAL_CRITICAL_COUNT -= 1;
+    if LOCAL_CRITICAL_COUNT == 0 {
         asm!("sti");
     }
+}
+
+pub unsafe fn leave_local_without_sti() {
+    LOCAL_CRITICAL_COUNT -= 1;
 }
 
 impl<T> CriticalLock<T> {
@@ -48,7 +51,7 @@ impl<T> CriticalLock<T> {
     #[inline(always)]
     pub fn lock(&self) -> CriticalLockGuard<T> {
         // Lock locally
-        let local_critical_state = unsafe { enter_local() };
+        unsafe { enter_local() };
 
         // Lock globally
         while self
@@ -64,7 +67,6 @@ impl<T> CriticalLock<T> {
         CriticalLockGuard {
             lock: &self.lock,
             data: unsafe { &mut *self.data.get() },
-            local_critical_state,
         }
     }
 
@@ -104,7 +106,7 @@ impl<'a, T: ?Sized> Drop for CriticalLockGuard<'a, T> {
             self.lock.store(false, Ordering::Release);
 
             // Then drop local critical
-            leave_local(self.local_critical_state);
+            leave_local();
         }
     }
 }

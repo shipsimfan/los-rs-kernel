@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use super::{AddFn, CurrentQueue, ThreadInner, ThreadOwner};
 use crate::{
     critical::CriticalLock,
@@ -10,16 +12,24 @@ enum QueuedThread {
     Compare(*const ThreadInner),
 }
 
+struct SortedCurrentQueue<I: PartialOrd + Copy + Send + Sync> {
+    value: I,
+}
+
+struct NormalCurrentQueue;
+
 pub struct ThreadQueue(CriticalLock<Queue<QueuedThread>>);
 
-pub struct SortedThreadQueue<I: PartialOrd + Copy>(CriticalLock<SortedQueue<I, QueuedThread>>);
+pub struct SortedThreadQueue<I: 'static + PartialOrd + Copy + Send + Sync>(
+    CriticalLock<SortedQueue<I, QueuedThread>>,
+);
 
 unsafe fn remove(queue: *mut c_void, thread: *const ThreadInner) -> Option<ThreadOwner> {
     let queue = &mut *(queue as *mut ThreadQueue);
     queue.remove(thread)
 }
 
-unsafe fn remove_sorted<I: PartialOrd + Copy>(
+unsafe fn remove_sorted<I: 'static + PartialOrd + Copy + Send + Sync>(
     queue: *mut c_void,
     thread: *const ThreadInner,
 ) -> Option<ThreadOwner> {
@@ -27,14 +37,18 @@ unsafe fn remove_sorted<I: PartialOrd + Copy>(
     queue.remove(thread)
 }
 
-unsafe fn add(queue: *mut c_void, thread: ThreadOwner) {
-    let queue = &mut *(queue as *mut ThreadQueue);
-    queue.push(thread)
+impl AddFn for NormalCurrentQueue {
+    unsafe fn add(&self, queue: *mut c_void, thread: ThreadOwner) {
+        let queue = &mut *(queue as *mut ThreadQueue);
+        queue.push(thread)
+    }
 }
 
-unsafe fn add_sorted<I: PartialOrd + Copy>(queue: *mut c_void, thread: ThreadOwner, value: I) {
-    let queue = &mut *(queue as *mut SortedThreadQueue<I>);
-    queue.insert(thread, value)
+impl<I: 'static + PartialOrd + Copy + Send + Sync> AddFn for SortedCurrentQueue<I> {
+    unsafe fn add(&self, queue: *mut c_void, thread: ThreadOwner) {
+        let queue = &mut *(queue as *mut SortedThreadQueue<I>);
+        queue.insert(thread, self.value)
+    }
 }
 
 impl ThreadQueue {
@@ -43,13 +57,16 @@ impl ThreadQueue {
     }
 
     pub fn push(&self, thread: ThreadOwner) {
-        //thread.set_queue(self.into_current_queue());
+        unsafe { thread.set_queue(self.into_current_queue()) };
         self.0.lock().push(QueuedThread::Actual(thread));
     }
 
     pub fn pop(&self) -> Option<ThreadOwner> {
         self.0.lock().pop().map(|queued| match queued {
-            QueuedThread::Actual(thread) => thread,
+            QueuedThread::Actual(thread) => {
+                unsafe { thread.clear_queue(true) };
+                thread
+            }
             _ => panic!("\"Compare\" queued thread should never actually be in the queue!"),
         })
     }
@@ -69,7 +86,7 @@ impl ThreadQueue {
     pub fn into_current_queue(&self) -> CurrentQueue {
         CurrentQueue::new(
             remove,
-            AddFn::Normal(add),
+            Box::new(NormalCurrentQueue),
             AtomicPtr::new(self as *const _ as *mut _),
         )
     }
@@ -99,12 +116,13 @@ impl PartialEq for QueuedThread {
     }
 }
 
-impl<I: PartialOrd + Copy> SortedThreadQueue<I> {
+impl<I: PartialOrd + Copy + Send + Sync> SortedThreadQueue<I> {
     pub const fn new() -> Self {
         SortedThreadQueue(CriticalLock::new(SortedQueue::new()))
     }
 
     pub fn insert(&self, thread: ThreadOwner, value: I) {
+        unsafe { thread.set_queue(self.into_current_queue(value)) };
         self.0.lock().insert(QueuedThread::Actual(thread), value)
     }
 
@@ -130,10 +148,12 @@ impl<I: PartialOrd + Copy> SortedThreadQueue<I> {
             .map(|thread| thread.into())
     }
 
-    pub fn into_current_queue(&self, value: I) -> CurrentQueue<I> {
+    pub fn into_current_queue(&self, value: I) -> CurrentQueue {
         CurrentQueue::new(
             remove_sorted::<I>,
-            AddFn::Sorted(value, add_sorted),
+            Box::new(SortedCurrentQueue {
+                value: value.clone(),
+            }),
             AtomicPtr::new(self as *const _ as *mut _),
         )
     }

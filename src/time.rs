@@ -73,7 +73,9 @@ pub unsafe fn millisecond_tick() {
     }
 
     if SYSTEM_TIME % 10 == 0 {
+        crate::critical::leave_local_without_sti();
         process::preempt();
+        crate::critical::enter_local();
     }
 }
 
@@ -96,7 +98,7 @@ pub fn sleep(duration: usize) {
         }
     } else {
         let sleeping_queue = SLEEPING_THREADS.into_current_queue(end);
-        process::yield_thread(Some(sleeping_queue), None)
+        process::yield_thread(Some(sleeping_queue))
     }
 }
 

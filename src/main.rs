@@ -10,8 +10,10 @@
 #![feature(trait_alias)]
 
 use alloc::borrow::ToOwned;
+use core::arch::asm;
 
 mod bootloader;
+mod conditional_variable;
 mod critical;
 mod device;
 mod error;
@@ -29,11 +31,14 @@ mod session;
 mod syscall;
 mod time;
 mod userspace_mutex;
-mod conditional_variable;
 
 extern crate alloc;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+extern "C" {
+    static mut LOCAL_CRITICAL_COUNT: usize;
+}
 
 #[no_mangle]
 pub extern "C" fn kmain(
@@ -59,10 +64,17 @@ pub extern "C" fn kmain(
 
     interrupts::irq::initialize();
 
+    unsafe {
+        logln!(
+            "LOCAL_CRITICAL_COUNT location: {:X}",
+            (&LOCAL_CRITICAL_COUNT) as *const _ as usize
+        );
+    }
+
     log!("Creating kinit process . . . ");
     process::create_process(kinit, None, "kinit".to_owned());
     logln!("OK!");
-    process::yield_thread(None, None);
+    process::yield_thread(None);
 
     loop {}
 }
@@ -91,7 +103,7 @@ fn kinit() -> isize {
 
     // Idle process
     loop {
-        process::queue_and_yield(None)
+        process::queue_and_yield()
     }
 }
 
@@ -108,7 +120,9 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
         None => logln!("{}", info),
     }
 
-    loop {}
+    loop {
+        unsafe { asm!("cli; hlt") };
+    }
 }
 
 #[alloc_error_handler]

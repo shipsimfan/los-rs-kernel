@@ -19,7 +19,8 @@ pub fn create_process(
     let new_process = ProcessOwner::new(None, working_directory, name, signals);
     let mut daemon_processes = DAEMON_PROCESSES.lock();
     daemon_processes.insert(new_process.reference());
-    new_process.create_thread(entry, context)
+    drop(daemon_processes);
+    new_process.create_thread(entry, context, false)
 }
 
 pub fn get_daemon_process(pid: isize) -> Option<ProcessReference> {
@@ -41,14 +42,18 @@ pub fn kill_process(pid: isize) {
     let mut session = DAEMON_PROCESSES.lock();
 
     unsafe {
-        let critical_state = crate::critical::enter_local();
+        crate::critical::enter_local();
 
         let remove = match session.get(pid) {
             Some(process) => {
                 if *process == current_process {
+                    crate::critical::leave_local_without_sti();
                     super::exit_process(128);
                 } else {
-                    process.kill_threads(INVALID_ID);
+                    let threads = process.get_threads(INVALID_ID);
+                    for thread in threads {
+                        thread.clear_queue(false);
+                    }
                     process.pre_exit(128);
                     true
                 }
@@ -60,6 +65,6 @@ pub fn kill_process(pid: isize) {
             session.remove(pid);
         }
 
-        crate::critical::leave_local(critical_state);
+        crate::critical::leave_local();
     }
 }

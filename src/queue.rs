@@ -186,14 +186,22 @@ impl<I: PartialOrd, T: PartialEq> SortedQueue<I, T> {
         let mut previous_node: *mut Option<Box<SortedNode<I, T>>> = &mut none;
         while let Some(node) = &mut *current_node {
             if node.data == value {
-                match &mut *previous_node {
-                    Some(previous_node) => previous_node.next = node.next.take(),
-                    None => self.head = node.next.take(),
-                }
+                let node = match &mut *previous_node {
+                    Some(previous_node) => {
+                        let mut node = previous_node.next.take().unwrap();
+                        previous_node.next = node.next.take();
+                        node
+                    }
+                    None => {
+                        let mut node = self.head.take().unwrap();
+                        self.head = node.next.take();
+                        node
+                    }
+                };
 
                 self.length -= 1;
 
-                return Some((*current_node).take().unwrap().data);
+                return Some(node.data);
             }
 
             previous_node = current_node;

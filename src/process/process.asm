@@ -68,9 +68,10 @@ perform_yield:
 
 GLOBAL thread_enter_user
 thread_enter_user:
-    mov rbx, LOCAL_CRITICAL_STATE
-    xor al, al
-    mov [rbx], al
+    mov rbx, LOCAL_CRITICAL_COUNT
+    mov rax, [rbx]
+    dec rax
+    mov [rbx], rax
     iretq
 
 GLOBAL set_fs_base
@@ -84,5 +85,5 @@ set_fs_base:
 
 SECTION .data
 
-GLOBAL LOCAL_CRITICAL_STATE
-LOCAL_CRITICAL_STATE: db 0
+GLOBAL LOCAL_CRITICAL_COUNT
+LOCAL_CRITICAL_COUNT: dq 0

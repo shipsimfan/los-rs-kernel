@@ -36,7 +36,6 @@ impl ThreadControl {
 
         let ret = match new_queue {
             Some(queue) => unsafe {
-                current_thread.set_queue(queue.clone());
                 queue.add(current_thread);
                 None
             },

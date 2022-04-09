@@ -2,11 +2,9 @@ use super::{queue::CurrentQueue, stack::Stack, ThreadFuncContext, ThreadOwner};
 use crate::{
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
-    process::{
-        self, exit_thread, process::ProcessOwner, queue_thread, ProcessReference, ThreadQueue,
-    },
+    process::{exit_thread, process::ProcessOwner, queue_thread, ProcessReference, ThreadQueue},
 };
-use core::ffi::c_void;
+use core::{ffi::c_void, panic};
 
 #[derive(PartialEq, Eq)]
 pub enum SignalInterruptState {
@@ -25,6 +23,7 @@ pub struct ThreadInner {
     exit_queue: ThreadQueue,
     tls_base: usize,
     signal_interrupt_state: SignalInterruptState,
+    special: bool,
 }
 
 const FLOATING_POINT_STORAGE_SIZE: usize = 512;
@@ -39,14 +38,14 @@ extern "C" {
 }
 
 extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
-    unsafe { crate::critical::leave_local(false) };
+    unsafe { crate::critical::leave_local() };
     let entry: ThreadFuncContext = unsafe { core::mem::transmute(entry) };
     let status = entry(context);
-    exit_thread(status, None);
+    exit_thread(status, false);
 }
 
 impl ThreadInner {
-    pub fn new(process: ProcessOwner, entry: usize, context: usize) -> Self {
+    pub fn new(process: ProcessOwner, entry: usize, context: usize, special: bool) -> Self {
         let mut kernel_stack = Stack::new();
         if entry >= KERNEL_VMA {
             kernel_stack.push(thread_enter_kernel as usize); // ret address
@@ -103,6 +102,7 @@ impl ThreadInner {
             exit_queue: ThreadQueue::new(),
             tls_base: 0,
             signal_interrupt_state: SignalInterruptState::NotInterruptable,
+            special,
         }
     }
 
@@ -182,20 +182,21 @@ impl ThreadInner {
         }
     }
 
-    pub fn signal_interrupt(&mut self) {
+    pub fn signal_interrupt(&mut self) -> Option<ThreadOwner> {
         unsafe {
-            let critical_state = crate::critical::enter_local();
+            crate::critical::enter_local();
 
-            if self.signal_interrupt_state == SignalInterruptState::Interruptable {
-                match self.clear_queue(false) {
-                    Some(thread) => process::queue_thread(thread),
-                    None => {}
-                }
-
+            let thread = if self.signal_interrupt_state == SignalInterruptState::Interruptable {
+                let thread = self.clear_queue(false);
                 self.signal_interrupt_state = SignalInterruptState::Interrupted;
-            }
+                thread
+            } else {
+                None
+            };
 
-            crate::critical::leave_local(critical_state);
+            crate::critical::leave_local();
+
+            thread
         }
     }
 
@@ -219,6 +220,10 @@ impl Mappable for ThreadInner {
 
 impl Drop for ThreadInner {
     fn drop(&mut self) {
+        if self.special {
+            panic!("Gotcha");
+        }
+
         self.process.remove_thread(self.id);
 
         unsafe {

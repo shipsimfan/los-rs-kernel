@@ -1,13 +1,13 @@
-EXTERN LOCAL_CRITICAL_STATE
+EXTERN LOCAL_CRITICAL_COUNT
 
 GLOBAL handle_userspace_signal
 handle_userspace_signal:
     cli
 
     ; Leave local critical
-    mov rbx, LOCAL_CRITICAL_STATE
-    xor al, al
-    mov [rbx], al
+    mov rbx, LOCAL_CRITICAL_COUNT
+    xor rax, rax
+    mov [rbx], rax
 
     ; Setup sysret registers
     mov rcx, rsi   ; Return address

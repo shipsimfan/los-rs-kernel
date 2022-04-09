@@ -1,5 +1,6 @@
 use super::ProcessOwner;
 use crate::{
+    conditional_variable::ConditionalVariable,
     critical::CriticalLock,
     device::DeviceReference,
     error,
@@ -18,9 +19,8 @@ use crate::{
     },
     session::get_session,
     userspace_mutex::UserspaceMutex,
-    conditional_variable::ConditionalVariable,
 };
-use alloc::{boxed::Box, string::String, sync::Arc};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 #[derive(Clone)]
 pub struct Container<T>(Arc<Mutex<T>>);
@@ -93,8 +93,9 @@ impl ProcessInner {
         entry: usize,
         context: usize,
         self_owner: ProcessOwner,
+        special: bool,
     ) -> ThreadOwner {
-        let thread = ThreadOwner::new(self_owner, entry, context);
+        let thread = ThreadOwner::new(self_owner, entry, context, special);
         self.threads.insert(thread.reference());
         thread
     }
@@ -120,8 +121,18 @@ impl ProcessInner {
         self.exit_queue.into_current_queue()
     }
 
-    pub fn kill_threads(&mut self, exception: isize) {
-        self.threads.remove_all_except(exception);
+    pub fn get_threads(&mut self, exception: isize) -> Vec<ThreadReference> {
+        let mut threads = Vec::with_capacity(self.threads.count());
+
+        for thread in &self.threads {
+            if thread.id() == exception {
+                continue;
+            }
+
+            threads.push(thread.clone());
+        }
+
+        threads
     }
 
     pub unsafe fn pre_exit(&mut self, exit_status: isize) {
@@ -219,8 +230,10 @@ impl ProcessInner {
     }
 
     pub fn create_cond_var(&mut self) -> isize {
-        self.cond_var_descriptors
-            .insert(CondVarDescriptor(Arc::new(ConditionalVariable::new()), INVALID_ID))
+        self.cond_var_descriptors.insert(CondVarDescriptor(
+            Arc::new(ConditionalVariable::new()),
+            INVALID_ID,
+        ))
     }
 
     pub fn get_cond_var(&self, cond: isize) -> error::Result<Arc<ConditionalVariable>> {
@@ -264,7 +277,13 @@ impl ProcessInner {
 
     pub fn raise(&mut self, signal: u8) {
         self.signals.raise(signal);
-        self.threads.for_each(|thread| thread.signal_interrupt());
+
+        for thread in &self.threads {
+            match thread.signal_interrupt() {
+                Some(thread) => crate::process::queue_thread(thread),
+                None => {}
+            }
+        }
     }
 
     pub fn set_signal_handler(&mut self, signal: u8, handler: SignalHandler) {

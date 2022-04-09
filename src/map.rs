@@ -1,8 +1,9 @@
-use core::ops::{Deref, DerefMut};
-
-use alloc::vec::Vec;
-
 use crate::logln;
+use alloc::vec::Vec;
+use core::{
+    ops::{Deref, DerefMut},
+    slice::Iter,
+};
 
 pub trait Mappable {
     fn id(&self) -> isize;
@@ -18,6 +19,12 @@ pub struct Map<T: Mappable> {
 pub struct MappedItem<T> {
     data: T,
     id: isize,
+}
+
+pub struct MapIterator<'a, T: Mappable> {
+    map: &'a Map<T>,
+    iter: Iter<'a, T>,
+    index: usize,
 }
 
 const HASH_SIZE: isize = 32;
@@ -67,14 +74,6 @@ impl<T: Mappable> Map<T> {
             ],
             count: 0,
             next_id: starting_index,
-        }
-    }
-
-    pub fn for_each(&mut self, f: fn(&mut T)) {
-        for vec in &mut self.data {
-            for val in vec {
-                (f)(val);
-            }
         }
     }
 
@@ -158,15 +157,21 @@ impl<T: Mappable> Map<T> {
         self.count
     }
 
+    pub fn iter(&self) -> MapIterator<T> {
+        MapIterator {
+            map: self,
+            iter: self.data[0].iter(),
+            index: 0,
+        }
+    }
+
     pub fn ids(&self) -> Vec<isize> {
-        let mut ret = Vec::with_capacity(self.count);
-        for arr in &self.data {
-            for val in arr {
-                ret.push(val.id())
-            }
+        let mut ids = Vec::with_capacity(self.count);
+        for item in self {
+            ids.push(item.id());
         }
 
-        ret
+        ids
     }
 }
 
@@ -200,5 +205,38 @@ impl<T> Mappable for MappedItem<T> {
 
     fn set_id(&mut self, id: isize) {
         self.id = id
+    }
+}
+
+impl<'a, T: Mappable> Iterator for MapIterator<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.index < HASH_SIZE as usize {
+            match self.iter.next() {
+                Some(value) => return Some(value),
+                None => {
+                    self.index += 1;
+                    if self.index < HASH_SIZE as usize {
+                        self.iter = self.map.data[self.index].iter()
+                    }
+                }
+            }
+        }
+
+        None
+    }
+}
+
+impl<'a, T: Mappable> IntoIterator for &'a Map<T> {
+    type IntoIter = MapIterator<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MapIterator {
+            map: self,
+            iter: self.data[0].iter(),
+            index: 0,
+        }
     }
 }

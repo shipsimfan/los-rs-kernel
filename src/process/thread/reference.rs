@@ -70,10 +70,10 @@ impl ThreadReference {
         }
     }
 
-    pub fn signal_interrupt(&self) {
+    pub fn signal_interrupt(&self) -> Option<ThreadOwner> {
         match self.0.upgrade() {
             Some(thread) => thread.lock().signal_interrupt(),
-            None => {}
+            None => None,
         }
     }
 

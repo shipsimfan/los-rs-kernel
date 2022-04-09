@@ -14,7 +14,7 @@ pub fn system_call(
     _arg5: usize,
 ) -> isize {
     match code {
-        EXIT_THREAD_SYSCALL => process::exit_thread((arg1 & 0x7FFFFFFFFFFF) as isize, None),
+        EXIT_THREAD_SYSCALL => process::exit_thread((arg1 & 0x7FFFFFFFFFFF) as isize, false),
         WAIT_THREAD_SYSCALL => process::wait_thread((arg1 & 0x7FFFFFFFFFFF) as isize),
         CREATE_THREAD_SYSCALL => {
             if arg1 >= KERNEL_VMA {

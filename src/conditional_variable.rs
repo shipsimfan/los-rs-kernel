@@ -12,12 +12,12 @@ impl ConditionalVariable {
     }
 
     pub fn wait(&self) {
-        process::yield_thread(Some(self.queue.into_current_queue()), None);
+        process::yield_thread(Some(self.queue.into_current_queue()));
     }
 
     pub fn signal(&self) {
         match self.queue.pop() {
-            None => {},
+            None => {}
             Some(next_thread) => {
                 process::queue_thread(next_thread);
             }

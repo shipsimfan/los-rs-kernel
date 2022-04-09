@@ -16,6 +16,7 @@ use crate::{
     map::{Mappable, INVALID_ID},
     memory::KERNEL_VMA,
     session::get_session,
+    LOCAL_CRITICAL_COUNT,
 };
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{arch::asm, usize};
@@ -96,6 +97,7 @@ fn do_execute(
     mut standard_io: StandardIO,
     session_id: Option<isize>,
     inherit_signals: bool,
+    special: bool,
 ) -> error::Result<isize> {
     // Load the executable
     let buffer = filesystem::read(filepath)?;
@@ -152,6 +154,7 @@ fn do_execute(
                 Some(working_directory),
                 name.to_owned(),
                 signals,
+                special,
             ),
             None => return Err(error::Status::InvalidSession),
         },
@@ -169,7 +172,7 @@ fn do_execute(
     // Copy stdio descriptors
     standard_io.copy_descriptors(&current_process, &new_process)?;
 
-    let critical_state = unsafe { crate::critical::enter_local() };
+    unsafe { crate::critical::enter_local() };
 
     // Switch to new process address space
     new_process.set_address_space_as_current();
@@ -245,7 +248,7 @@ fn do_execute(
     current_process.set_address_space_as_current();
 
     // Return the process id
-    unsafe { crate::critical::leave_local(critical_state) };
+    unsafe { crate::critical::leave_local() };
     Ok(new_process.id())
 }
 
@@ -256,6 +259,7 @@ pub fn execute_session(
     standard_io: StandardIO,
     session_id: Option<isize>,
     inherit_signals: bool,
+    special: bool,
 ) -> error::Result<isize> {
     do_execute(
         filepath,
@@ -264,6 +268,7 @@ pub fn execute_session(
         standard_io,
         session_id,
         inherit_signals,
+        special,
     )
 }
 
@@ -283,6 +288,7 @@ pub fn execute(
         standard_io,
         session,
         inherit_signals,
+        false,
     )
 }
 
@@ -328,6 +334,7 @@ pub fn create_process(
                             working_directory,
                             name,
                             current_process.signals().unwrap_or(Signals::new()),
+                            false,
                         );
                         let pid = new_thread.process().id();
                         queue_thread(new_thread);
@@ -351,18 +358,17 @@ pub fn queue_thread(thread: ThreadOwner) {
     THREAD_CONTROL.lock().queue_execution(thread);
 }
 
-pub fn queue_and_yield(critical_state: Option<bool>) {
+pub fn queue_and_yield() {
     let running_queue = THREAD_CONTROL.lock().get_current_queue();
-    yield_thread(Some(running_queue), critical_state);
+    yield_thread(Some(running_queue));
 }
 
-pub fn yield_thread(queue: Option<CurrentQueue>, critical_state: Option<bool>) {
+pub fn yield_thread(queue: Option<CurrentQueue>) {
+    unsafe { assert!(LOCAL_CRITICAL_COUNT == 0) };
+
     loop {
         unsafe {
-            let critical_state = match critical_state {
-                Some(state) => state,
-                None => crate::critical::enter_local(),
-            };
+            crate::critical::enter_local();
             let next_thread = THREAD_CONTROL.lock().get_next_thread();
             match next_thread {
                 Some(next_thread) => {
@@ -395,11 +401,12 @@ pub fn yield_thread(queue: Option<CurrentQueue>, critical_state: Option<bool>) {
                     (*NEXT_THREAD.lock()) = Some((next_thread, queue));
                     perform_yield(save_location, load_location, new_kernel_stack_base);
 
-                    crate::critical::leave_local(critical_state);
+                    crate::critical::leave_local();
+
                     return;
                 }
                 None => {
-                    crate::critical::leave_local(critical_state);
+                    crate::critical::leave_local();
                     asm!("hlt")
                 }
             }
@@ -417,14 +424,14 @@ pub fn wait_thread(tid: isize) -> isize {
         },
     };
 
-    yield_thread(Some(exit_queue), None);
+    yield_thread(Some(exit_queue));
 
     current_thread.get_queue_data().unwrap()
 }
 
 pub fn wait_process(pid: isize) -> isize {
     let current_thread = get_current_thread();
-    let critical_state = unsafe { critical::enter_local() };
+    unsafe { critical::enter_local() };
     let exit_queue = match current_thread.process().unwrap().session_id() {
         None => match daemon::get_daemon_process(pid) {
             None => return isize::MIN,
@@ -444,60 +451,61 @@ pub fn wait_process(pid: isize) -> isize {
             None => panic!("Current session does not exist!"),
         },
     };
-    unsafe { critical::leave_local(critical_state) };
+    unsafe { critical::leave_local() };
 
-    yield_thread(Some(exit_queue), None);
+    yield_thread(Some(exit_queue));
 
     current_thread.get_queue_data().unwrap()
 }
 
-pub fn exit_thread(exit_status: isize, critical_state: Option<bool>) -> ! {
+pub fn exit_thread(exit_status: isize, critical: bool) -> ! {
     unsafe {
-        let critical_state = match critical_state {
-            Some(state) => state,
-            None => crate::critical::enter_local(),
-        };
+        if !critical {
+            crate::critical::enter_local();
+        }
         let current_thread = get_current_thread();
 
         current_thread.pre_exit(exit_status);
         current_thread.process().unwrap().pre_exit(exit_status);
 
         current_thread.clear_queue(false);
-        yield_thread(None, Some(critical_state));
+        crate::critical::leave_local_without_sti();
+        yield_thread(None);
         panic!("Returned to thread after exit!");
     }
 }
 
 pub fn exit_process(exit_status: isize) -> ! {
     unsafe {
-        let critical_state = crate::critical::enter_local();
+        crate::critical::enter_local();
         let current_thread = get_current_thread();
         let current_process = current_thread.process().unwrap();
 
-        current_process.kill_threads(current_thread.id());
-
-        exit_thread(exit_status, Some(critical_state));
+        let threads = current_process.get_threads(current_thread.id());
+        for thread in threads {
+            thread.clear_queue(false);
+        }
+        exit_thread(exit_status, true);
     }
 }
 
-#[allow(dead_code)]
 pub fn kill_thread(tid: isize) {
     unsafe {
-        let critical_state = crate::critical::enter_local();
+        crate::critical::enter_local();
         let current_thread = get_current_thread();
         let current_process = current_thread.process().unwrap();
 
         match current_process.get_thread(tid) {
             Some(thread) => {
                 if thread == current_thread {
-                    exit_thread(128, Some(critical_state));
+                    exit_thread(128, true);
                 } else {
                     current_process.remove_thread(tid);
                 }
             }
             None => {}
         }
-        crate::critical::leave_local(critical_state);
+        crate::critical::leave_local();
     }
 }
 
@@ -513,14 +521,18 @@ pub fn kill_process(pid: isize) {
     let mut session = session_lock.lock();
 
     unsafe {
-        let critical_state = crate::critical::enter_local();
+        crate::critical::enter_local();
 
         let remove = match session.get_process(pid) {
             Some(process) => {
                 if process == current_process {
+                    crate::critical::leave_local_without_sti();
                     exit_process(128);
                 } else {
-                    process.kill_threads(INVALID_ID);
+                    let threads = process.get_threads(INVALID_ID);
+                    for thread in threads {
+                        thread.clear_queue(false);
+                    }
                     process.pre_exit(128);
                     true
                 }
@@ -532,7 +544,7 @@ pub fn kill_process(pid: isize) {
             session.remove_process(pid);
         }
 
-        crate::critical::leave_local(critical_state);
+        crate::critical::leave_local();
     }
 }
 
@@ -553,25 +565,29 @@ pub fn preempt() {
         return;
     }
 
-    queue_and_yield(Some(true));
+    queue_and_yield();
 }
 
 pub fn handle_signals(userspace_context: (UserspaceSignalContext, u64)) {
-    let critical_state = unsafe { crate::critical::enter_local() };
+    unsafe { crate::critical::enter_local() };
     match get_current_thread_option() {
         Some(thread) => {
             let ret = thread.process().unwrap().handle_signals(userspace_context);
             match ret {
-                SignalHandleReturn::Kill(status) => exit_process(status),
+                SignalHandleReturn::Kill(status) => {
+                    unsafe { crate::critical::leave_local_without_sti() };
+                    exit_process(status)
+                }
                 SignalHandleReturn::None => {}
                 SignalHandleReturn::Userspace(rsp, handler, signal_number) => unsafe {
+                    crate::critical::leave_local_without_sti();
                     handle_userspace_signal(rsp, handler, signal_number)
                 },
             }
         }
         None => {}
     }
-    unsafe { crate::critical::leave_local(critical_state) };
+    unsafe { crate::critical::leave_local() };
 }
 
 impl StandardIO {

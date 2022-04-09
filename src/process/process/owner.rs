@@ -37,8 +37,16 @@ impl ProcessOwner {
         self.0.lock().remove_thread(tid)
     }
 
-    pub fn create_thread(self, entry: usize, context: usize) -> ThreadOwner {
-        self.0.lock().create_thread(entry, context, self.clone())
+    pub fn create_thread(self, entry: usize, context: usize, special: bool) -> ThreadOwner {
+        let self_owner = self.clone();
+
+        let mut lock = self.0.lock();
+
+        let ret = lock.create_thread(entry, context, self_owner, special);
+
+        drop(lock);
+
+        ret
     }
 
     pub fn lock(&self) -> CriticalLockGuard<Box<ProcessInner>> {
