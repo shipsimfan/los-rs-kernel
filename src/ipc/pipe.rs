@@ -1,7 +1,6 @@
-use crate::locks::Mutex;
 use crate::error;
-use crate::logln;
-use crate::process::{self, ThreadQueue, CurrentQueue, yield_thread};
+use crate::locks::Mutex;
+use crate::process::{self, CurrentQueue, ThreadQueue};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 
@@ -10,8 +9,6 @@ pub struct Pipe {
     reader_count: usize,
     writer_count: usize,
     queue: ThreadQueue,
-
-
 }
 
 pub struct PipeReader {
@@ -29,9 +26,7 @@ impl Pipe {
             reader_count: 1,
             writer_count: 1,
             queue: ThreadQueue::new(),
-
         }));
-        
 
         (PipeReader { pipe: pipe.clone() }, PipeWriter { pipe })
     }
@@ -40,10 +35,10 @@ impl Pipe {
     }
 
     pub fn read(&mut self, buffer: &mut [u8]) -> error::Result<usize> {
-            
-        if self.writer_count<1{
-            return  Err(error::Status::NoWriters);
+        if self.writer_count < 1 {
+            return Err(error::Status::NoWriters);
         }
+
         for i in 0..buffer.len() {
             match self.buffer.pop_front() {
                 Some(val) => buffer[i] = val,
@@ -55,64 +50,61 @@ impl Pipe {
     }
 
     pub fn write(&mut self, buffer: &[u8]) -> error::Result<()> {
-
-        if self.reader_count<1{
-            return  Err(error::Status::NoReaders);
+        if self.reader_count < 1 {
+            return Err(error::Status::NoReaders);
         }
+
         for i in 0..buffer.len() {
             self.buffer.push_back(buffer[i])
         }
 
-        // what to do in None case?
-        //should this loop as well?
-        match self.queue.pop() {
-            None => (),
-            Some(next_thread) => {
-                process::queue_thread(next_thread)
-            }
-        };
+        while let Some(thread) = self.queue.pop() {
+            process::queue_thread(thread)
+        }
 
         Ok(())
     }
 
-    pub fn increment_write(&mut self){
+    pub fn increment_write(&mut self) {
         self.writer_count += 1;
     }
-    pub fn increment_read(&mut self){
+
+    pub fn increment_read(&mut self) {
         self.reader_count += 1;
-
     }
-    pub fn decrement_write(&mut self){
+
+    pub fn decrement_write(&mut self) {
         self.writer_count -= 1;
-
     }
-    pub fn decrement_read(&mut self){
+
+    pub fn decrement_read(&mut self) {
         self.reader_count -= 1;
-
     }
-    
 }
 
 impl PipeReader {
     pub fn read(&self, buffer: &mut [u8]) -> error::Result<usize> {
+        loop {
+            let r = match self.pipe.lock().read(buffer) {
+                Err(e) => return Err(e),
+                Ok(r) => r,
+            };
 
-        //loop match statement, (while  some thread)
-        match self.pipe.lock().read(buffer) {
-            Err(e) => Err(e),
-            Ok(r) => {
-                if r > 0{
-                    process::yield_thread(Some(self.pipe.lock().get_queue()), None);                
-                }
-                Ok(r)
-            },
+            if r == 0 {
+                let current_queue = Some(self.pipe.lock().get_queue());
+                process::yield_thread(current_queue);
+            } else {
+                return Ok(r);
+            }
         }
     }
 }
-impl Clone for PipeReader{
-    fn clone(&self) -> Self{
+
+impl Clone for PipeReader {
+    fn clone(&self) -> Self {
         self.pipe.lock().increment_read();
-        
-        PipeReader{
+
+        PipeReader {
             pipe: self.pipe.clone(),
         }
     }
@@ -121,21 +113,20 @@ impl Clone for PipeReader{
 impl Drop for PipeReader {
     fn drop(&mut self) {
         self.pipe.lock().decrement_read();
-
     }
 }
 
 impl PipeWriter {
-    pub fn write(&self, buffer: &mut [u8]) -> error::Result<()>{
+    pub fn write(&self, buffer: &mut [u8]) -> error::Result<()> {
         self.pipe.lock().write(buffer)
     }
 }
 
-impl Clone for PipeWriter{
-    fn clone(&self) -> Self{
+impl Clone for PipeWriter {
+    fn clone(&self) -> Self {
         self.pipe.lock().increment_write();
-        
-        PipeWriter{
+
+        PipeWriter {
             pipe: self.pipe.clone(),
         }
     }
@@ -144,6 +135,5 @@ impl Clone for PipeWriter{
 impl Drop for PipeWriter {
     fn drop(&mut self) {
         self.pipe.lock().decrement_write();
-
     }
 }
