@@ -75,6 +75,14 @@ impl Pipe {
 
     pub fn decrement_write(&mut self) {
         self.writer_count -= 1;
+
+        // Queue up any threads waiting to read if there are no more writers
+        // so they can get an error
+        if self.writer_count == 0 {
+            while let Some(thread) = self.queue.pop() {
+                process::queue_thread(thread)
+            }
+        }
     }
 
     pub fn decrement_read(&mut self) {
