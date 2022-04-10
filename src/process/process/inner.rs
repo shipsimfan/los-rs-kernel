@@ -330,6 +330,16 @@ impl ProcessInner {
         }
     }
 
+    pub fn insert_pipe_reader(&mut self, pr: Arc<Mutex<PipeReader>>) -> isize {
+        self.pipe_reader_descriptors
+            .insert(PipeReaderDescriptor(pr, INVALID_ID))
+    }
+
+    pub fn insert_pipe_writer(&mut self, pw: Arc<Mutex<PipeWriter>>) -> isize {
+        self.pipe_writer_descriptors
+            .insert(PipeWriterDescriptor(pw, INVALID_ID))
+    }
+
     pub fn close_pipe_reader(&mut self, pr: isize) {
         self.pipe_reader_descriptors.remove(pr);
     }

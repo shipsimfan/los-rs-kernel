@@ -312,6 +312,20 @@ impl ProcessReference {
             None => Err(error::Status::BadDescriptor),
         }
     }
+
+    pub fn insert_pipe_reader(&self, pr: Arc<Mutex<PipeReader>>) -> isize {
+        match self.0.upgrade() {
+            Some(process) => process.lock().insert_pipe_reader(pr),
+            None => INVALID_ID,
+        }
+    }
+
+    pub fn insert_pipe_writer(&self, pw: Arc<Mutex<PipeWriter>>) -> isize {
+        match self.0.upgrade() {
+            Some(process) => process.lock().insert_pipe_writer(pw),
+            None => INVALID_ID,
+        }
+    }
 }
 
 impl Mappable for ProcessReference {

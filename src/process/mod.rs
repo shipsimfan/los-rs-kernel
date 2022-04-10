@@ -57,6 +57,8 @@ pub enum StandardIOType {
     None,
     Console,
     File(isize),
+    PipeReader(isize),
+    PipeWriter(isize),
 }
 
 const TLS_LOCATION: usize = 0x700000000000;
@@ -66,6 +68,8 @@ const USERSPACE_CONTEXT_LOCATION: *mut UserspaceContext =
 const STDIO_TYPE_NONE: usize = 0;
 const STDIO_TYPE_CONSOLE: usize = 1;
 const STDIO_TYPE_FILE: usize = 2;
+const STDIO_TYPE_PIPE_READER: usize = 3;
+const STDIO_TYPE_PIPE_WRITER: usize = 4;
 
 static THREAD_CONTROL: CriticalLock<control::ThreadControl> =
     CriticalLock::new(control::ThreadControl::new());
@@ -631,6 +635,8 @@ impl StandardIOType {
             StandardIOType::None => (STDIO_TYPE_NONE, 0),
             StandardIOType::Console => (STDIO_TYPE_CONSOLE, 0),
             StandardIOType::File(fd) => (STDIO_TYPE_FILE, fd),
+            StandardIOType::PipeReader(prd) => (STDIO_TYPE_PIPE_READER, prd),
+            StandardIOType::PipeWriter(pwd) => (STDIO_TYPE_PIPE_WRITER, pwd),
         }
     }
 
@@ -646,6 +652,16 @@ impl StandardIOType {
                 let current_process_inner = current_process_lock.lock();
                 let descriptor = current_process_inner.get_file(*fd)?;
                 *fd = new_process.clone_file(descriptor);
+                Ok(())
+            }
+            StandardIOType::PipeReader(prd) => {
+                let pipe_reader = current_process.get_pipe_reader(*prd).unwrap();
+                *prd = new_process.insert_pipe_reader(pipe_reader);
+                Ok(())
+            }
+            StandardIOType::PipeWriter(pwd) => {
+                let pipe_reader = current_process.get_pipe_writer(*pwd).unwrap();
+                *pwd = new_process.insert_pipe_writer(pipe_reader);
                 Ok(())
             }
         }
@@ -666,6 +682,8 @@ impl CStandardIO {
             STDIO_TYPE_NONE => Ok(StandardIOType::None),
             STDIO_TYPE_CONSOLE => Ok(StandardIOType::Console),
             STDIO_TYPE_FILE => Ok(StandardIOType::File(desc)),
+            STDIO_TYPE_PIPE_READER => Ok(StandardIOType::PipeReader(desc)),
+            STDIO_TYPE_PIPE_WRITER => Ok(StandardIOType::PipeWriter(desc)),
             _ => Err(error::Status::OutOfRange),
         }
     }

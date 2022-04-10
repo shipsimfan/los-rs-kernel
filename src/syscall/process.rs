@@ -1,5 +1,6 @@
 use crate::{
     error, filesystem, logln,
+    map::Mappable,
     memory::KERNEL_VMA,
     process::{self, CStandardIO},
 };
@@ -12,6 +13,7 @@ const SET_CURRENT_WORKING_DIRECTORY: usize = 0x0003;
 const EXIT_PROCESS_SYSCALL: usize = 0x0004;
 const KILL_PROCESS_SYSCALL: usize = 0x0005;
 const KILL_THREAD_SYSCALL: usize = 0x0006;
+const GET_PROCESS_ID_SYSCALL: usize = 0x0007;
 
 pub fn system_call(
     code: usize,
@@ -124,6 +126,7 @@ pub fn system_call(
             process::kill_thread((arg1 & 0x7FFFFFFFFFFF) as isize);
             0
         }
+        GET_PROCESS_ID_SYSCALL => process::get_current_thread().process().unwrap().id(),
         _ => {
             logln!("Invalid process system call: {}", code);
             error::Status::InvalidRequestCode.to_return_code()
