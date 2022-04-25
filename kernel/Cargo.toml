@@ -1,0 +1,18 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+build = "build.rs"
+edition = "2021"
+name = "kernel"
+version = "0.1.0"
+
+[dependencies]
+base = {path = "../base"}
+interrupts = {path = "../interrupts"}
+memory = {path = "../memory"}
+
+[[bin]]
+bench = false
+doc = false
+doctest = false
+name = "kernel"
+test = false

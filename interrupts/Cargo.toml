@@ -1,0 +1,17 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+build = "build.rs"
+edition = "2021"
+name = "interrupts"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "interrupts"
+test = false
+
+[dependencies]
+base = {path = "../base"}

@@ -1,6 +1,9 @@
-[package]
-name = "kernel"
-version = "0.1.0"
-authors = ["Lance Hart <shipsimfan@hotmail.com>"]
-edition = "2018"
-build="build.rs"
+[workspace]
+default-members = ["kernel"]
+
+members = [
+  "kernel",
+  "base",
+  "interrupts",
+  "memory",
+]
