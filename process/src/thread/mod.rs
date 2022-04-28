@@ -4,21 +4,25 @@ use crate::{
     thread_queue::ThreadQueue,
     ProcessOwner,
 };
-use alloc::boxed::Box;
 use base::{
     map::{Mappable, INVALID_ID},
     multi_owner::{Owner, Reference},
 };
 use core::ffi::c_void;
-use current_queue::CurrentQueue;
 use memory::KERNEL_VMA;
 use stack::Stack;
 
 mod current_queue;
+mod floating_point_storage;
 mod stack;
 
 pub type ThreadFunction = fn(context: usize) -> isize;
 
+pub use current_queue::CurrentQueue;
+
+use self::floating_point_storage::FloatingPointStorage;
+
+#[allow(unused)]
 enum InterruptState {
     NotInterruptable,
     Interruptable,
@@ -28,20 +32,20 @@ enum InterruptState {
 pub struct Thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
     id: isize,
     kernel_stack: Stack,
-    floating_point_storage: Box<[u8; FLOATING_POINT_STORAGE_SIZE]>,
+    floating_point_storage: FloatingPointStorage,
     process: Owner<Process<O, D, S>>,
     queue: Option<CurrentQueue<O, D, S>>,
     queue_data: isize,
     exit_queue: ThreadQueue<O, D, S>,
     exit_status: isize,
-    interrupt_state: InterruptState,
+    _interrupt_state: InterruptState,
 }
-
-const FLOATING_POINT_STORAGE_SIZE: usize = 512;
 
 extern "C" {
     fn thread_enter_user(context: usize);
     fn thread_enter_kernel(entry: *const c_void, context: usize);
+    fn float_save(floating_point_storage: *mut u8);
+    fn float_load(floating_point_storage: *mut u8);
 }
 
 impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
@@ -59,7 +63,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
             Self::prepare_user_entry_stack(&mut kernel_stack, entry, context);
         }
 
-        let floating_point_storage = Box::new([0; FLOATING_POINT_STORAGE_SIZE]);
+        let floating_point_storage = FloatingPointStorage::new();
 
         Owner::new(Thread {
             id: INVALID_ID,
@@ -70,12 +74,20 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
             queue_data: 0,
             exit_queue: ThreadQueue::new(),
             exit_status: 128, // Random kill
-            interrupt_state: InterruptState::NotInterruptable,
+            _interrupt_state: InterruptState::NotInterruptable,
         })
     }
 
     pub fn process(&self) -> Reference<Process<O, D, S>> {
         self.process.as_ref()
+    }
+
+    pub fn stack_pointer_location(&self) -> &usize {
+        self.kernel_stack.pointer_location()
+    }
+
+    pub fn stack_top(&self) -> usize {
+        self.kernel_stack.top()
     }
 
     pub fn set_queue_data(&mut self, queue_data: isize) {
@@ -84,6 +96,14 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
 
     pub fn set_exit_status(&mut self, exit_status: isize) {
         self.exit_status = exit_status;
+    }
+
+    pub fn save_float(&mut self) {
+        unsafe { float_save(self.floating_point_storage.as_mut_ptr()) }
+    }
+
+    pub fn load_float(&mut self) {
+        unsafe { float_load(self.floating_point_storage.as_mut_ptr()) }
     }
 
     pub unsafe fn clear_queue(&mut self, removed: bool) -> Option<Owner<Thread<O, D, S>>> {

@@ -22,6 +22,10 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> CurrentQueue<O, D, S> {
         CurrentQueue { access, queue }
     }
 
+    pub unsafe fn add(&self, thread: Owner<Thread<O, D, S>>) {
+        self.access.add(self.queue, thread)
+    }
+
     pub unsafe fn remove(&self, thread: *const Thread<O, D, S>) -> Option<Owner<Thread<O, D, S>>> {
         self.access.remove(self.queue, thread)
     }

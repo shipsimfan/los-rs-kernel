@@ -16,13 +16,7 @@
     push r15
 %endmacro
 
-SECTION .data
-
-ALIGN 16
-GLOBAL CURRENT_KERNEL_STACK
-CURRENT_KERNEL_STACK: dq 0
-
-SECTION .text
+EXTERN CURRENT_KERNEL_STACK
 
 EXTERN system_call
 GLOBAL system_call_handler

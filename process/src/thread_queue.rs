@@ -1,6 +1,7 @@
 use crate::{process::Signals, ProcessOwner, Thread};
 use base::{critical::CriticalLock, multi_owner::Owner, queue::Queue};
 
+#[allow(unused)]
 enum QueuedThread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
     Actual(Owner<Thread<O, D, S>>),
     Compare(*const Thread<O, D, S>),

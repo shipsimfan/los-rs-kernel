@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use alloc::borrow::ToOwned;
-use base::{critical::CriticalLock, log_fatal, log_info, multi_owner::Owner};
+use base::{critical::CriticalLock, log_fatal, log_info};
 use core::arch::asm;
 use memory::Heap;
 
@@ -55,9 +55,9 @@ pub extern "C" fn kmain(
 
     // Initialize process manager
     unsafe {
-        thread_control::THREAD_CONTROL = Some(process::ThreadControl::new(Owner::new(
+        thread_control::THREAD_CONTROL = Some(process::ThreadControl::new(
             thread_control::TempSession::new(),
-        )))
+        ))
     }
     process::initialize(unsafe { thread_control::THREAD_CONTROL.as_ref() }.unwrap());
 
@@ -74,7 +74,11 @@ pub extern "C" fn kmain(
         "kinit".to_owned(),
         false,
     );
-    process::yield_thread(None);
+    process::yield_thread::<
+        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
+        thread_control::TempDescriptors,
+        thread_control::TempSignals,
+    >(None);
 
     loop {}
 }

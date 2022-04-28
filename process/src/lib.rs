@@ -3,7 +3,7 @@
 
 use alloc::string::String;
 use base::{
-    critical::CriticalLock,
+    critical::{CriticalLock, LOCAL_CRITICAL_COUNT},
     log_info,
     multi_owner::{Owner, Reference},
 };
@@ -18,7 +18,7 @@ extern crate alloc;
 
 pub use control::ThreadControl;
 pub use process::{Process, ProcessOwner, Signals};
-pub use thread::{Thread, ThreadFunction};
+pub use thread::{CurrentQueue, Thread, ThreadFunction};
 
 static mut PROCESS_INITIALIZED: bool = false;
 
@@ -26,6 +26,10 @@ static mut PROCESS_INITIALIZED: bool = false;
 static mut THREAD_CONTROL_PTR: *const c_void = null();
 
 const MODULE_NAME: &'static str = "Process Manager";
+
+extern "C" {
+    fn switch_stacks(save_location: *const usize, load_location: *const usize);
+}
 
 // UTIL FUNCTIONS
 
@@ -50,7 +54,7 @@ fn get_current_thread<O: ProcessOwner<D, S>, D, S: Signals>() -> Reference<Threa
 // INITIALIZE
 
 pub fn initialize<O: ProcessOwner<D, S>, D, S: Signals>(
-    thread_control: &'static ThreadControl<O, D, S>,
+    thread_control: &'static CriticalLock<ThreadControl<O, D, S>>,
 ) {
     log_info!("Initializing . . .");
 
@@ -106,6 +110,74 @@ pub fn create_process<O: ProcessOwner<D, S>, D, S: Signals>(
 }
 
 // THREADS
+pub fn yield_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
+    queue: Option<CurrentQueue<O, D, S>>,
+) {
+    unsafe {
+        assert!(LOCAL_CRITICAL_COUNT == 0);
+
+        loop {
+            base::critical::enter_local();
+
+            let mut tc = thread_control::<O, D, S>().lock();
+
+            let next_thread = match tc.get_next_thread() {
+                Some(thread) => thread,
+                None => {
+                    drop(tc);
+                    base::critical::leave_local();
+                    core::arch::asm!("hlt");
+                    continue;
+                }
+            };
+
+            // Access the current thread
+            let default_location = 0;
+            let current_stack_save_location = match tc.get_current_thread() {
+                Some(current_thread) => current_thread
+                    .lock(|thread| {
+                        thread.save_float();
+                        thread.stack_pointer_location() as *const usize
+                    })
+                    .unwrap(),
+                None => &default_location,
+            };
+
+            // Switch what we can now
+            let new_stack_load_location = next_thread.lock(|thread| {
+                thread
+                    .process()
+                    .lock(|process| process.set_address_space_as_current());
+                thread.load_float();
+                interrupts::set_interrupt_stack(thread.stack_top());
+                thread.stack_pointer_location() as *const usize
+            });
+
+            // Stage next thread
+            tc.set_staged_thread(next_thread, queue);
+            drop(tc);
+
+            // Switch stacks
+            switch_stacks(current_stack_save_location, new_stack_load_location);
+
+            // Switch threads in the control
+            let (old_thread, queue) = thread_control::<O, D, S>().lock().switch_staged_thread();
+
+            // Insert the old thread or drop
+            match old_thread {
+                Some(old_thread) => match queue {
+                    Some(queue) => queue.add(old_thread),
+                    None => drop(old_thread),
+                },
+                None => {}
+            }
+
+            // Return
+            base::critical::leave_local();
+            return;
+        }
+    }
+}
 
 pub fn queue_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
     thread: Owner<Thread<O, D, S>>,
@@ -127,7 +199,7 @@ pub fn exit_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'st
         current_thread.lock(|thread| thread.set_exit_status(exit_status));
 
         base::critical::leave_local_without_sti();
-        yield_thread(None);
+        yield_thread::<O, D, S>(None);
         panic!("Returned to thread after exit!");
     }
 }

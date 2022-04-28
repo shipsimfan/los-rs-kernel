@@ -15,4 +15,5 @@ test = false
 
 [dependencies]
 base = {path = "../base"}
+interrupts = {path = "../interrupts"}
 memory = {path = "../memory"}

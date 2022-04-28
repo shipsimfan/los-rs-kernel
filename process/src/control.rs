@@ -1,19 +1,24 @@
-use crate::{process::Signals, thread_queue::ThreadQueue, ProcessOwner, Thread};
-use base::multi_owner::{Owner, Reference};
+use crate::{process::Signals, thread_queue::ThreadQueue, CurrentQueue, ProcessOwner, Thread};
+use base::{
+    critical::CriticalLock,
+    multi_owner::{Owner, Reference},
+};
 
 pub struct ThreadControl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
     running_queue: ThreadQueue<O, D, S>,
+    staged_thread: Option<(Owner<Thread<O, D, S>>, Option<CurrentQueue<O, D, S>>)>, // TODO: Move this into a per-core structure
     current_thread: Option<Owner<Thread<O, D, S>>>,
     daemon_owner: Owner<O>,
 }
 
 impl<O: ProcessOwner<D, S>, D, S: Signals> ThreadControl<O, D, S> {
-    pub const fn new(daemon_owner: Owner<O>) -> ThreadControl<O, D, S> {
-        ThreadControl {
+    pub const fn new(daemon_owner: Owner<O>) -> CriticalLock<ThreadControl<O, D, S>> {
+        CriticalLock::new(ThreadControl {
             running_queue: ThreadQueue::new(),
+            staged_thread: None,
             current_thread: None,
             daemon_owner,
-        }
+        })
     }
 
     pub fn daemon_owner(&self) -> Owner<O> {
@@ -26,5 +31,31 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> ThreadControl<O, D, S> {
 
     pub fn get_current_thread(&self) -> Option<Reference<Thread<O, D, S>>> {
         self.current_thread.as_ref().map(|thread| thread.as_ref())
+    }
+
+    pub fn get_next_thread(&self) -> Option<Owner<Thread<O, D, S>>> {
+        self.running_queue.pop()
+    }
+
+    pub fn set_staged_thread(
+        &mut self,
+        thread: Owner<Thread<O, D, S>>,
+        queue: Option<CurrentQueue<O, D, S>>,
+    ) {
+        self.staged_thread = Some((thread, queue));
+    }
+
+    pub fn switch_staged_thread(
+        &mut self,
+    ) -> (
+        Option<Owner<Thread<O, D, S>>>,
+        Option<CurrentQueue<O, D, S>>,
+    ) {
+        let (next_thread, queue) = self.staged_thread.take().unwrap();
+
+        let old_thread = self.current_thread.take();
+        self.current_thread = Some(next_thread);
+
+        (old_thread, queue)
     }
 }

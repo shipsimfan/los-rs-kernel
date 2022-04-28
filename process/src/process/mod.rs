@@ -22,9 +22,9 @@ pub struct Process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'st
     owner: Owner<O>,
     exit_queue: ThreadQueue<O, D, S>,
     exit_status: isize,
-    descriptors: D,
-    process_time: isize,
-    name: String,
+    _descriptors: D,
+    _process_time: isize,
+    _name: String,
     signals: S,
 }
 
@@ -37,9 +37,9 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
             owner: owner.clone(),
             exit_queue: ThreadQueue::new(),
             exit_status: 128, // Random exit
-            descriptors,
-            process_time: 0,
-            name,
+            _descriptors: descriptors,
+            _process_time: 0,
+            _name: name,
             signals,
         });
 
@@ -64,6 +64,10 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
 
     pub fn signals(&self) -> S {
         self.signals.clone()
+    }
+
+    pub fn set_address_space_as_current(&self) {
+        self.address_space.set_as_current();
     }
 
     pub fn remove_thread(&mut self, id: isize) {
