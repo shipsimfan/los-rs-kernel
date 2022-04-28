@@ -5,12 +5,14 @@
 
 extern crate alloc;
 
-use base::{critical::CriticalLock, log_fatal, log_info};
+use alloc::borrow::ToOwned;
+use base::{critical::CriticalLock, log_fatal, log_info, multi_owner::Owner};
 use core::arch::asm;
 use memory::Heap;
 
 mod interrupt_handlers;
 mod system_calls;
+mod thread_control;
 
 const MODULE_NAME: &str = "Kernel";
 
@@ -44,8 +46,44 @@ pub extern "C" fn kmain(
     );
 
     log_info!("Booting Lance Operating System . . .");
+    let memory_usage = memory::get_memory_usage();
+    log_info!(
+        "{} / {} MB of RAM available",
+        memory_usage.free_memory() / 1024 / 1024,
+        memory_usage.available_memory() / 1024 / 1024
+    );
+
+    // Initialize process manager
+    unsafe {
+        thread_control::THREAD_CONTROL = Some(process::ThreadControl::new(Owner::new(
+            thread_control::TempSession::new(),
+        )))
+    }
+    process::initialize(unsafe { thread_control::THREAD_CONTROL.as_ref() }.unwrap());
+
+    // Launch kinit process
+    log_info!("Starting kinit process . . .");
+    process::create_process::<
+        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
+        thread_control::TempDescriptors,
+        thread_control::TempSignals,
+    >(
+        kinit,
+        0,
+        thread_control::TempDescriptors,
+        "kinit".to_owned(),
+        false,
+    );
+    process::yield_thread(None);
 
     loop {}
+}
+
+fn kinit(_: usize) -> isize {
+    log_info!("kinit running!");
+    loop {
+        unsafe { asm!("sti; hlt") };
+    }
 }
 
 #[panic_handler]

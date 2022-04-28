@@ -57,6 +57,8 @@ pub fn initialize(
     irqs::initialize(post_irq_handler);
 
     system_calls::initialize(system_call_handler);
+
+    unsafe { core::arch::asm!("sti") };
 }
 
 pub fn set_interrupt_stack(stack_pointer: usize) {

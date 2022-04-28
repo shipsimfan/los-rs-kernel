@@ -9,6 +9,7 @@ version = "0.1.0"
 base = {path = "../base"}
 interrupts = {path = "../interrupts"}
 memory = {path = "../memory"}
+process = {path = "../process"}
 
 [[bin]]
 bench = false

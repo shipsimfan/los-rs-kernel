@@ -6,4 +6,5 @@ members = [
   "base",
   "interrupts",
   "memory",
+  "process",
 ]

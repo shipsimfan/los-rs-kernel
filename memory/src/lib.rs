@@ -57,3 +57,17 @@ pub fn initialize(
         heap::initialize();
     }
 }
+
+pub fn get_memory_usage() -> MemoryUsage {
+    *MEMORY_USAGE.lock()
+}
+
+impl MemoryUsage {
+    pub fn free_memory(&self) -> usize {
+        self.free_pages * self.page_size
+    }
+
+    pub fn available_memory(&self) -> usize {
+        self.available_pages * self.page_size
+    }
+}

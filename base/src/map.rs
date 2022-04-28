@@ -26,6 +26,8 @@ pub struct IterMut<'a, T: Mappable> {
 
 const MAP_SIZE: usize = 256;
 
+pub const INVALID_ID: isize = -1;
+
 impl<T: Mappable> Map<T> {
     pub fn new() -> Self {
         let mut data = Vec::with_capacity(MAP_SIZE);

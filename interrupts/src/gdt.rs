@@ -53,10 +53,10 @@ static mut GDT: GlobalDescriptorTable = GlobalDescriptorTable::null();
 // TODO: Make a TSS for each core
 static mut TSS: TSS = TSS::null();
 
-// KERNEL_STACK_TOP is similar to the TSS but for system calls instead of interrupts
-// TODO: Move KERNEL_STACK_TOP into per-core structure that changes with threads
+// CURRENT_KERNEL_STACK is similar to the TSS but for system calls instead of interrupts
+// TODO: Move CURRENT_KERNEL_STACK into per-thread structure that changes with threads and is pointed to by gs
 #[no_mangle]
-static mut KERNEL_STACK_TOP: usize = 0;
+static mut CURRENT_KERNEL_STACK: usize = 0;
 
 extern "C" {
     fn install_gdt(gdtr: *const c_void, data0: u16, tss: u16, code0: u16);
@@ -126,7 +126,7 @@ pub fn set_interrupt_stack(stack_pointer: usize) {
         base::critical::enter_local();
 
         TSS.set_stack(stack_pointer);
-        KERNEL_STACK_TOP = stack_pointer;
+        CURRENT_KERNEL_STACK = stack_pointer;
 
         base::critical::leave_local();
     };
