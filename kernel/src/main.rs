@@ -83,8 +83,36 @@ pub extern "C" fn kmain(
     loop {}
 }
 
+fn test(_: usize) -> isize {
+    loop {
+        process::queue_and_yield::<
+            thread_control::TempSession<
+                thread_control::TempDescriptors,
+                thread_control::TempSignals,
+            >,
+            thread_control::TempDescriptors,
+            thread_control::TempSignals,
+        >();
+    }
+}
+
 fn kinit(_: usize) -> isize {
     log_info!("kinit running!");
+
+    let thread = process::create_thread::<
+        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
+        thread_control::TempDescriptors,
+        thread_control::TempSignals,
+    >(test, 0);
+
+    process::queue_and_yield::<
+        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
+        thread_control::TempDescriptors,
+        thread_control::TempSignals,
+    >();
+
+    process::kill_thread(thread, 100);
+
     loop {
         unsafe { asm!("sti; hlt") };
     }

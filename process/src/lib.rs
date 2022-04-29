@@ -8,6 +8,7 @@ use base::{
     multi_owner::{Owner, Reference},
 };
 use core::{ffi::c_void, ptr::null};
+use memory::KERNEL_VMA;
 
 mod control;
 mod process;
@@ -41,14 +42,14 @@ fn thread_control<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'sta
 }
 
 #[inline(always)]
-fn get_current_thread_option<O: ProcessOwner<D, S>, D, S: Signals>(
+fn current_thread_option<O: ProcessOwner<D, S>, D, S: Signals>(
 ) -> Option<Reference<Thread<O, D, S>>> {
-    thread_control().lock().get_current_thread()
+    thread_control().lock().current_thread()
 }
 
 #[inline(always)]
-fn get_current_thread<O: ProcessOwner<D, S>, D, S: Signals>() -> Reference<Thread<O, D, S>> {
-    get_current_thread_option().unwrap()
+fn current_thread<O: ProcessOwner<D, S>, D, S: Signals>() -> Reference<Thread<O, D, S>> {
+    current_thread_option().unwrap()
 }
 
 // INITIALIZE
@@ -77,7 +78,7 @@ pub fn create_process<O: ProcessOwner<D, S>, D, S: Signals>(
     inherit_signals: bool,
 ) -> Reference<Process<O, D, S>> {
     // Get the process owner
-    let (process_owner, signals) = match get_current_thread_option::<O, D, S>() {
+    let (process_owner, signals) = match current_thread_option::<O, D, S>() {
         Some(current_thread) => current_thread
             .lock(|thread| {
                 thread
@@ -110,6 +111,23 @@ pub fn create_process<O: ProcessOwner<D, S>, D, S: Signals>(
 }
 
 // THREADS
+pub fn create_thread<O: ProcessOwner<D, S>, D, S: Signals>(
+    entry: ThreadFunction,
+    context: usize,
+) -> Reference<Thread<O, D, S>> {
+    let current_process = current_thread().lock(|thread| thread.process()).unwrap();
+
+    let thread = Process::create_thread(current_process.upgrade(), entry, context);
+    let ret = thread.as_ref();
+    queue_thread(thread);
+    ret
+}
+
+pub fn queue_and_yield<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>() {
+    let running_queue = thread_control::<O, D, S>().lock().running_queue();
+    yield_thread(Some(running_queue))
+}
+
 pub fn yield_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
     queue: Option<CurrentQueue<O, D, S>>,
 ) {
@@ -121,7 +139,7 @@ pub fn yield_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
 
             let mut tc = thread_control::<O, D, S>().lock();
 
-            let next_thread = match tc.get_next_thread() {
+            let next_thread = match tc.next_thread() {
                 Some(thread) => thread,
                 None => {
                     drop(tc);
@@ -133,7 +151,7 @@ pub fn yield_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
 
             // Access the current thread
             let default_location = 0;
-            let current_stack_save_location = match tc.get_current_thread() {
+            let current_stack_save_location = match tc.current_thread() {
                 Some(current_thread) => current_thread
                     .lock(|thread| {
                         thread.save_float();
@@ -160,22 +178,39 @@ pub fn yield_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
             // Switch stacks
             switch_stacks(current_stack_save_location, new_stack_load_location);
 
-            // Switch threads in the control
-            let (old_thread, queue) = thread_control::<O, D, S>().lock().switch_staged_thread();
-
-            // Insert the old thread or drop
-            match old_thread {
-                Some(old_thread) => match queue {
-                    Some(queue) => queue.add(old_thread),
-                    None => drop(old_thread),
-                },
-                None => {}
-            }
-
-            // Return
-            base::critical::leave_local();
-            return;
+            return post_yield::<O, D, S>(null(), 0);
         }
+    }
+}
+
+// This is here so both yield and thread_enter_kernel/user can access it
+unsafe fn post_yield<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
+    entry: *const c_void,
+    context: usize,
+) {
+    // Switch threads in the control
+    let (old_thread, queue) = thread_control::<O, D, S>().lock().switch_staged_thread();
+
+    // Insert the old thread or drop
+    match old_thread {
+        Some(old_thread) => match queue {
+            Some(queue) => queue.add(old_thread),
+            None => drop(old_thread),
+        },
+        None => {}
+    }
+
+    // Return
+    base::critical::leave_local();
+
+    if entry != null() {
+        if entry as usize >= KERNEL_VMA {
+            thread::thread_enter_kernel(entry, context)
+        } else {
+            thread::thread_enter_user(context)
+        }
+    } else {
+        return;
     }
 }
 
@@ -185,16 +220,32 @@ pub fn queue_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
     thread_control().lock().queue_execution(thread);
 }
 
-pub fn exit_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
+pub fn kill_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
+    thread: Reference<Thread<O, D, S>>,
     exit_status: isize,
-    critical: bool,
-) -> ! {
+) {
     unsafe {
-        if !critical {
-            base::critical::enter_local();
+        base::critical::enter_local();
+
+        if thread.compare(&current_thread::<O, D, S>()) {
+            base::critical::leave_local_without_sti();
+            exit_thread::<O, D, S>(exit_status);
         }
 
-        let current_thread = get_current_thread::<O, D, S>();
+        thread.lock(|thread| {
+            thread.set_exit_status(exit_status);
+            thread.clear_queue(false).unwrap();
+        });
+    }
+}
+
+pub fn exit_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
+    exit_status: isize,
+) -> ! {
+    unsafe {
+        base::critical::enter_local();
+
+        let current_thread = current_thread::<O, D, S>();
 
         current_thread.lock(|thread| thread.set_exit_status(exit_status));
 

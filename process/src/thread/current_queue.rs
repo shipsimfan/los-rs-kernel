@@ -1,6 +1,6 @@
 use crate::{process::Signals, ProcessOwner, Thread};
 use alloc::boxed::Box;
-use base::multi_owner::Owner;
+use base::multi_owner::{Owner, Reference};
 use core::ffi::c_void;
 
 pub trait QueueAccess<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
@@ -8,7 +8,7 @@ pub trait QueueAccess<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 
     unsafe fn remove(
         &self,
         queue: *mut c_void,
-        thread: *const Thread<O, D, S>,
+        thread: &Reference<Thread<O, D, S>>,
     ) -> Option<Owner<Thread<O, D, S>>>;
 }
 
@@ -26,7 +26,10 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> CurrentQueue<O, D, S> {
         self.access.add(self.queue, thread)
     }
 
-    pub unsafe fn remove(&self, thread: *const Thread<O, D, S>) -> Option<Owner<Thread<O, D, S>>> {
+    pub unsafe fn remove(
+        &self,
+        thread: &Reference<Thread<O, D, S>>,
+    ) -> Option<Owner<Thread<O, D, S>>> {
         self.access.remove(self.queue, thread)
     }
 }

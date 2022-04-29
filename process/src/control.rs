@@ -29,12 +29,16 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> ThreadControl<O, D, S> {
         self.running_queue.push(thread);
     }
 
-    pub fn get_current_thread(&self) -> Option<Reference<Thread<O, D, S>>> {
+    pub fn current_thread(&self) -> Option<Reference<Thread<O, D, S>>> {
         self.current_thread.as_ref().map(|thread| thread.as_ref())
     }
 
-    pub fn get_next_thread(&self) -> Option<Owner<Thread<O, D, S>>> {
+    pub fn next_thread(&self) -> Option<Owner<Thread<O, D, S>>> {
         self.running_queue.pop()
+    }
+
+    pub fn running_queue(&self) -> CurrentQueue<O, D, S> {
+        self.running_queue.current_queue()
     }
 
     pub fn set_staged_thread(

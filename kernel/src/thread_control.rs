@@ -21,9 +21,7 @@ pub static mut THREAD_CONTROL: Option<
 extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
     let entry: ThreadFunction = unsafe { core::mem::transmute(entry) };
     let status = entry(context);
-    exit_thread::<TempSession<TempDescriptors, TempSignals>, TempDescriptors, TempSignals>(
-        status, false,
-    );
+    exit_thread::<TempSession<TempDescriptors, TempSignals>, TempDescriptors, TempSignals>(status);
 }
 
 impl<D, S: Signals> TempSession<D, S> {

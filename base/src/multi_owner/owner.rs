@@ -5,6 +5,11 @@ use alloc::sync::Arc;
 
 pub struct Owner<T, L: Lock<Data = T> = CriticalLock<T>>(Arc<L>);
 
+#[inline(always)]
+pub fn new_owner<T, L: Lock<Data = T>>(inner: Arc<L>) -> Owner<T, L> {
+    Owner(inner)
+}
+
 impl<T, L: Lock<Data = T>> Owner<T, L> {
     #[inline(always)]
     pub fn new(data: T) -> Self {
@@ -19,6 +24,15 @@ impl<T, L: Lock<Data = T>> Owner<T, L> {
     #[inline(always)]
     pub fn as_ref(&self) -> Reference<T, L> {
         new_reference(Arc::downgrade(&self.0))
+    }
+
+    #[inline(always)]
+    pub fn compare(&self, other: &Owner<T, L>) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
+    pub fn compare_ref(&self, other: &Reference<T, L>) -> bool {
+        other.compare(&self.as_ref())
     }
 }
 

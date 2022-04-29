@@ -18,7 +18,7 @@ mod stack;
 
 pub type ThreadFunction = fn(context: usize) -> isize;
 
-pub use current_queue::CurrentQueue;
+pub use current_queue::{CurrentQueue, QueueAccess};
 
 use self::floating_point_storage::FloatingPointStorage;
 
@@ -39,16 +39,17 @@ pub struct Thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'sta
     exit_queue: ThreadQueue<O, D, S>,
     exit_status: isize,
     _interrupt_state: InterruptState,
+    self_reference: Option<Reference<Thread<O, D, S>>>,
 }
 
 extern "C" {
-    fn thread_enter_user(context: usize);
-    fn thread_enter_kernel(entry: *const c_void, context: usize);
+    pub fn thread_enter_user(context: usize) -> !;
+    pub fn thread_enter_kernel(entry: *const c_void, context: usize) -> !;
     fn float_save(floating_point_storage: *mut u8);
     fn float_load(floating_point_storage: *mut u8);
 }
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
+impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O, D, S> {
     pub fn new(
         process: Owner<Process<O, D, S>>,
         entry: ThreadFunction,
@@ -65,7 +66,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
 
         let floating_point_storage = FloatingPointStorage::new();
 
-        Owner::new(Thread {
+        let ret = Owner::new(Thread {
             id: INVALID_ID,
             kernel_stack,
             floating_point_storage,
@@ -75,7 +76,13 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
             exit_queue: ThreadQueue::new(),
             exit_status: 128, // Random kill
             _interrupt_state: InterruptState::NotInterruptable,
-        })
+            self_reference: None,
+        });
+
+        let reference = ret.as_ref();
+        ret.lock(|thread: &mut Thread<O, D, S>| thread.self_reference = Some(reference));
+
+        ret
     }
 
     pub fn process(&self) -> Reference<Process<O, D, S>> {
@@ -106,11 +113,14 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
         unsafe { float_load(self.floating_point_storage.as_mut_ptr()) }
     }
 
+    pub fn set_current_queue(&mut self, queue: CurrentQueue<O, D, S>) {
+        self.queue = Some(queue);
+    }
+
     pub unsafe fn clear_queue(&mut self, removed: bool) -> Option<Owner<Thread<O, D, S>>> {
         let ret = if !removed {
-            let ptr = self as *mut _;
             match &mut self.queue {
-                Some(queue) => queue.remove(ptr),
+                Some(queue) => queue.remove(self.self_reference.as_ref().unwrap()),
                 None => None,
             }
         } else {
@@ -124,6 +134,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
 
     fn prepare_kernel_entry_stack(stack: &mut Stack, entry: usize, context: usize) {
         stack.push(thread_enter_kernel as usize); // ret address
+        stack.push(crate::post_yield::<O, D, S> as usize); // yield ret address
         stack.push(0); // push rax
         stack.push(0); // push rbx
         stack.push(0); // push rcx
@@ -143,6 +154,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Thread<O, D, S> {
 
     fn prepare_user_entry_stack(stack: &mut Stack, entry: usize, context: usize) {
         stack.push(thread_enter_user as usize); // ret address
+        stack.push(crate::post_yield::<O, D, S> as usize); // yield ret address
         stack.push(0); // push rax
         stack.push(0); // push rbx
         stack.push(entry); // push rcx (RIP)

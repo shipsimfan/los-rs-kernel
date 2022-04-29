@@ -1,4 +1,4 @@
-use super::Lock;
+use super::{owner::new_owner, Lock, Owner};
 use crate::{
     critical::CriticalLock,
     map::{Mappable, INVALID_ID},
@@ -16,6 +16,15 @@ impl<T, L: Lock<Data = T>> Reference<T, L> {
     #[inline(always)]
     pub fn lock<R>(&self, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         self.0.upgrade().map(|lock| lock.lock(f))
+    }
+
+    #[inline(always)]
+    pub fn compare(&self, other: &Reference<T, L>) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+
+    pub fn upgrade(self) -> Owner<T, L> {
+        new_owner(self.0.upgrade().unwrap())
     }
 }
 
