@@ -3,8 +3,7 @@ use base::{
     map::Map,
     multi_owner::{Owner, Reference},
 };
-use core::ffi::c_void;
-use process::{exit_thread, Process, ProcessOwner, Signals, ThreadControl, ThreadFunction};
+use process::{Process, ProcessOwner, Signals, ThreadControl};
 
 pub struct TempSession<D: 'static, S: 'static + Signals>(Map<Reference<Process<Self, D, S>>>);
 pub struct TempDescriptors;
@@ -16,13 +15,6 @@ pub static mut THREAD_CONTROL: Option<
         ThreadControl<TempSession<TempDescriptors, TempSignals>, TempDescriptors, TempSignals>,
     >,
 > = None;
-
-#[no_mangle]
-extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) {
-    let entry: ThreadFunction = unsafe { core::mem::transmute(entry) };
-    let status = entry(context);
-    exit_thread::<TempSession<TempDescriptors, TempSignals>, TempDescriptors, TempSignals>(status);
-}
 
 impl<D, S: Signals> TempSession<D, S> {
     pub fn new() -> Owner<Self> {

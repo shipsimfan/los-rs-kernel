@@ -1,4 +1,5 @@
 use crate::{
+    execution::post_yield,
     process::{Process, Signals},
     queue_thread,
     thread_queue::ThreadQueue,
@@ -8,8 +9,6 @@ use base::{
     map::{Mappable, INVALID_ID},
     multi_owner::{Owner, Reference},
 };
-use core::ffi::c_void;
-use memory::KERNEL_VMA;
 use stack::Stack;
 
 mod current_queue;
@@ -43,8 +42,6 @@ pub struct Thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'sta
 }
 
 extern "C" {
-    pub fn thread_enter_user(context: usize) -> !;
-    pub fn thread_enter_kernel(entry: *const c_void, context: usize) -> !;
     fn float_save(floating_point_storage: *mut u8);
     fn float_load(floating_point_storage: *mut u8);
 }
@@ -58,11 +55,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         let entry = entry as usize;
 
         let mut kernel_stack = Stack::new();
-        if entry >= KERNEL_VMA {
-            Self::prepare_kernel_entry_stack(&mut kernel_stack, entry, context);
-        } else {
-            Self::prepare_user_entry_stack(&mut kernel_stack, entry, context);
-        }
+        Self::prepare_entry_stack(&mut kernel_stack, entry, context);
 
         let floating_point_storage = FloatingPointStorage::new();
 
@@ -132,9 +125,8 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         ret
     }
 
-    fn prepare_kernel_entry_stack(stack: &mut Stack, entry: usize, context: usize) {
-        stack.push(thread_enter_kernel as usize); // ret address
-        stack.push(crate::post_yield::<O, D, S> as usize); // yield ret address
+    fn prepare_entry_stack(stack: &mut Stack, entry: usize, context: usize) {
+        stack.push(post_yield::<O, D, S> as usize); // yield ret address
         stack.push(0); // push rax
         stack.push(0); // push rbx
         stack.push(0); // push rcx
@@ -146,26 +138,6 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         stack.push(0); // push r9
         stack.push(0); // push r10
         stack.push(0); // push r11
-        stack.push(0); // push r12
-        stack.push(0); // push r13
-        stack.push(0); // push r14
-        stack.push(0); // push r15
-    }
-
-    fn prepare_user_entry_stack(stack: &mut Stack, entry: usize, context: usize) {
-        stack.push(thread_enter_user as usize); // ret address
-        stack.push(crate::post_yield::<O, D, S> as usize); // yield ret address
-        stack.push(0); // push rax
-        stack.push(0); // push rbx
-        stack.push(entry); // push rcx (RIP)
-        stack.push(0); // push rdx
-        stack.push(0); // push rsi
-        stack.push(context); // push rdi
-        stack.push(0); // push rbp
-        stack.push(0); // push r8
-        stack.push(0); // push r9
-        stack.push(0); // push r10
-        stack.push(0x202); // push r11 (RFLAGS)
         stack.push(0); // push r12
         stack.push(0); // push r13
         stack.push(0); // push r14

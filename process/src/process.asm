@@ -36,6 +36,14 @@
 
 GLOBAL thread_enter_user
 thread_enter_user:
+    ; Move target RIP from paramter into correct register for syscall
+    mov rcx, rsi
+
+    ; Context is already in RDI
+
+    ; Insert correct flags value
+    mov r11, 0x202
+
     o64 sysret
 
 GLOBAL float_save
