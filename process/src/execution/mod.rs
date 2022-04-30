@@ -31,12 +31,12 @@ fn thread_control<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'sta
 }
 
 #[inline(always)]
-fn current_thread_option<O: ProcessOwner<D, S>, D, S: Signals>(
+pub fn current_thread_option<O: ProcessOwner<D, S>, D, S: Signals>(
 ) -> Option<Reference<Thread<O, D, S>>> {
     thread_control().lock().current_thread()
 }
 
 #[inline(always)]
-fn current_thread<O: ProcessOwner<D, S>, D, S: Signals>() -> Reference<Thread<O, D, S>> {
+pub fn current_thread<O: ProcessOwner<D, S>, D, S: Signals>() -> Reference<Thread<O, D, S>> {
     current_thread_option().unwrap()
 }

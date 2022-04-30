@@ -5,6 +5,7 @@ use base::{critical::CriticalLock, log_info};
 
 mod control;
 mod execution;
+mod mutex;
 mod process;
 mod thread;
 mod thread_queue;
@@ -13,9 +14,10 @@ extern crate alloc;
 
 pub use control::ThreadControl;
 pub use execution::{
-    create_process, create_thread, exit_thread, kill_thread, queue_and_yield, queue_thread,
-    yield_thread,
+    create_process, create_thread, current_thread, current_thread_option, exit_thread, kill_thread,
+    queue_and_yield, queue_thread, yield_thread,
 };
+pub use mutex::*;
 pub use process::{Process, ProcessOwner, Signals};
 pub use thread::{CurrentQueue, Thread, ThreadFunction};
 

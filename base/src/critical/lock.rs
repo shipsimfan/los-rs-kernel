@@ -70,8 +70,8 @@ impl<T: Sized> Lock for CriticalLock<T> {
     }
 }
 
-unsafe impl<T: Sized> Sync for CriticalLock<T> {}
-unsafe impl<T: Sized> Send for CriticalLock<T> {}
+unsafe impl<T: Sized + Send> Sync for CriticalLock<T> {}
+unsafe impl<T: Sized + Send> Send for CriticalLock<T> {}
 
 impl<'a, T: Sized> Deref for CriticalLockGuard<'a, T> {
     type Target = T;
