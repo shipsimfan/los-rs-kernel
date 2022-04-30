@@ -1,3 +1,5 @@
+use base::multi_owner::Lock;
+
 use crate::{
     current_thread_option, queue_thread, thread_queue::ThreadQueue, yield_thread, ProcessOwner,
     Signals,
@@ -85,6 +87,30 @@ impl<T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Mutex
     }
 }
 
+impl<T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Lock
+    for Mutex<T, O, D, S>
+{
+    type Data = T;
+
+    fn new(data: Self::Data) -> Self {
+        Self::new(data)
+    }
+
+    fn lock<R>(&self, f: impl FnOnce(&mut Self::Data) -> R) -> R {
+        let mut guard = Self::lock(&self);
+        f(&mut *guard)
+    }
+}
+
+unsafe impl<T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Sync
+    for Mutex<T, O, D, S>
+{
+}
+unsafe impl<T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Send
+    for Mutex<T, O, D, S>
+{
+}
+
 impl<'a, T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Deref
     for MutexGuard<'a, T, O, D, S>
 {
@@ -121,13 +147,4 @@ impl<'a, T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> D
             base::critical::leave_local();
         }
     }
-}
-
-unsafe impl<'a, T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Sync
-    for Mutex<T, O, D, S>
-{
-}
-unsafe impl<'a, T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Send
-    for Mutex<T, O, D, S>
-{
 }
