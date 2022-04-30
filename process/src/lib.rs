@@ -14,8 +14,9 @@ extern crate alloc;
 
 pub use control::ThreadControl;
 pub use execution::{
-    create_process, create_thread, current_thread, current_thread_option, exit_thread, kill_thread,
-    queue_and_yield, queue_thread, yield_thread,
+    create_process, create_thread, current_thread, current_thread_option, exit_process,
+    exit_thread, kill_process, kill_thread, queue_and_yield, queue_thread, wait_process,
+    wait_thread, yield_thread,
 };
 pub use mutex::*;
 pub use process::{Process, ProcessOwner, Signals};

@@ -25,6 +25,22 @@ pub fn create_thread<O: ProcessOwner<D, S>, D, S: Signals>(
     ret
 }
 
+pub fn wait_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
+    thread: &Reference<Thread<O, D, S>>,
+) -> Option<isize> {
+    match thread.lock(|thread| thread.exit_queue()) {
+        Some(queue) => {
+            yield_thread(Some(queue));
+            Some(
+                current_thread::<O, D, S>()
+                    .lock(|thread| thread.queue_data())
+                    .unwrap(),
+            )
+        }
+        None => None,
+    }
+}
+
 pub fn queue_and_yield<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>() {
     let running_queue = thread_control::<O, D, S>().lock().running_queue();
     yield_thread(Some(running_queue))
@@ -136,7 +152,7 @@ fn thread_enter_kernel<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals +
 }
 
 pub fn kill_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
-    thread: Reference<Thread<O, D, S>>,
+    thread: &Reference<Thread<O, D, S>>,
     exit_status: isize,
 ) {
     unsafe {

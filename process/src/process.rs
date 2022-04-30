@@ -1,5 +1,5 @@
-use crate::{queue_thread, thread_queue::ThreadQueue, Thread, ThreadFunction};
-use alloc::string::String;
+use crate::{queue_thread, thread_queue::ThreadQueue, CurrentQueue, Thread, ThreadFunction};
+use alloc::{boxed::Box, string::String, vec::Vec};
 use base::{
     map::{Map, Mappable, INVALID_ID},
     multi_owner::{Owner, Reference},
@@ -70,8 +70,25 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
         self.address_space.set_as_current();
     }
 
+    pub fn threads(&self) -> Box<[Reference<Thread<O, D, S>>]> {
+        let mut threads = Vec::with_capacity(self.threads.len());
+        for thread in self.threads.iter() {
+            threads.push(thread.clone());
+        }
+
+        threads.into_boxed_slice()
+    }
+
+    pub fn exit_queue(&self) -> CurrentQueue<O, D, S> {
+        self.exit_queue.current_queue()
+    }
+
     pub fn remove_thread(&mut self, id: isize) {
         self.threads.remove(id);
+    }
+
+    pub fn set_exit_status(&mut self, exit_status: isize) {
+        self.exit_status = exit_status;
     }
 }
 

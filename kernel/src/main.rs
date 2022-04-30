@@ -111,7 +111,7 @@ fn kinit(_: usize) -> isize {
         thread_control::TempSignals,
     >();
 
-    process::kill_thread(thread, 100);
+    process::kill_thread(&thread, 100);
 
     loop {
         unsafe { asm!("sti; hlt") };

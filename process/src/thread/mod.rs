@@ -90,6 +90,14 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         self.kernel_stack.top()
     }
 
+    pub fn exit_queue(&self) -> CurrentQueue<O, D, S> {
+        self.exit_queue.current_queue()
+    }
+
+    pub fn queue_data(&self) -> isize {
+        self.queue_data
+    }
+
     pub fn set_queue_data(&mut self, queue_data: isize) {
         self.queue_data = queue_data;
     }
