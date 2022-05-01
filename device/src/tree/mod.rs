@@ -29,17 +29,22 @@ fn parse_path(path: &str) -> base::error::Result<VecDeque<&str>> {
     }
 
     // Collect the parts
-    let mut parts: VecDeque<&str> = path.split(&['\\', '/']).map(|str| str.trim()).collect();
-    parts.retain(|str| str.len() > 0);
+    let mut parts: VecDeque<&str> = VecDeque::new();
+    for part in path.split(&['\\', '/']) {
+        let part = part.trim();
+        if part.len() > 0 {
+            parts.push_back(part);
+        }
+    }
 
     Ok(parts)
 }
 
 impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Tree<O, D, S> {
-    pub const fn new() -> Self {
-        Tree {
+    pub const fn new() -> Mutex<Self, O, D, S> {
+        Mutex::new(Tree {
             root_devices: Children::new(),
-        }
+        })
     }
 
     pub fn get_device(
@@ -72,12 +77,18 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Tree<O, 
             None => return Err(DeviceError::invalid_path()),
         };
 
-        let parent_device = match self.root_devices.child_mut(path.as_slices().0) {
-            Some(device) => device,
-            None => return Err(DeviceError::device_not_found()),
-        };
+        if path.len() > 1 {
+            let parent_device = match self.root_devices.child_mut(path.as_slices().0) {
+                Some(device) => device,
+                None => return Err(DeviceError::device_not_found()),
+            };
 
-        if parent_device.insert(name.to_owned(), device) {
+            if parent_device.insert(name.to_owned(), device) {
+                Ok(())
+            } else {
+                Err(DeviceError::already_exists())
+            }
+        } else if self.root_devices.insert(name.to_owned(), device) {
             Ok(())
         } else {
             Err(DeviceError::already_exists())

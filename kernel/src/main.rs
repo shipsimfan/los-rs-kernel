@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use alloc::borrow::ToOwned;
-use base::{critical::CriticalLock, log_fatal, log_info};
+use base::{critical::CriticalLock, log_debug, log_fatal, log_info};
 use core::arch::asm;
 use memory::Heap;
 
@@ -45,14 +45,6 @@ pub extern "C" fn kmain(
         interrupt_handlers::invalid_access_exception_handler,
     );
 
-    log_info!("Booting Lance Operating System . . .");
-    let memory_usage = memory::get_memory_usage();
-    log_info!(
-        "{} / {} MB of RAM available",
-        memory_usage.free_memory() / 1024 / 1024,
-        memory_usage.available_memory() / 1024 / 1024
-    );
-
     // Initialize process manager
     process::initialize::<
         thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
@@ -66,6 +58,21 @@ pub extern "C" fn kmain(
         thread_control::TempDescriptors,
         thread_control::TempSignals,
     >();
+
+    // Initialize boot video
+    uefi::initialize::<
+        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
+        thread_control::TempDescriptors,
+        thread_control::TempSignals,
+    >(gmode);
+
+    log_info!("Booting Lance Operating System . . .");
+    let memory_usage = memory::get_memory_usage();
+    log_info!(
+        "{} / {} MB of RAM available",
+        memory_usage.free_memory() / 1024 / 1024,
+        memory_usage.available_memory() / 1024 / 1024
+    );
 
     // Launch kinit process
     log_info!("Starting kinit process . . .");
@@ -91,6 +98,8 @@ pub extern "C" fn kmain(
 
 fn test(_: usize) -> isize {
     loop {
+        log_debug!("Test Loop");
+
         process::queue_and_yield::<
             thread_control::TempSession<
                 thread_control::TempDescriptors,
@@ -117,7 +126,11 @@ fn kinit(_: usize) -> isize {
         thread_control::TempSignals,
     >();
 
+    log_debug!("Killed other thread: {}", !thread.alive());
+
     process::kill_thread(&thread, 100);
+
+    log_debug!("Killed other thread: {}", !thread.alive());
 
     loop {
         unsafe { asm!("sti; hlt") };

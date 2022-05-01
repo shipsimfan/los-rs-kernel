@@ -10,11 +10,13 @@ use tree::Tree;
 mod device;
 mod port_io;
 mod tree;
+mod types;
 
 extern crate alloc;
 
 pub use device::*;
 pub use port_io::*;
+pub use types::*;
 
 type DeviceTreeType<O, D, S> = &'static Mutex<Tree<O, D, S>, O, D, S>;
 
@@ -23,7 +25,9 @@ static mut DEVICE_TREE_PTR: *const c_void = null();
 
 fn device_tree<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
 ) -> DeviceTreeType<O, D, S> {
-    unsafe { &*(DEVICE_TREE_PTR as *const _) }
+    let r = unsafe { &*(DEVICE_TREE_PTR as *const _) };
+
+    r
 }
 
 pub fn initialize<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>() {
@@ -42,9 +46,9 @@ pub fn register_device<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals +
     path: &str,
     device: Box<dyn Device>,
 ) -> base::error::Result<()> {
-    device_tree::<O, D, S>()
-        .lock()
-        .register_device(path, device)
+    let mut lock = device_tree::<O, D, S>().lock();
+
+    lock.register_device(path, device)
 }
 
 pub fn get_device<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(

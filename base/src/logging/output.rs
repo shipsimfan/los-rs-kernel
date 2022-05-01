@@ -19,6 +19,10 @@ pub trait LogOutput {
     fn log(&self, event: LogEvent);
 }
 
+pub trait LogOutputMut {
+    fn log(&mut self, event: LogEvent);
+}
+
 pub static mut CURRENT_LOG_OUTPUT: Option<Box<dyn LogOutput>> = None;
 
 #[inline(always)]
@@ -49,5 +53,21 @@ impl LogEvent {
     #[inline(always)]
     pub fn level(&self) -> LogLevel {
         self.level
+    }
+}
+
+impl core::fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                LogLevel::FatalError => "Fatal Error",
+                LogLevel::Error => "Error",
+                LogLevel::Warning => "Warning",
+                LogLevel::Information => "Information",
+                LogLevel::Debugging => "Debugging",
+            }
+        )
     }
 }

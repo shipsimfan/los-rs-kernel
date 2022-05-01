@@ -12,6 +12,8 @@ interrupts = {path = "../interrupts"}
 memory = {path = "../memory"}
 process = {path = "../process"}
 
+uefi = {path = "../drivers/uefi"}
+
 [[bin]]
 bench = false
 doc = false

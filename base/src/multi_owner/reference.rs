@@ -1,6 +1,7 @@
 use super::{owner::new_owner, Lock, Owner};
 use crate::{
     critical::CriticalLock,
+    logging::{LogOutput, LogOutputMut},
     map::{Mappable, INVALID_ID},
 };
 use alloc::sync::Weak;
@@ -26,6 +27,10 @@ impl<T, L: Lock<Data = T>> Reference<T, L> {
     pub fn upgrade(self) -> Owner<T, L> {
         new_owner(self.0.upgrade().unwrap())
     }
+
+    pub fn alive(&self) -> bool {
+        self.0.strong_count() > 0
+    }
 }
 
 impl<T: Mappable> Mappable for Reference<T> {
@@ -44,5 +49,11 @@ impl<T: Mappable> Mappable for Reference<T> {
 impl<T, L: Lock<Data = T>> Clone for Reference<T, L> {
     fn clone(&self) -> Self {
         Reference(self.0.clone())
+    }
+}
+
+impl<T: LogOutputMut, L: Lock<Data = T>> LogOutput for Reference<T, L> {
+    fn log(&self, event: crate::logging::LogEvent) {
+        self.lock(|inner| inner.log(event));
     }
 }

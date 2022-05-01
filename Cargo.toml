@@ -8,4 +8,5 @@ members = [
   "memory",
   "process",
   "device",
+  "drivers/uefi",
 ]

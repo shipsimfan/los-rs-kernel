@@ -1,8 +1,6 @@
 #![no_std]
 #![feature(const_fn_trait_bound)]
 
-use base::log_info;
-
 mod control;
 mod execution;
 mod mutex;
@@ -24,17 +22,11 @@ pub use thread::{CurrentQueue, Thread, ThreadFunction};
 
 static mut PROCESS_INITIALIZED: bool = false;
 
-const MODULE_NAME: &'static str = "Process Manager";
-
 pub fn initialize<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>() {
-    log_info!("Initializing . . .");
-
     unsafe {
         assert!(!PROCESS_INITIALIZED);
         PROCESS_INITIALIZED = true;
 
         execution::initialize::<O, D, S>();
     }
-
-    log_info!("Initialized!");
 }

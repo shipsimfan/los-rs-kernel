@@ -1,0 +1,10 @@
+// CONSOLE IOCTRL CONSTANTS
+pub const CONSOLE_IOCTRL_CLEAR: usize = 0;
+pub const CONSOLE_IOCTRL_SET_ATTRIBUTE: usize = 1;
+pub const CONSOLE_IOCTRL_SET_FOREGROUND_COLOR: usize = 2;
+pub const CONSOLE_IOCTRL_SET_BACKGROUND_COLOR: usize = 3;
+pub const CONSOLE_IOCTRL_SET_CURSOR_X: usize = 4;
+pub const CONSOLE_IOCTRL_SET_CURSOR_Y: usize = 5;
+pub const CONSOLE_IOCTRL_GET_WIDTH: usize = 6;
+pub const CONSOLE_IOCTRL_GET_HEIGHT: usize = 7;
+pub const CONSOLE_IOCTRL_SET_CURSOR_STATE: usize = 8;

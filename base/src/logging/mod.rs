@@ -3,7 +3,7 @@ mod output;
 use alloc::format;
 use core::fmt;
 
-pub use output::{set_logging_output, LogEvent, LogLevel, LogOutput};
+pub use output::{set_logging_output, LogEvent, LogLevel, LogOutput, LogOutputMut};
 
 #[doc(hidden)]
 #[inline(always)]
