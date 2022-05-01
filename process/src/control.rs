@@ -12,12 +12,12 @@ pub struct ThreadControl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals
 }
 
 impl<O: ProcessOwner<D, S>, D, S: Signals> ThreadControl<O, D, S> {
-    pub const fn new(daemon_owner: Owner<O>) -> CriticalLock<ThreadControl<O, D, S>> {
+    pub fn new() -> CriticalLock<ThreadControl<O, D, S>> {
         CriticalLock::new(ThreadControl {
             running_queue: ThreadQueue::new(),
             staged_thread: None,
             current_thread: None,
-            daemon_owner,
+            daemon_owner: Owner::new(O::new_daemon()),
         })
     }
 

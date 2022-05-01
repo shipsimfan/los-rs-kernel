@@ -1,5 +1,4 @@
 use crate::Registers;
-use alloc::boxed::Box;
 
 pub type Handler = fn(
     code: usize,
@@ -12,7 +11,7 @@ pub type Handler = fn(
     rflags: u64,
     rip: u64,
     rsp: u64,
-) -> Result<isize, Box<dyn base::error::Error>>;
+) -> base::error::Result<isize>;
 
 static mut SYSTEM_CALLS_INITIALIZED: bool = false;
 
@@ -57,7 +56,7 @@ fn default_system_call_handler(
     _: u64,
     _: u64,
     _: u64,
-) -> Result<isize, Box<dyn base::error::Error>> {
+) -> base::error::Result<isize> {
     panic!("No system call handler setup!");
 }
 

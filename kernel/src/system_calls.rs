@@ -1,5 +1,3 @@
-use alloc::boxed::Box;
-
 pub fn handler(
     _: usize,
     _: usize,
@@ -11,6 +9,6 @@ pub fn handler(
     _: u64,
     _: u64,
     _: u64,
-) -> Result<isize, Box<dyn base::error::Error>> {
+) -> base::error::Result<isize> {
     Ok(0)
 }

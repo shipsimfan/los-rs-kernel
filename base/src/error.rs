@@ -1,4 +1,9 @@
+use alloc::boxed::Box;
 use core::fmt::{Debug, Display};
+
+pub type Result<T> = core::result::Result<T, Box<dyn Error>>;
+
+pub const DEVICE_MODULE_NUMBER: i32 = 0;
 
 pub trait Error: Debug + Display {
     fn module_number(&self) -> i32;

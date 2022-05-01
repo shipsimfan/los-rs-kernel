@@ -1,7 +1,7 @@
 #![no_std]
 #![feature(const_fn_trait_bound)]
 
-use base::{critical::CriticalLock, log_info};
+use base::log_info;
 
 mod control;
 mod execution;
@@ -26,16 +26,14 @@ static mut PROCESS_INITIALIZED: bool = false;
 
 const MODULE_NAME: &'static str = "Process Manager";
 
-pub fn initialize<O: ProcessOwner<D, S>, D, S: Signals>(
-    thread_control: &'static CriticalLock<ThreadControl<O, D, S>>,
-) {
+pub fn initialize<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>() {
     log_info!("Initializing . . .");
 
     unsafe {
         assert!(!PROCESS_INITIALIZED);
         PROCESS_INITIALIZED = true;
 
-        execution::initialize(thread_control);
+        execution::initialize::<O, D, S>();
     }
 
     log_info!("Initialized!");

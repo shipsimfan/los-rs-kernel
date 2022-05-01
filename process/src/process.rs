@@ -7,6 +7,8 @@ use base::{
 use memory::AddressSpace;
 
 pub trait ProcessOwner<D, S: Signals>: Sized {
+    fn new_daemon() -> Self;
+
     fn insert_process(&mut self, process: Reference<Process<Self, D, S>>);
     fn drop_process(&mut self, id: isize);
 }

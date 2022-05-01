@@ -54,12 +54,18 @@ pub extern "C" fn kmain(
     );
 
     // Initialize process manager
-    unsafe {
-        thread_control::THREAD_CONTROL = Some(process::ThreadControl::new(
-            thread_control::TempSession::new(),
-        ))
-    }
-    process::initialize(unsafe { thread_control::THREAD_CONTROL.as_ref() }.unwrap());
+    process::initialize::<
+        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
+        thread_control::TempDescriptors,
+        thread_control::TempSignals,
+    >();
+
+    // Initialize device manager
+    device::initialize::<
+        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
+        thread_control::TempDescriptors,
+        thread_control::TempSignals,
+    >();
 
     // Launch kinit process
     log_info!("Starting kinit process . . .");
