@@ -1,4 +1,6 @@
-use crate::{queue_thread, thread_queue::ThreadQueue, CurrentQueue, Thread, ThreadFunction};
+use crate::{
+    queue_thread, thread_queue::ThreadQueue, CurrentQueue, ProcessTypes, Thread, ThreadFunction,
+};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use base::{
     map::{Map, Mappable, INVALID_ID},
@@ -6,10 +8,10 @@ use base::{
 };
 use memory::AddressSpace;
 
-pub trait ProcessOwner<D, S: Signals>: Sized {
+pub trait ProcessOwner<T: ProcessTypes> {
     fn new_daemon() -> Self;
 
-    fn insert_process(&mut self, process: Reference<Process<Self, D, S>>);
+    fn insert_process(&mut self, process: Reference<Process<T>>);
     fn drop_process(&mut self, id: isize);
 }
 
@@ -17,21 +19,26 @@ pub trait Signals: Clone {
     fn new() -> Self;
 }
 
-pub struct Process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
+pub struct Process<T: ProcessTypes + 'static> {
     id: isize,
-    threads: Map<Reference<Thread<O, D, S>>>,
+    threads: Map<Reference<Thread<T>>>,
     address_space: AddressSpace,
-    owner: Owner<O>,
-    exit_queue: ThreadQueue<O, D, S>,
+    owner: Owner<T::Owner>,
+    exit_queue: ThreadQueue<T>,
     exit_status: isize,
-    _descriptors: D,
+    _descriptors: T::Descriptor,
     _process_time: isize,
     _name: String,
-    signals: S,
+    signals: T::Signals,
 }
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
-    pub fn new(owner: Owner<O>, descriptors: D, signals: S, name: String) -> Owner<Self> {
+impl<T: ProcessTypes> Process<T> {
+    pub fn new(
+        owner: Owner<T::Owner>,
+        descriptors: T::Descriptor,
+        signals: T::Signals,
+        name: String,
+    ) -> Owner<Self> {
         let process = Owner::new(Process {
             id: INVALID_ID,
             threads: Map::new(),
@@ -54,17 +61,17 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
         process: Owner<Self>,
         entry: ThreadFunction,
         context: usize,
-    ) -> Owner<Thread<O, D, S>> {
+    ) -> Owner<Thread<T>> {
         let thread = Thread::new(process.clone(), entry, context);
         process.lock(|process| process.threads.insert(thread.as_ref()));
         thread
     }
 
-    pub fn owner(&self) -> &Owner<O> {
+    pub fn owner(&self) -> &Owner<T::Owner> {
         &self.owner
     }
 
-    pub fn signals(&self) -> &S {
+    pub fn signals(&self) -> &T::Signals {
         &self.signals
     }
 
@@ -72,7 +79,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
         self.address_space.set_as_current();
     }
 
-    pub fn threads(&self) -> Box<[Reference<Thread<O, D, S>>]> {
+    pub fn threads(&self) -> Box<[Reference<Thread<T>>]> {
         let mut threads = Vec::with_capacity(self.threads.len());
         for thread in self.threads.iter() {
             threads.push(thread.clone());
@@ -81,7 +88,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
         threads.into_boxed_slice()
     }
 
-    pub fn exit_queue(&self) -> CurrentQueue<O, D, S> {
+    pub fn exit_queue(&self) -> CurrentQueue<T> {
         self.exit_queue.current_queue()
     }
 
@@ -94,7 +101,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
     }
 }
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> Mappable for Process<O, D, S> {
+impl<T: ProcessTypes> Mappable for Process<T> {
     fn id(&self) -> isize {
         self.id
     }
@@ -104,7 +111,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Mappable for Process<O, D, S> {
     }
 }
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> Drop for Process<O, D, S> {
+impl<T: ProcessTypes> Drop for Process<T> {
     fn drop(&mut self) {
         unsafe { self.address_space.free() };
 

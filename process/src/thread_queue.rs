@@ -1,4 +1,4 @@
-use crate::{process::Signals, thread::QueueAccess, CurrentQueue, ProcessOwner, Thread};
+use crate::{thread::QueueAccess, CurrentQueue, ProcessTypes, Thread};
 use alloc::boxed::Box;
 use base::{
     critical::CriticalLock,
@@ -7,28 +7,26 @@ use base::{
 };
 
 #[allow(unused)]
-enum QueuedThread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
-    Actual(Owner<Thread<O, D, S>>),
-    Compare(Reference<Thread<O, D, S>>),
+enum QueuedThread<T: ProcessTypes + 'static> {
+    Actual(Owner<Thread<T>>),
+    Compare(Reference<Thread<T>>),
 }
 
-pub struct ThreadQueue<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
-    CriticalLock<Queue<QueuedThread<O, D, S>>>,
-);
+pub struct ThreadQueue<T: ProcessTypes + 'static>(CriticalLock<Queue<QueuedThread<T>>>);
 
 struct ThreadQueueAccess;
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> ThreadQueue<O, D, S> {
+impl<T: ProcessTypes> ThreadQueue<T> {
     pub const fn new() -> Self {
         ThreadQueue(CriticalLock::new(Queue::new()))
     }
 
-    pub fn push(&self, thread: Owner<Thread<O, D, S>>) {
+    pub fn push(&self, thread: Owner<Thread<T>>) {
         thread.lock(|thread| thread.set_current_queue(self.current_queue()));
         self.0.lock().push(QueuedThread::Actual(thread));
     }
 
-    pub fn pop(&self) -> Option<Owner<Thread<O, D, S>>> {
+    pub fn pop(&self) -> Option<Owner<Thread<T>>> {
         self.0.lock().pop().map(|t| {
             let t = t.unwrap();
             t.lock(|t| unsafe { t.clear_queue(true) });
@@ -36,20 +34,20 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> ThreadQueue<O, D, S> {
         })
     }
 
-    pub fn remove(&self, thread: &Reference<Thread<O, D, S>>) -> Option<Owner<Thread<O, D, S>>> {
+    pub fn remove(&self, thread: &Reference<Thread<T>>) -> Option<Owner<Thread<T>>> {
         self.0
             .lock()
             .remove(QueuedThread::Compare(thread.clone()))
             .map(|thread| thread.into())
     }
 
-    pub fn current_queue(&self) -> CurrentQueue<O, D, S> {
+    pub fn current_queue(&self) -> CurrentQueue<T> {
         CurrentQueue::new(Box::new(ThreadQueueAccess), self as *const _ as *mut _)
     }
 }
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> QueuedThread<O, D, S> {
-    pub fn unwrap(self) -> Owner<Thread<O, D, S>> {
+impl<T: ProcessTypes> QueuedThread<T> {
+    pub fn unwrap(self) -> Owner<Thread<T>> {
         match self {
             QueuedThread::Actual(thread) => thread,
             QueuedThread::Compare(_) => {
@@ -59,27 +57,23 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> QueuedThread<O, D, S> {
     }
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> QueueAccess<O, D, S>
-    for ThreadQueueAccess
-{
-    unsafe fn add(&self, queue: *mut core::ffi::c_void, thread: Owner<Thread<O, D, S>>) {
-        let queue = &mut *(queue as *mut ThreadQueue<O, D, S>);
+impl<T: ProcessTypes> QueueAccess<T> for ThreadQueueAccess {
+    unsafe fn add(&self, queue: *mut core::ffi::c_void, thread: Owner<Thread<T>>) {
+        let queue = &mut *(queue as *mut ThreadQueue<T>);
         queue.push(thread)
     }
 
     unsafe fn remove(
         &self,
         queue: *mut core::ffi::c_void,
-        thread: &Reference<Thread<O, D, S>>,
-    ) -> Option<Owner<Thread<O, D, S>>> {
-        let queue = &mut *(queue as *mut ThreadQueue<O, D, S>);
+        thread: &Reference<Thread<T>>,
+    ) -> Option<Owner<Thread<T>>> {
+        let queue = &mut *(queue as *mut ThreadQueue<T>);
         queue.remove(thread)
     }
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> PartialEq
-    for QueuedThread<O, D, S>
-{
+impl<T: ProcessTypes> PartialEq for QueuedThread<T> {
     fn eq(&self, other: &Self) -> bool {
         match self {
             QueuedThread::Actual(thread) => match other {
@@ -94,10 +88,8 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> PartialE
     }
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Into<Owner<Thread<O, D, S>>>
-    for QueuedThread<O, D, S>
-{
-    fn into(self) -> Owner<Thread<O, D, S>> {
+impl<T: ProcessTypes> Into<Owner<Thread<T>>> for QueuedThread<T> {
+    fn into(self) -> Owner<Thread<T>> {
         match self {
             QueuedThread::Actual(thread) => thread,
             QueuedThread::Compare(_) => {

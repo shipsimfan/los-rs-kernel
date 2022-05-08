@@ -20,13 +20,19 @@ pub use mutex::*;
 pub use process::{Process, ProcessOwner, Signals};
 pub use thread::{CurrentQueue, Thread, ThreadFunction};
 
+pub trait ProcessTypes: Sized {
+    type Owner: ProcessOwner<Self>;
+    type Descriptor;
+    type Signals: process::Signals;
+}
+
 static mut PROCESS_INITIALIZED: bool = false;
 
-pub fn initialize<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>() {
+pub fn initialize<T: ProcessTypes + 'static>() {
     unsafe {
         assert!(!PROCESS_INITIALIZED);
         PROCESS_INITIALIZED = true;
 
-        execution::initialize::<O, D, S>();
+        execution::initialize::<T>();
     }
 }

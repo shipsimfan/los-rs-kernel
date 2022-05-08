@@ -1,20 +1,20 @@
 use super::{current_thread_option, thread_control};
 use crate::{
-    current_thread, exit_thread, kill_thread, queue_thread, yield_thread, Process, ProcessOwner,
+    current_thread, exit_thread, kill_thread, queue_thread, yield_thread, Process, ProcessTypes,
     Signals, ThreadFunction,
 };
 use alloc::string::String;
 use base::multi_owner::Reference;
 
-pub fn create_process<O: ProcessOwner<D, S>, D, S: Signals>(
+pub fn create_process<T: ProcessTypes + 'static>(
     entry: ThreadFunction,
     context: usize,
-    descriptors: D,
+    descriptors: T::Descriptor,
     name: String,
     inherit_signals: bool,
-) -> Reference<Process<O, D, S>> {
+) -> Reference<Process<T>> {
     // Get the process owner
-    let (process_owner, signals) = match current_thread_option::<O, D, S>() {
+    let (process_owner, signals) = match current_thread_option::<T>() {
         Some(current_thread) => current_thread.lock(|thread| {
             thread.process().lock(|process| {
                 (
@@ -22,12 +22,15 @@ pub fn create_process<O: ProcessOwner<D, S>, D, S: Signals>(
                     if inherit_signals {
                         process.signals().clone()
                     } else {
-                        S::new()
+                        T::Signals::new()
                     },
                 )
             })
         }),
-        None => (thread_control().lock().daemon_owner(), S::new()),
+        None => (
+            thread_control::<T>().lock().daemon_owner().clone(),
+            T::Signals::new(),
+        ),
     };
 
     // Create a new process
@@ -41,26 +44,24 @@ pub fn create_process<O: ProcessOwner<D, S>, D, S: Signals>(
     ret
 }
 
-pub fn wait_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
-    process: &Reference<Process<O, D, S>>,
-) -> Option<isize> {
+pub fn wait_process<T: ProcessTypes + 'static>(process: &Reference<Process<T>>) -> Option<isize> {
     match process.lock(|process| process.exit_queue()) {
         Some(queue) => {
             yield_thread(Some(queue));
-            Some(current_thread::<O, D, S>().lock(|thread| thread.queue_data()))
+            Some(current_thread::<T>().lock(|thread| thread.queue_data()))
         }
         None => None,
     }
 }
 
-pub fn kill_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
-    process: &Reference<Process<O, D, S>>,
+pub fn kill_process<T: ProcessTypes + 'static>(
+    process: &Reference<Process<T>>,
     exit_status: isize,
 ) {
     unsafe { base::critical::enter_local() };
 
     if current_thread().lock(|thread| thread.process().compare_ref(&process)) {
-        exit_process::<O, D, S>(exit_status);
+        exit_process::<T>(exit_status);
     }
 
     let threads = match process.lock(|process| {
@@ -81,19 +82,17 @@ pub fn kill_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
     unsafe { base::critical::leave_local() };
 }
 
-pub fn exit_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>(
-    exit_status: isize,
-) -> ! {
+pub fn exit_process<T: ProcessTypes + 'static>(exit_status: isize) -> ! {
     unsafe { base::critical::enter_local() };
 
-    let threads = current_thread::<O, D, S>().lock(|thread| {
+    let threads = current_thread::<T>().lock(|thread| {
         thread.process().lock(|process| {
             process.set_exit_status(exit_status);
             process.threads()
         })
     });
 
-    let current_thread = current_thread::<O, D, S>().as_ref();
+    let current_thread = current_thread::<T>().as_ref();
     for thread in threads.iter() {
         if !thread.compare(&current_thread) {
             kill_thread(thread, exit_status);
@@ -101,5 +100,5 @@ pub fn exit_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
     }
 
     unsafe { base::critical::leave_local_without_sti() };
-    exit_thread::<O, D, S>(exit_status);
+    exit_thread::<T>(exit_status);
 }

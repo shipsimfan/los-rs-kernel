@@ -1,9 +1,5 @@
 use crate::{
-    execution::post_yield,
-    process::{Process, Signals},
-    queue_thread,
-    thread_queue::ThreadQueue,
-    ProcessOwner,
+    execution::post_yield, process::Process, queue_thread, thread_queue::ThreadQueue, ProcessTypes,
 };
 use base::{
     map::{Mappable, INVALID_ID},
@@ -28,17 +24,17 @@ enum InterruptState {
     Interrupted,
 }
 
-pub struct Thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
+pub struct Thread<T: ProcessTypes + 'static> {
     id: isize,
     kernel_stack: Stack,
     floating_point_storage: FloatingPointStorage,
-    process: Owner<Process<O, D, S>>,
-    queue: Option<CurrentQueue<O, D, S>>,
+    process: Owner<Process<T>>,
+    queue: Option<CurrentQueue<T>>,
     queue_data: isize,
-    exit_queue: ThreadQueue<O, D, S>,
+    exit_queue: ThreadQueue<T>,
     exit_status: isize,
     _interrupt_state: InterruptState,
-    self_reference: Option<Reference<Thread<O, D, S>>>,
+    self_reference: Option<Reference<Thread<T>>>,
 }
 
 extern "C" {
@@ -46,12 +42,8 @@ extern "C" {
     fn float_load(floating_point_storage: *mut u8);
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O, D, S> {
-    pub fn new(
-        process: Owner<Process<O, D, S>>,
-        entry: ThreadFunction,
-        context: usize,
-    ) -> Owner<Self> {
+impl<T: ProcessTypes + 'static> Thread<T> {
+    pub fn new(process: Owner<Process<T>>, entry: ThreadFunction, context: usize) -> Owner<Self> {
         let entry = entry as usize;
 
         let mut kernel_stack = Stack::new();
@@ -73,12 +65,12 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         });
 
         let reference = ret.as_ref();
-        ret.lock(|thread: &mut Thread<O, D, S>| thread.self_reference = Some(reference));
+        ret.lock(|thread: &mut Thread<T>| thread.self_reference = Some(reference));
 
         ret
     }
 
-    pub fn process(&self) -> &Owner<Process<O, D, S>> {
+    pub fn process(&self) -> &Owner<Process<T>> {
         &self.process
     }
 
@@ -90,7 +82,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         self.kernel_stack.top()
     }
 
-    pub fn exit_queue(&self) -> CurrentQueue<O, D, S> {
+    pub fn exit_queue(&self) -> CurrentQueue<T> {
         self.exit_queue.current_queue()
     }
 
@@ -114,11 +106,11 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         unsafe { float_load(self.floating_point_storage.as_mut_ptr()) }
     }
 
-    pub fn set_current_queue(&mut self, queue: CurrentQueue<O, D, S>) {
+    pub fn set_current_queue(&mut self, queue: CurrentQueue<T>) {
         self.queue = Some(queue);
     }
 
-    pub unsafe fn clear_queue(&mut self, removed: bool) -> Option<Owner<Thread<O, D, S>>> {
+    pub unsafe fn clear_queue(&mut self, removed: bool) -> Option<Owner<Thread<T>>> {
         let ret = if !removed {
             match &mut self.queue {
                 Some(queue) => queue.remove(self.self_reference.as_ref().unwrap()),
@@ -134,7 +126,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
     }
 
     fn prepare_entry_stack(stack: &mut Stack, entry: usize, context: usize) {
-        stack.push(post_yield::<O, D, S> as usize); // yield ret address
+        stack.push(post_yield::<T> as usize); // yield ret address
         stack.push(0); // push rax
         stack.push(0); // push rbx
         stack.push(0); // push rcx
@@ -153,7 +145,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
     }
 }
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> Mappable for Thread<O, D, S> {
+impl<T: ProcessTypes> Mappable for Thread<T> {
     fn id(&self) -> isize {
         self.id
     }
@@ -163,7 +155,7 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Mappable for Thread<O, D, S> {
     }
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Drop for Thread<O, D, S> {
+impl<T: ProcessTypes + 'static> Drop for Thread<T> {
     fn drop(&mut self) {
         self.process.lock(|process| process.remove_thread(self.id));
 

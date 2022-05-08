@@ -1,35 +1,32 @@
-use crate::{process::Signals, ProcessOwner, Thread};
+use crate::{ProcessTypes, Thread};
 use alloc::boxed::Box;
 use base::multi_owner::{Owner, Reference};
 use core::ffi::c_void;
 
-pub trait QueueAccess<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
-    unsafe fn add(&self, queue: *mut c_void, thread: Owner<Thread<O, D, S>>);
+pub trait QueueAccess<T: ProcessTypes> {
+    unsafe fn add(&self, queue: *mut c_void, thread: Owner<Thread<T>>);
     unsafe fn remove(
         &self,
         queue: *mut c_void,
-        thread: &Reference<Thread<O, D, S>>,
-    ) -> Option<Owner<Thread<O, D, S>>>;
+        thread: &Reference<Thread<T>>,
+    ) -> Option<Owner<Thread<T>>>;
 }
 
-pub struct CurrentQueue<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
-    access: Box<dyn QueueAccess<O, D, S>>,
+pub struct CurrentQueue<T: ProcessTypes> {
+    access: Box<dyn QueueAccess<T>>,
     queue: *mut c_void,
 }
 
-impl<O: ProcessOwner<D, S>, D, S: Signals> CurrentQueue<O, D, S> {
-    pub fn new(access: Box<dyn QueueAccess<O, D, S>>, queue: *mut c_void) -> Self {
+impl<T: ProcessTypes> CurrentQueue<T> {
+    pub fn new(access: Box<dyn QueueAccess<T>>, queue: *mut c_void) -> Self {
         CurrentQueue { access, queue }
     }
 
-    pub unsafe fn add(&self, thread: Owner<Thread<O, D, S>>) {
+    pub unsafe fn add(&self, thread: Owner<Thread<T>>) {
         self.access.add(self.queue, thread)
     }
 
-    pub unsafe fn remove(
-        &self,
-        thread: &Reference<Thread<O, D, S>>,
-    ) -> Option<Owner<Thread<O, D, S>>> {
+    pub unsafe fn remove(&self, thread: &Reference<Thread<T>>) -> Option<Owner<Thread<T>>> {
         self.access.remove(self.queue, thread)
     }
 }

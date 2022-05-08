@@ -11,8 +11,8 @@ use core::arch::asm;
 use memory::Heap;
 
 mod interrupt_handlers;
+mod process_types;
 mod system_calls;
-mod thread_control;
 
 const MODULE_NAME: &str = "Kernel";
 
@@ -46,25 +46,13 @@ pub extern "C" fn kmain(
     );
 
     // Initialize process manager
-    process::initialize::<
-        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
-        thread_control::TempDescriptors,
-        thread_control::TempSignals,
-    >();
+    process::initialize::<process_types::ProcessTypes>();
 
     // Initialize device manager
-    device::initialize::<
-        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
-        thread_control::TempDescriptors,
-        thread_control::TempSignals,
-    >();
+    device::initialize::<process_types::ProcessTypes>();
 
     // Initialize boot video
-    uefi::initialize::<
-        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
-        thread_control::TempDescriptors,
-        thread_control::TempSignals,
-    >(gmode);
+    uefi::initialize::<process_types::ProcessTypes>(gmode);
 
     log_info!("Booting Lance Operating System . . .");
     let memory_usage = memory::get_memory_usage();
@@ -76,22 +64,14 @@ pub extern "C" fn kmain(
 
     // Launch kinit process
     log_info!("Starting kinit process . . .");
-    process::create_process::<
-        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
-        thread_control::TempDescriptors,
-        thread_control::TempSignals,
-    >(
+    process::create_process::<process_types::ProcessTypes>(
         kinit,
         0,
-        thread_control::TempDescriptors,
+        process_types::TempDescriptors,
         "kinit".to_owned(),
         false,
     );
-    process::yield_thread::<
-        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
-        thread_control::TempDescriptors,
-        thread_control::TempSignals,
-    >(None);
+    process::yield_thread::<process_types::ProcessTypes>(None);
 
     loop {}
 }
@@ -100,31 +80,16 @@ fn test(_: usize) -> isize {
     loop {
         log_debug!("Test Loop");
 
-        process::queue_and_yield::<
-            thread_control::TempSession<
-                thread_control::TempDescriptors,
-                thread_control::TempSignals,
-            >,
-            thread_control::TempDescriptors,
-            thread_control::TempSignals,
-        >();
+        process::queue_and_yield::<process_types::ProcessTypes>();
     }
 }
 
 fn kinit(_: usize) -> isize {
     log_info!("kinit running!");
 
-    let thread = process::create_thread::<
-        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
-        thread_control::TempDescriptors,
-        thread_control::TempSignals,
-    >(test, 0);
+    let thread = process::create_thread::<process_types::ProcessTypes>(test, 0);
 
-    process::queue_and_yield::<
-        thread_control::TempSession<thread_control::TempDescriptors, thread_control::TempSignals>,
-        thread_control::TempDescriptors,
-        thread_control::TempSignals,
-    >();
+    process::queue_and_yield::<process_types::ProcessTypes>();
 
     log_debug!("Killed other thread: {}", !thread.alive());
 

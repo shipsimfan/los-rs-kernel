@@ -3,12 +3,12 @@ use crate::Device;
 use self::node::Children;
 use alloc::{borrow::ToOwned, boxed::Box, collections::VecDeque, string::String};
 use base::{error::DEVICE_MODULE_NUMBER, multi_owner::Reference};
-use process::{Mutex, ProcessOwner, Signals};
+use process::{Mutex, ProcessTypes};
 
 mod node;
 
-pub struct Tree<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
-    root_devices: Children<O, D, S>,
+pub struct Tree<T: ProcessTypes + 'static> {
+    root_devices: Children<T>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -40,8 +40,8 @@ fn parse_path(path: &str) -> base::error::Result<VecDeque<&str>> {
     Ok(parts)
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Tree<O, D, S> {
-    pub const fn new() -> Mutex<Self, O, D, S> {
+impl<T: ProcessTypes> Tree<T> {
+    pub const fn new() -> Mutex<Self, T> {
         Mutex::new(Tree {
             root_devices: Children::new(),
         })
@@ -50,7 +50,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Tree<O, 
     pub fn get_device(
         &self,
         path: &str,
-    ) -> base::error::Result<Reference<Box<dyn Device>, Mutex<Box<dyn Device>, O, D, S>>> {
+    ) -> base::error::Result<Reference<Box<dyn Device>, Mutex<Box<dyn Device>, T>>> {
         let path = parse_path(path)?;
         match self.root_devices.child(path.as_slices().0) {
             Some(device) => Ok(device.device()),

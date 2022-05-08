@@ -1,19 +1,19 @@
 use crate::Device;
 use alloc::{boxed::Box, string::String, vec::Vec};
 use base::multi_owner::{Owner, Reference};
-use process::{Mutex, ProcessOwner, Signals};
+use process::{Mutex, ProcessTypes};
 
-pub struct Node<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
+pub struct Node<T: ProcessTypes + 'static> {
     name: String,
-    device: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, O, D, S>>,
-    children: Children<O, D, S>,
+    device: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
+    children: Children<T>,
 }
 
-pub struct Children<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
-    children: Vec<Node<O, D, S>>,
+pub struct Children<T: ProcessTypes + 'static> {
+    children: Vec<Node<T>>,
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Node<O, D, S> {
+impl<T: ProcessTypes> Node<T> {
     pub fn new(name: String, device: Box<dyn Device>) -> Self {
         Node {
             name,
@@ -26,15 +26,15 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Node<O, 
         self.children.children()
     }
 
-    pub fn device(&self) -> Reference<Box<dyn Device>, Mutex<Box<dyn Device>, O, D, S>> {
+    pub fn device(&self) -> Reference<Box<dyn Device>, Mutex<Box<dyn Device>, T>> {
         self.device.as_ref()
     }
 
-    pub fn child(&self, path: &[&str]) -> Option<&Node<O, D, S>> {
+    pub fn child(&self, path: &[&str]) -> Option<&Node<T>> {
         self.children.child(path)
     }
 
-    pub fn child_mut(&mut self, path: &[&str]) -> Option<&mut Node<O, D, S>> {
+    pub fn child_mut(&mut self, path: &[&str]) -> Option<&mut Node<T>> {
         self.children.child_mut(path)
     }
 
@@ -47,7 +47,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Node<O, 
     }
 }
 
-impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Children<O, D, S> {
+impl<T: ProcessTypes> Children<T> {
     pub const fn new() -> Self {
         Children {
             children: Vec::new(),
@@ -63,7 +63,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Children
         ret.into_boxed_slice()
     }
 
-    pub fn child(&self, path: &[&str]) -> Option<&Node<O, D, S>> {
+    pub fn child(&self, path: &[&str]) -> Option<&Node<T>> {
         if path.len() == 0 {
             return None;
         }
@@ -87,7 +87,7 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Children
         }
     }
 
-    pub fn child_mut(&mut self, path: &[&str]) -> Option<&mut Node<O, D, S>> {
+    pub fn child_mut(&mut self, path: &[&str]) -> Option<&mut Node<T>> {
         if path.len() == 0 {
             return None;
         }

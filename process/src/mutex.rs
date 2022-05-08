@@ -1,28 +1,25 @@
-use base::multi_owner::Lock;
-
 use crate::{
-    current_thread_option, queue_thread, thread_queue::ThreadQueue, yield_thread, ProcessOwner,
-    Signals,
+    current_thread_option, queue_thread, thread_queue::ThreadQueue, yield_thread, ProcessTypes,
 };
+use base::multi_owner::Lock;
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
     sync::atomic::{AtomicBool, Ordering},
 };
 
-pub struct Mutex<T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
+pub struct Mutex<T, PT: ProcessTypes + 'static> {
     lock: AtomicBool,
-    queue: ThreadQueue<O, D, S>,
+    queue: ThreadQueue<PT>,
     data: UnsafeCell<T>,
 }
 
-pub struct MutexGuard<'a, T: 'a, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>
-{
-    lock: &'a Mutex<T, O, D, S>,
+pub struct MutexGuard<'a, T: 'a, PT: ProcessTypes + 'static> {
+    lock: &'a Mutex<T, PT>,
     data: &'a mut T,
 }
 
-impl<T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Mutex<T, O, D, S> {
+impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
     #[inline(always)]
     pub const fn new(data: T) -> Self {
         Mutex {
@@ -33,9 +30,9 @@ impl<T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Mutex
     }
 
     #[inline(always)]
-    pub fn lock(&self) -> MutexGuard<T, O, D, S> {
+    pub fn lock(&self) -> MutexGuard<T, PT> {
         unsafe { base::critical::enter_local() };
-        match current_thread_option::<O, D, S>() {
+        match current_thread_option::<PT>() {
             None => unsafe { base::critical::leave_local() },
             Some(_) => {
                 if self
@@ -58,8 +55,8 @@ impl<T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Mutex
     }
 
     #[inline(always)]
-    pub fn try_lock(&self) -> Option<MutexGuard<T, O, D, S>> {
-        match current_thread_option::<O, D, S>() {
+    pub fn try_lock(&self) -> Option<MutexGuard<T, PT>> {
+        match current_thread_option::<PT>() {
             None => None,
             Some(_) => {
                 if self
@@ -87,9 +84,7 @@ impl<T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Mutex
     }
 }
 
-impl<T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Lock
-    for Mutex<T, O, D, S>
-{
+impl<T: Send, PT: ProcessTypes + 'static> Lock for Mutex<T, PT> {
     type Data = T;
 
     fn new(data: Self::Data) -> Self {
@@ -102,40 +97,28 @@ impl<T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static>
     }
 }
 
-unsafe impl<T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Sync
-    for Mutex<T, O, D, S>
-{
-}
-unsafe impl<T: Send, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Send
-    for Mutex<T, O, D, S>
-{
-}
+unsafe impl<T: Send, PT: ProcessTypes> Sync for Mutex<T, PT> {}
+unsafe impl<T: Send, PT: ProcessTypes> Send for Mutex<T, PT> {}
 
-impl<'a, T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Deref
-    for MutexGuard<'a, T, O, D, S>
-{
+impl<'a, T, PT: ProcessTypes> Deref for MutexGuard<'a, T, PT> {
     type Target = T;
     fn deref(&self) -> &T {
         self.data
     }
 }
 
-impl<'a, T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> DerefMut
-    for MutexGuard<'a, T, O, D, S>
-{
+impl<'a, T, PT: ProcessTypes> DerefMut for MutexGuard<'a, T, PT> {
     fn deref_mut(&mut self) -> &mut T {
         self.data
     }
 }
 
-impl<'a, T, O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Drop
-    for MutexGuard<'a, T, O, D, S>
-{
+impl<'a, T, PT: ProcessTypes> Drop for MutexGuard<'a, T, PT> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
         unsafe {
             base::critical::enter_local();
-            let mutex = &mut *(self.lock as *const _ as *mut Mutex<T, O, D, S>);
+            let mutex = &mut *(self.lock as *const _ as *mut Mutex<T, PT>);
 
             match mutex.queue.pop() {
                 None => mutex.lock.store(false, Ordering::Relaxed),
