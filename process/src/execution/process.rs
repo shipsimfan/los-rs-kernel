@@ -15,23 +15,18 @@ pub fn create_process<O: ProcessOwner<D, S>, D, S: Signals>(
 ) -> Reference<Process<O, D, S>> {
     // Get the process owner
     let (process_owner, signals) = match current_thread_option::<O, D, S>() {
-        Some(current_thread) => current_thread
-            .lock(|thread| {
-                thread
-                    .process()
-                    .lock(|process| {
-                        (
-                            process.owner(),
-                            if inherit_signals {
-                                process.signals()
-                            } else {
-                                S::new()
-                            },
-                        )
-                    })
-                    .unwrap()
+        Some(current_thread) => current_thread.lock(|thread| {
+            thread.process().lock(|process| {
+                (
+                    process.owner().clone(),
+                    if inherit_signals {
+                        process.signals().clone()
+                    } else {
+                        S::new()
+                    },
+                )
             })
-            .unwrap(),
+        }),
         None => (thread_control().lock().daemon_owner(), S::new()),
     };
 
@@ -52,11 +47,7 @@ pub fn wait_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
     match process.lock(|process| process.exit_queue()) {
         Some(queue) => {
             yield_thread(Some(queue));
-            Some(
-                current_thread::<O, D, S>()
-                    .lock(|thread| thread.queue_data())
-                    .unwrap(),
-            )
+            Some(current_thread::<O, D, S>().lock(|thread| thread.queue_data()))
         }
         None => None,
     }
@@ -68,10 +59,7 @@ pub fn kill_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
 ) {
     unsafe { base::critical::enter_local() };
 
-    if current_thread()
-        .lock(|thread| thread.process().compare(process))
-        .unwrap()
-    {
+    if current_thread().lock(|thread| thread.process().compare_ref(&process)) {
         exit_process::<O, D, S>(exit_status);
     }
 
@@ -98,16 +86,14 @@ pub fn exit_process<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
 ) -> ! {
     unsafe { base::critical::enter_local() };
 
-    let current_thread = current_thread::<O, D, S>();
-    let current_process = current_thread.lock(|thread| thread.process()).unwrap();
-
-    let threads = current_process
-        .lock(|process| {
+    let threads = current_thread::<O, D, S>().lock(|thread| {
+        thread.process().lock(|process| {
             process.set_exit_status(exit_status);
             process.threads()
         })
-        .unwrap();
+    });
 
+    let current_thread = current_thread::<O, D, S>().as_ref();
     for thread in threads.iter() {
         if !thread.compare(&current_thread) {
             kill_thread(thread, exit_status);

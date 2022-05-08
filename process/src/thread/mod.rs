@@ -78,8 +78,8 @@ impl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> Thread<O
         ret
     }
 
-    pub fn process(&self) -> Reference<Process<O, D, S>> {
-        self.process.as_ref()
+    pub fn process(&self) -> &Owner<Process<O, D, S>> {
+        &self.process
     }
 
     pub fn stack_pointer_location(&self) -> &usize {

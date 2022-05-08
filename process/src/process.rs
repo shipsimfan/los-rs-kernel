@@ -60,12 +60,12 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> Process<O, D, S> {
         thread
     }
 
-    pub fn owner(&self) -> Owner<O> {
-        self.owner.clone()
+    pub fn owner(&self) -> &Owner<O> {
+        &self.owner
     }
 
-    pub fn signals(&self) -> S {
-        self.signals.clone()
+    pub fn signals(&self) -> &S {
+        &self.signals
     }
 
     pub fn set_address_space_as_current(&self) {

@@ -1,8 +1,5 @@
 use crate::{process::Signals, thread_queue::ThreadQueue, CurrentQueue, ProcessOwner, Thread};
-use base::{
-    critical::CriticalLock,
-    multi_owner::{Owner, Reference},
-};
+use base::{critical::CriticalLock, multi_owner::Owner};
 
 pub struct ThreadControl<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'static> {
     running_queue: ThreadQueue<O, D, S>,
@@ -29,8 +26,8 @@ impl<O: ProcessOwner<D, S>, D, S: Signals> ThreadControl<O, D, S> {
         self.running_queue.push(thread);
     }
 
-    pub fn current_thread(&self) -> Option<Reference<Thread<O, D, S>>> {
-        self.current_thread.as_ref().map(|thread| thread.as_ref())
+    pub fn current_thread(&self) -> &Option<Owner<Thread<O, D, S>>> {
+        &self.current_thread
     }
 
     pub fn next_thread(&self) -> Option<Owner<Thread<O, D, S>>> {

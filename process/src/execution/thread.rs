@@ -17,7 +17,7 @@ pub fn create_thread<O: ProcessOwner<D, S>, D, S: Signals>(
     entry: ThreadFunction,
     context: usize,
 ) -> Reference<Thread<O, D, S>> {
-    let current_process = current_thread().lock(|thread| thread.process()).unwrap();
+    let current_process = current_thread().lock(|thread| thread.process().as_ref());
 
     let thread = Process::create_thread(current_process.upgrade(), entry, context);
     let ret = thread.as_ref();
@@ -31,11 +31,7 @@ pub fn wait_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'st
     match thread.lock(|thread| thread.exit_queue()) {
         Some(queue) => {
             yield_thread(Some(queue));
-            Some(
-                current_thread::<O, D, S>()
-                    .lock(|thread| thread.queue_data())
-                    .unwrap(),
-            )
+            Some(current_thread::<O, D, S>().lock(|thread| thread.queue_data()))
         }
         None => None,
     }
@@ -76,12 +72,10 @@ pub fn yield_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 's
             // Access the current thread
             let default_location = 0;
             let current_stack_save_location = match tc.current_thread() {
-                Some(current_thread) => current_thread
-                    .lock(|thread| {
-                        thread.save_float();
-                        thread.stack_pointer_location() as *const usize
-                    })
-                    .unwrap(),
+                Some(current_thread) => current_thread.lock(|thread| {
+                    thread.save_float();
+                    thread.stack_pointer_location() as *const usize
+                }),
                 None => &default_location,
             };
 
@@ -158,7 +152,7 @@ pub fn kill_thread<O: ProcessOwner<D, S> + 'static, D: 'static, S: Signals + 'st
     unsafe {
         base::critical::enter_local();
 
-        if thread.compare(&current_thread::<O, D, S>()) {
+        if thread.compare(&current_thread::<O, D, S>().as_ref()) {
             base::critical::leave_local_without_sti();
             exit_thread::<O, D, S>(exit_status);
         }
