@@ -74,9 +74,11 @@ pub unsafe fn post_exception_handler(_: &Registers, _: &ExceptionInfo) {
         crate::process::handle_signals(userspace_context);
     }
     */
+
+    acpi::end_interrupt();
 }
 
-pub unsafe fn post_irq_handler(_: usize, _: &Registers, _: &IRQInfo) {
+pub unsafe fn post_irq_handler(irq: usize, _: &Registers, _: &IRQInfo) {
     /*
     end_irq(irq as u8);
     end_interrupt();
@@ -109,6 +111,9 @@ pub unsafe fn post_irq_handler(_: usize, _: &Registers, _: &IRQInfo) {
         crate::critical::enter_local();
     }
     */
+
+    acpi::end_irq(irq as u8);
+    acpi::end_interrupt();
 }
 
 pub unsafe fn null_access_exception_handler(address: usize) {

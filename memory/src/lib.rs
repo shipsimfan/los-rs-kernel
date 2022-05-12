@@ -62,6 +62,10 @@ pub fn get_memory_usage() -> MemoryUsage {
     *MEMORY_USAGE.lock()
 }
 
+pub fn map_virtual_memory(virtual_address: VirtualAddress, physical_address: PhysicalAddress) {
+    virtual_mem::allocate(virtual_address, physical_address)
+}
+
 impl MemoryUsage {
     pub fn free_memory(&self) -> usize {
         self.free_pages * self.page_size

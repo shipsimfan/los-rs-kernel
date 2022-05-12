@@ -23,7 +23,7 @@ static HEAP: CriticalLock<Heap> = CriticalLock::new(Heap);
 pub extern "C" fn kmain(
     gmode: *const base::bootloader::GraphicsMode,
     mmap: *const base::bootloader::MemoryMap,
-    _rsdp: *const core::ffi::c_void,
+    rsdp: *const core::ffi::c_void,
 ) -> ! {
     // Convert passed pointers into references
     let gmode = unsafe { &*gmode };
@@ -61,6 +61,9 @@ pub extern "C" fn kmain(
         memory_usage.free_memory() / 1024 / 1024,
         memory_usage.available_memory() / 1024 / 1024
     );
+
+    // Initialize ACPI
+    acpi::initialize::<process_types::ProcessTypes>(rsdp);
 
     // Launch kinit process
     log_info!("Starting kinit process . . .");

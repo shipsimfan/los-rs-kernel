@@ -2,12 +2,13 @@
 default-members = ["kernel"]
 
 members = [
-  "kernel",
   "base",
+  "device",
+  "acpi",
+  "drivers/uefi",
   "interrupts",
+  "kernel",
   "memory",
   "process",
-  "device",
-  "drivers/uefi",
   "sessions",
 ]

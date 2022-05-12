@@ -24,9 +24,7 @@ static mut DEVICE_INITIALIZED: bool = false;
 static mut DEVICE_TREE_PTR: *const c_void = null();
 
 fn device_tree<T: ProcessTypes + 'static>() -> DeviceTreeType<T> {
-    let r = unsafe { &*(DEVICE_TREE_PTR as *const _) };
-
-    r
+    unsafe { &*(DEVICE_TREE_PTR as *const _) }
 }
 
 pub fn initialize<T: ProcessTypes + 'static>() {

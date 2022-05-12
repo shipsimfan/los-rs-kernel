@@ -64,3 +64,7 @@ pub fn initialize(
 pub fn set_interrupt_stack(stack_pointer: usize) {
     gdt::set_interrupt_stack(stack_pointer);
 }
+
+pub unsafe fn install_interrupt_handler(interrupt: u8, handler: usize) {
+    idt::install_interrupt_handler(interrupt, handler);
+}
