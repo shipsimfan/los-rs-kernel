@@ -1,4 +1,4 @@
-use crate::{thread_queue::ThreadQueue, CurrentQueue, ProcessOwner, ProcessTypes, Thread};
+use crate::{thread_queue::ThreadQueue, CurrentQueue, ProcessTypes, Thread};
 use base::{critical::CriticalLock, multi_owner::Owner};
 
 pub struct ThreadControl<T: ProcessTypes + 'static> {
@@ -14,7 +14,7 @@ impl<T: ProcessTypes> ThreadControl<T> {
             running_queue: ThreadQueue::new(),
             staged_thread: None,
             current_thread: None,
-            daemon_owner: Owner::new(T::Owner::new_daemon()),
+            daemon_owner: Owner::new(T::new_daemon()),
         })
     }
 

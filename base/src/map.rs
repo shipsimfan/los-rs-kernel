@@ -42,6 +42,21 @@ impl<T: Mappable> Map<T> {
         }
     }
 
+    pub fn with_starting_index(start_index: isize) -> Self {
+        assert!(start_index >= 0);
+
+        let mut data = Vec::with_capacity(MAP_SIZE);
+        for _ in 0..MAP_SIZE {
+            data.push(Vec::new());
+        }
+
+        Map {
+            data: data.into_boxed_slice(),
+            length: 0,
+            next_id: start_index,
+        }
+    }
+
     pub fn insert(&mut self, mut value: T) -> isize {
         let id = self.next_id;
         self.next_id += 1;

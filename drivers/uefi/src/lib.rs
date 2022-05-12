@@ -20,7 +20,9 @@ pub fn initialize<T: ProcessTypes + 'static>(gmode: &base::bootloader::GraphicsM
 
     let console = UEFIConsole::new(gmode);
 
-    device::register_device::<T>("/uefi", console).expect("Failed to register UEFI device!");
+    device::register_device::<T>("/boot_video", console).expect("Failed to register UEFI device!");
 
-    base::logging::set_logging_output(Some(Box::new(device::get_device::<T>("/uefi").unwrap())))
+    base::logging::set_logging_output(Some(Box::new(
+        device::get_device::<T>("/boot_video").unwrap(),
+    )))
 }

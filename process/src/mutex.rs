@@ -31,7 +31,7 @@ impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
 
     #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T, PT> {
-        unsafe { base::critical::enter_local() };
+        unsafe { base::critical::enter_local_assert() };
         match current_thread_option::<PT>() {
             None => unsafe { base::critical::leave_local() },
             Some(_) => {

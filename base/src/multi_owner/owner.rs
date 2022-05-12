@@ -36,13 +36,13 @@ impl<T, L: Lock<Data = T>> Owner<T, L> {
     }
 }
 
-impl<T: Mappable> Mappable for Owner<T> {
+impl<T: Mappable, L: Lock<Data = T>> Mappable for Owner<T, L> {
     fn id(&self) -> isize {
-        self.0.lock().id()
+        self.0.lock(|inner| inner.id())
     }
 
     fn set_id(&mut self, id: isize) {
-        self.0.lock().set_id(id)
+        self.0.lock(|inner| inner.set_id(id))
     }
 }
 

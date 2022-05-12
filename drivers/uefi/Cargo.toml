@@ -17,3 +17,4 @@ base = {path = "../../base"}
 device = {path = "../../device"}
 memory = {path = "../../memory"}
 process = {path = "../../process"}
+sessions = {path = "../../sessions"}

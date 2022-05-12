@@ -144,6 +144,8 @@ pub fn kill_thread<T: ProcessTypes + 'static>(thread: &Reference<Thread<T>>, exi
             thread.set_exit_status(exit_status);
             thread.clear_queue(false).unwrap();
         });
+
+        base::critical::leave_local();
     }
 }
 

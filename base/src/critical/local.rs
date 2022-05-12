@@ -10,6 +10,12 @@ pub unsafe fn enter_local() {
 }
 
 #[inline(always)]
+pub unsafe fn enter_local_assert() {
+    assert!(LOCAL_CRITICAL_COUNT == 0);
+    enter_local();
+}
+
+#[inline(always)]
 pub unsafe fn leave_local() {
     leave_local_without_sti();
     if LOCAL_CRITICAL_COUNT == 0 {

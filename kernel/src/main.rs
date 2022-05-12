@@ -87,6 +87,8 @@ fn test(_: usize) -> isize {
 fn kinit(_: usize) -> isize {
     log_info!("kinit running!");
 
+    sessions::initialize::<process_types::ProcessTypes>();
+
     let thread = process::create_thread::<process_types::ProcessTypes>(test, 0);
 
     process::queue_and_yield::<process_types::ProcessTypes>();
@@ -96,6 +98,13 @@ fn kinit(_: usize) -> isize {
     process::kill_thread(&thread, 100);
 
     log_debug!("Killed other thread: {}", !thread.alive());
+
+    log_info!("Starting initial session . . .");
+    sessions::create_console_session::<process_types::ProcessTypes>(
+        device::get_device("/boot_video").unwrap(),
+    )
+    .unwrap();
+    log_info!("Initial session started!");
 
     loop {
         unsafe { asm!("sti; hlt") };

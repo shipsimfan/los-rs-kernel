@@ -9,4 +9,5 @@ members = [
   "process",
   "device",
   "drivers/uefi",
+  "sessions",
 ]

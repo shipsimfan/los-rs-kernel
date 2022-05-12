@@ -123,8 +123,12 @@ impl base::error::Error for DeviceError {
         DEVICE_MODULE_NUMBER
     }
 
-    fn error_number(&self) -> u32 {
-        *self as u32
+    fn error_number(&self) -> base::error::Status {
+        match self {
+            DeviceError::AlreadyExists => base::error::Status::Exists,
+            DeviceError::InvalidPath => base::error::Status::InvalidPath,
+            DeviceError::NotFound => base::error::Status::NotFound,
+        }
     }
 }
 

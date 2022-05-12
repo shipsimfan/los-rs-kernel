@@ -1,8 +1,8 @@
+use crate::{font::FONT, framebuffer::Framebuffer};
 use alloc::boxed::Box;
 use base::error::UEFI_DRIVER_MODULE_NUMBER;
 use device::Device;
-
-use crate::{font::FONT, framebuffer::Framebuffer};
+use sessions::Color;
 
 #[allow(dead_code)]
 pub const STYLE_RESET: usize = 0;
@@ -11,13 +11,6 @@ pub const STYLE_BOLD: usize = 1;
 pub const STYLE_DIM: usize = 2;
 pub const STYLE_UNDERLINE: usize = 4;
 pub const STYLE_STRIKETRHOUGH: usize = 8;
-
-#[derive(Debug, Clone)]
-struct Color {
-    pub red: u8,
-    pub green: u8,
-    pub blue: u8,
-}
 
 pub struct UEFIConsole {
     framebuffer: Framebuffer,
@@ -252,36 +245,6 @@ impl Device for UEFIConsole {
     }
 }
 
-impl Color {
-    #[inline]
-    pub const fn new(red: u8, green: u8, blue: u8) -> Self {
-        Color { red, green, blue }
-    }
-
-    #[inline]
-    pub fn from_usize(val: usize) -> Self {
-        Color {
-            red: (val.wrapping_shr(16) & 0xFF) as u8,
-            green: (val.wrapping_shr(8) & 0xFF) as u8,
-            blue: (val.wrapping_shr(0) & 0xFF) as u8,
-        }
-    }
-
-    #[inline]
-    pub fn average(color1: &Color, color2: &Color) -> Self {
-        Color {
-            red: (((color1.red as usize) + (color2.red as usize)) / 2) as u8,
-            green: (((color1.green as usize) + (color2.green as usize)) / 2) as u8,
-            blue: (((color1.blue as usize) + (color2.blue as usize)) / 2) as u8,
-        }
-    }
-
-    #[inline]
-    pub fn as_usize(&self) -> usize {
-        (self.blue as usize) | ((self.green as usize) << 8) | ((self.red as usize) << 16)
-    }
-}
-
 impl UEFIError {
     pub fn invalid_utf8() -> Box<dyn base::error::Error> {
         Box::new(UEFIError::InvalidUTF8)
@@ -301,8 +264,12 @@ impl base::error::Error for UEFIError {
         UEFI_DRIVER_MODULE_NUMBER
     }
 
-    fn error_number(&self) -> u32 {
-        *self as u32
+    fn error_number(&self) -> base::error::Status {
+        match self {
+            UEFIError::InvalidUTF8 => base::error::Status::InvalidUTF8,
+            UEFIError::NotSupported => base::error::Status::NotSupported,
+            UEFIError::OutOfRange => base::error::Status::OutOfRange,
+        }
     }
 }
 

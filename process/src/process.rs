@@ -9,10 +9,8 @@ use base::{
 use memory::AddressSpace;
 
 pub trait ProcessOwner<T: ProcessTypes> {
-    fn new_daemon() -> Self;
-
     fn insert_process(&mut self, process: Reference<Process<T>>);
-    fn drop_process(&mut self, id: isize);
+    fn remove_process(&mut self, id: isize);
 }
 
 pub trait Signals: Clone {
@@ -115,7 +113,7 @@ impl<T: ProcessTypes> Drop for Process<T> {
     fn drop(&mut self) {
         unsafe { self.address_space.free() };
 
-        self.owner.lock(|owner| owner.drop_process(self.id));
+        self.owner.lock(|owner| owner.remove_process(self.id));
 
         while let Some(thread) = self.exit_queue.pop() {
             thread.lock(|thread| thread.set_queue_data(self.exit_status));

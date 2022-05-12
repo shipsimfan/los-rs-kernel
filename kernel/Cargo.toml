@@ -11,6 +11,7 @@ device = {path = "../device"}
 interrupts = {path = "../interrupts"}
 memory = {path = "../memory"}
 process = {path = "../process"}
+sessions = {path = "../sessions"}
 
 uefi = {path = "../drivers/uefi"}
 

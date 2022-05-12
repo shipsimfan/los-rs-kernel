@@ -19,11 +19,14 @@ pub use execution::{
 pub use mutex::*;
 pub use process::{Process, ProcessOwner, Signals};
 pub use thread::{CurrentQueue, Thread, ThreadFunction};
+pub use thread_queue::ThreadQueue;
 
-pub trait ProcessTypes: Sized {
+pub trait ProcessTypes: Sized + Send {
     type Owner: ProcessOwner<Self>;
     type Descriptor;
     type Signals: process::Signals;
+
+    fn new_daemon() -> Self::Owner;
 }
 
 static mut PROCESS_INITIALIZED: bool = false;
