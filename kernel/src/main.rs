@@ -9,6 +9,7 @@ use alloc::borrow::ToOwned;
 use base::{critical::CriticalLock, log_debug, log_fatal, log_info};
 use core::arch::asm;
 use memory::Heap;
+use process::ProcessTypes;
 
 mod interrupt_handlers;
 mod process_types;
@@ -65,10 +66,16 @@ pub extern "C" fn kmain(
     // Initialize ACPI
     acpi::initialize::<process_types::ProcessTypes>(rsdp);
 
+    // Initialize Time
+    time::initialize::<process_types::ProcessTypes>();
+
+    // Initialize System Timer
+    hpet::initialize::<process_types::ProcessTypes>();
+
     // Launch kinit process
     log_info!("Starting kinit process . . .");
     process::create_process::<process_types::ProcessTypes>(
-        kinit,
+        kinit::<process_types::ProcessTypes>,
         0,
         process_types::TempDescriptors,
         "kinit".to_owned(),
@@ -79,39 +86,51 @@ pub extern "C" fn kmain(
     loop {}
 }
 
-fn test(_: usize) -> isize {
+fn test<T: ProcessTypes + 'static>(_: usize) -> isize {
     loop {
         log_debug!("Test Loop");
 
-        process::queue_and_yield::<process_types::ProcessTypes>();
+        time::sleep::<T>(500);
     }
 }
 
-fn kinit(_: usize) -> isize {
+fn sleeper<T: ProcessTypes + 'static>(_: usize) -> isize {
+    loop {
+        process::queue_and_yield::<T>();
+    }
+}
+
+fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     log_info!("kinit running!");
 
-    sessions::initialize::<process_types::ProcessTypes>();
+    log_info!("Creating sleeper thread");
+    process::create_thread::<T>(sleeper::<T>, 0);
+    log_info!("Sleeper created");
 
-    let thread = process::create_thread::<process_types::ProcessTypes>(test, 0);
+    sessions::initialize::<T>();
 
-    process::queue_and_yield::<process_types::ProcessTypes>();
+    let thread = process::create_thread::<T>(test::<T>, 0);
 
-    log_debug!("Killed other thread: {}", !thread.alive());
-
-    process::kill_thread(&thread, 100);
-
-    log_debug!("Killed other thread: {}", !thread.alive());
+    process::queue_and_yield::<T>();
 
     log_info!("Starting initial session . . .");
-    sessions::create_console_session::<process_types::ProcessTypes>(
-        device::get_device("/boot_video").unwrap(),
-    )
-    .unwrap();
+    sessions::create_console_session::<T>(device::get_device("/boot_video").unwrap()).unwrap();
     log_info!("Initial session started!");
 
-    loop {
-        unsafe { asm!("sti; hlt") };
+    time::sleep::<T>(2100);
+
+    log_info!("Killing thread. Alive - {}", thread.alive());
+
+    process::kill_thread(&thread, 69);
+
+    log_info!("Killed thread. Alive - {}", thread.alive());
+
+    for i in 0..10 {
+        log_debug!("Test: {}", i);
+        time::sleep::<T>(250);
     }
+
+    0
 }
 
 #[panic_handler]

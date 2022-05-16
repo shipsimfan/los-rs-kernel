@@ -1,5 +1,5 @@
 use crate::{idt::install_interrupt_handler, Registers};
-use base::critical::CriticalLock;
+use base::{critical::CriticalLock, log_info};
 
 #[repr(packed(1))]
 #[repr(C)]
@@ -80,6 +80,8 @@ unsafe extern "C" fn common_exception_handler(registers: Registers, info: Except
 }
 
 pub fn initialize(default_exception_handler: Handler, post_all_exception_handler: Handler) {
+    log_info!("Initializing exceptions . . .");
+
     unsafe {
         assert!(!EXCEPTIONS_INITIALIZED);
         EXCEPTIONS_INITIALIZED = true;
@@ -121,6 +123,8 @@ pub fn initialize(default_exception_handler: Handler, post_all_exception_handler
     install_interrupt_handler(29, exception_handler_29 as usize);
     install_interrupt_handler(30, exception_handler_30 as usize);
     install_interrupt_handler(31, exception_handler_31 as usize);
+
+    log_info!("Initialized exceptions!");
 }
 
 pub fn install_exception_handler(exception: u8, handler: Handler) {

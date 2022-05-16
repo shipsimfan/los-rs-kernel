@@ -1,0 +1,22 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "hpet"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "hpet"
+test = false
+
+[dependencies]
+acpi = {path = "../../acpi"}
+base = {path = "../../base"}
+device = {path = "../../device"}
+interrupts = {path = "../../interrupts"}
+memory = {path = "../../memory"}
+process = {path = "../../process"}
+time = {path = "../../time"}

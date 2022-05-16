@@ -6,7 +6,6 @@ use base::{
     map::{Map, Mappable},
     multi_owner::{Owner, Reference},
 };
-use core::{ffi::c_void, mem::ManuallyDrop, ptr::null};
 use device::Device;
 use process::{CurrentQueue, Mutex, ProcessOwner, ProcessTypes};
 
@@ -37,30 +36,29 @@ const MODULE_NAME: &str = "Sessions";
 
 static mut SESSIONS_INITIALIZED: bool = false;
 
-// SESSIONS doesn't need a critical lock because it is set once at boot
-static mut SESSIONS: *const c_void = null();
-
-fn sessions<T: ProcessTypes>(
-) -> &'static Mutex<Map<Owner<Box<dyn Session<T>>, Mutex<Box<dyn Session<T>>, T>>>, T> {
-    unsafe { &*(SESSIONS as *const _) }
-}
+process::static_generic!(
+    process::Mutex<
+        base::map::Map<
+            base::multi_owner::Owner<
+                alloc::boxed::Box<dyn crate::Session<T>>,
+                process::Mutex<alloc::boxed::Box<dyn crate::Session<T>>, T>,
+            >,
+        >,
+        T,
+    >,
+    sessions
+);
 
 pub fn initialize<T: ProcessTypes + 'static>() {
     log_info!("Initializing . . .");
+
     unsafe {
         assert!(!SESSIONS_INITIALIZED);
         SESSIONS_INITIALIZED = true;
-
-        let sessions: ManuallyDrop<
-            Box<Mutex<Map<Owner<Box<dyn Session<T>>, Mutex<Box<dyn Session<T>>, T>>>, T>>,
-        > = ManuallyDrop::new(Box::new(Mutex::<_, T>::new(Map::<
-            Owner<Box<dyn Session<T>>, Mutex<Box<dyn Session<T>>, T>>,
-        >::with_starting_index(
-            1
-        ))));
-
-        SESSIONS = sessions.as_ref() as *const _ as *const _;
     }
+
+    sessions::initialize::<T>(Mutex::new(Map::with_starting_index(1)));
+
     log_info!("Initialized!");
 }
 
@@ -69,7 +67,7 @@ pub fn create_console_session<T: ProcessTypes>(
 ) -> base::error::Result<Owner<Box<dyn Session<T>>, Mutex<Box<dyn Session<T>>, T>>> {
     let new_session = ConsoleSession::new(output_device)?;
 
-    sessions().lock().insert(new_session.clone());
+    sessions::get().lock().insert(new_session.clone());
 
     Ok(new_session)
 }

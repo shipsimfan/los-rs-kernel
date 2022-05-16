@@ -35,12 +35,28 @@ pub fn wait_thread<T: ProcessTypes + 'static>(thread: &Reference<Thread<T>>) -> 
 }
 
 pub fn queue_and_yield<T: ProcessTypes + 'static>() {
-    let running_queue = thread_control::<T>().lock().running_queue();
+    let running_queue = thread_control::get::<T>().lock().running_queue();
     yield_thread(Some(running_queue))
 }
 
 pub fn queue_thread<T: ProcessTypes + 'static>(thread: Owner<Thread<T>>) {
-    thread_control().lock().queue_execution(thread);
+    thread_control::get().lock().queue_execution(thread);
+}
+
+pub fn preempt<T: ProcessTypes + 'static>() {
+    let tc = thread_control::get::<T>().lock();
+
+    if !tc.is_next_thread() {
+        return;
+    }
+
+    if tc.current_thread().is_none() {
+        return;
+    }
+
+    drop(tc);
+
+    queue_and_yield::<T>();
 }
 
 pub fn yield_thread<T: ProcessTypes + 'static>(queue: Option<CurrentQueue<T>>) {
@@ -50,13 +66,14 @@ pub fn yield_thread<T: ProcessTypes + 'static>(queue: Option<CurrentQueue<T>>) {
         loop {
             base::critical::enter_local();
 
-            let mut tc = thread_control::<T>().lock();
+            let mut tc = thread_control::get::<T>().lock();
 
             let next_thread = match tc.next_thread() {
                 Some(thread) => thread,
                 None => {
                     drop(tc);
                     base::critical::leave_local();
+                    assert!(LOCAL_CRITICAL_COUNT == 0);
                     core::arch::asm!("hlt");
                     continue;
                 }
@@ -100,7 +117,7 @@ pub unsafe extern "C" fn post_yield<T: ProcessTypes + 'static>(
     context: usize,
 ) {
     // Switch threads in the control
-    let (old_thread, queue) = thread_control::<T>().lock().switch_staged_thread();
+    let (old_thread, queue) = thread_control::get::<T>().lock().switch_staged_thread();
 
     // Insert the old thread or drop
     match old_thread {

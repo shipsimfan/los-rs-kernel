@@ -1,5 +1,5 @@
 use super::Registers;
-use base::critical::CriticalLock;
+use base::{critical::CriticalLock, log_info};
 
 #[derive(Debug, Clone, Copy)]
 struct HandlerWithContext {
@@ -49,6 +49,8 @@ extern "C" {
 }
 
 pub fn initialize(post_irq_handler: PostIRQHandler) {
+    log_info!("Initializing IRQs . . . ");
+
     unsafe {
         assert!(!IRQS_INITIALIZED);
         IRQS_INITIALIZED = true;
@@ -73,6 +75,8 @@ pub fn initialize(post_irq_handler: PostIRQHandler) {
     super::idt::install_interrupt_handler(IRQ_BASE + 13, irq_handler_13 as usize);
     super::idt::install_interrupt_handler(IRQ_BASE + 14, irq_handler_14 as usize);
     super::idt::install_interrupt_handler(IRQ_BASE + 15, irq_handler_15 as usize);
+
+    log_info!("Initialized IRQs!");
 }
 
 unsafe fn default_post_irq_handler(_: usize, _: &Registers, _: &IRQInfo) {

@@ -34,6 +34,10 @@ impl<T: ProcessTypes> ThreadControl<T> {
         self.running_queue.pop()
     }
 
+    pub fn is_next_thread(&self) -> bool {
+        self.running_queue.length() != 0
+    }
+
     pub fn running_queue(&self) -> CurrentQueue<T> {
         self.running_queue.current_queue()
     }

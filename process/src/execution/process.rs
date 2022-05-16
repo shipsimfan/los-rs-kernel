@@ -28,7 +28,7 @@ pub fn create_process<T: ProcessTypes + 'static>(
             })
         }),
         None => (
-            thread_control::<T>().lock().daemon_owner().clone(),
+            thread_control::get::<T>().lock().daemon_owner().clone(),
             T::Signals::new(),
         ),
     };

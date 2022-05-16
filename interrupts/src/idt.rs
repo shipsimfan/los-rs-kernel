@@ -1,4 +1,4 @@
-use base::critical::CriticalLock;
+use base::{critical::CriticalLock, log_info};
 use core::ffi::c_void;
 
 #[repr(packed(1))]
@@ -32,6 +32,8 @@ pub fn install_interrupt_handler(interrupt: u8, handler: usize) {
 }
 
 pub fn initialize() {
+    log_info!("Initializing IDT . . . ");
+
     unsafe {
         assert!(!IDT_INITIALIZED);
         IDT_INITIALIZED = true;
@@ -50,6 +52,8 @@ pub fn initialize() {
     unsafe {
         install_idt(&idtr as *const super::CPUPointer as *const c_void);
     }
+
+    log_info!("Initialized IDT!");
 }
 
 impl InterruptDescriptorTable {

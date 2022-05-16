@@ -25,7 +25,7 @@ pub struct Process<T: ProcessTypes + 'static> {
     exit_queue: ThreadQueue<T>,
     exit_status: isize,
     _descriptors: T::Descriptor,
-    _process_time: isize,
+    process_time: isize,
     _name: String,
     signals: T::Signals,
 }
@@ -45,7 +45,7 @@ impl<T: ProcessTypes> Process<T> {
             exit_queue: ThreadQueue::new(),
             exit_status: 128, // Random exit
             _descriptors: descriptors,
-            _process_time: 0,
+            process_time: 0,
             _name: name,
             signals,
         });
@@ -96,6 +96,10 @@ impl<T: ProcessTypes> Process<T> {
 
     pub fn set_exit_status(&mut self, exit_status: isize) {
         self.exit_status = exit_status;
+    }
+
+    pub fn increase_time(&mut self, amount: isize) {
+        self.process_time += amount;
     }
 }
 

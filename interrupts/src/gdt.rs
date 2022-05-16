@@ -1,5 +1,7 @@
 use core::ffi::c_void;
 
+use base::log_info;
+
 #[repr(packed(1))]
 struct GlobalDescriptorTable(pub [Entry; 7]);
 
@@ -63,6 +65,8 @@ extern "C" {
 }
 
 pub fn initialize() {
+    log_info!("Initializing GDT . . . ");
+
     unsafe {
         assert!(!GDT_INITIALIZED);
         GDT_INITIALIZED = true;
@@ -119,6 +123,8 @@ pub fn initialize() {
             0x8,
         );
     }
+
+    log_info!("Initialized GDT!");
 }
 
 pub fn set_interrupt_stack(stack_pointer: usize) {

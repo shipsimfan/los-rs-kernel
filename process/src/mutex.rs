@@ -4,6 +4,7 @@ use crate::{
 use base::multi_owner::Lock;
 use core::{
     cell::UnsafeCell,
+    ffi::c_void,
     ops::{Deref, DerefMut},
     sync::atomic::{AtomicBool, Ordering},
 };
@@ -17,6 +18,11 @@ pub struct Mutex<T, PT: ProcessTypes + 'static> {
 pub struct MutexGuard<'a, T: 'a, PT: ProcessTypes + 'static> {
     lock: &'a Mutex<T, PT>,
     data: &'a mut T,
+}
+
+unsafe fn unlock_mutex<T, PT: ProcessTypes + 'static>(mutex: *const c_void) {
+    let mutex: &Mutex<T, PT> = &*(mutex as *const _);
+    mutex.unlock()
 }
 
 impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
@@ -34,7 +40,7 @@ impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
         unsafe { base::critical::enter_local_assert() };
         match current_thread_option::<PT>() {
             None => unsafe { base::critical::leave_local() },
-            Some(_) => {
+            Some(thread) => {
                 if self
                     .lock
                     .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -45,6 +51,10 @@ impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
                 } else {
                     unsafe { base::critical::leave_local() };
                 }
+
+                thread.lock(|thread| {
+                    thread.add_lock(self as *const _ as *const _, unlock_mutex::<T, PT>)
+                });
             }
         }
 
@@ -58,12 +68,15 @@ impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
     pub fn try_lock(&self) -> Option<MutexGuard<T, PT>> {
         match current_thread_option::<PT>() {
             None => None,
-            Some(_) => {
+            Some(thread) => {
                 if self
                     .lock
                     .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
                     .is_ok()
                 {
+                    thread.lock(|thread| {
+                        thread.add_lock(self as *const _ as *const _, unlock_mutex::<T, PT>)
+                    });
                     Some(MutexGuard {
                         lock: &self,
                         data: unsafe { &mut *self.data.get() },
@@ -77,6 +90,18 @@ impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
 
     pub fn matching_data(&self, other: *const T) -> bool {
         self.data.get() as *const _ == other
+    }
+
+    pub unsafe fn unlock(&self) {
+        base::critical::enter_local();
+        match self.queue.pop() {
+            None => self.lock.store(false, Ordering::Relaxed),
+            Some(next_thread) => {
+                self.lock.store(true, Ordering::Relaxed);
+                queue_thread(next_thread);
+            }
+        }
+        base::critical::leave_local();
     }
 
     pub unsafe fn as_ptr(&self) -> *mut T {
@@ -117,17 +142,15 @@ impl<'a, T, PT: ProcessTypes> Drop for MutexGuard<'a, T, PT> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
         unsafe {
-            base::critical::enter_local();
-            let mutex = &mut *(self.lock as *const _ as *mut Mutex<T, PT>);
-
-            match mutex.queue.pop() {
-                None => mutex.lock.store(false, Ordering::Relaxed),
-                Some(next_thread) => {
-                    mutex.lock.store(true, Ordering::Relaxed);
-                    queue_thread(next_thread);
+            match current_thread_option::<PT>() {
+                Some(thread) => {
+                    thread.lock(|thread| thread.remove_lock(self.lock as *const _ as *const _))
                 }
+                None => {}
             }
-            base::critical::leave_local();
+
+            let mutex = &*(self.lock as *const _ as *const Mutex<T, PT>);
+            mutex.unlock();
         }
     }
 }

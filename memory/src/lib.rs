@@ -1,6 +1,6 @@
 #![no_std]
 
-use base::critical::CriticalLock;
+use base::{critical::CriticalLock, log_info};
 
 pub use heap::Heap;
 pub use virtual_mem::{allocate, AddressSpace, MemoryExceptionHandler};
@@ -37,12 +37,16 @@ static MEMORY_USAGE: CriticalLock<MemoryUsage> = CriticalLock::new(MemoryUsage {
     kernel_stack_usage: 0,
 });
 
+const MODULE_NAME: &str = "Memory";
+
 pub fn initialize(
     mmap: &base::bootloader::MemoryMap,
     gmode: &base::bootloader::GraphicsMode,
     null_access_exception_handler: MemoryExceptionHandler,
     invalid_access_exception_handler: MemoryExceptionHandler,
 ) {
+    log_info!("Initializing . . . ");
+
     unsafe {
         assert!(!MEMORY_INITIALIZED);
         MEMORY_INITIALIZED = true;
@@ -56,6 +60,8 @@ pub fn initialize(
         );
         heap::initialize();
     }
+
+    log_info!("Initialized!");
 }
 
 pub fn get_memory_usage() -> MemoryUsage {

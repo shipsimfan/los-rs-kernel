@@ -1,10 +1,12 @@
 use crate::{
     execution::post_yield, process::Process, queue_thread, thread_queue::ThreadQueue, ProcessTypes,
 };
+use alloc::vec::Vec;
 use base::{
     map::{Mappable, INVALID_ID},
     multi_owner::{Owner, Reference},
 };
+use core::ffi::c_void;
 use stack::Stack;
 
 mod current_queue;
@@ -35,6 +37,7 @@ pub struct Thread<T: ProcessTypes + 'static> {
     exit_status: isize,
     _interrupt_state: InterruptState,
     self_reference: Option<Reference<Thread<T>>>,
+    held_locks: Vec<(*const c_void, unsafe fn(*const c_void))>,
 }
 
 extern "C" {
@@ -62,6 +65,7 @@ impl<T: ProcessTypes + 'static> Thread<T> {
             exit_status: 128, // Random kill
             _interrupt_state: InterruptState::NotInterruptable,
             self_reference: None,
+            held_locks: Vec::new(),
         });
 
         let reference = ret.as_ref();
@@ -88,6 +92,14 @@ impl<T: ProcessTypes + 'static> Thread<T> {
 
     pub fn queue_data(&self) -> isize {
         self.queue_data
+    }
+
+    pub fn add_lock(&mut self, lock: *const c_void, unlock_func: unsafe fn(*const c_void)) {
+        self.held_locks.push((lock, unlock_func));
+    }
+
+    pub fn remove_lock(&mut self, lock: *const c_void) {
+        self.held_locks.retain(|(l, _)| *l != lock);
     }
 
     pub fn set_queue_data(&mut self, queue_data: isize) {
@@ -164,6 +176,12 @@ impl<T: ProcessTypes + 'static> Drop for Thread<T> {
             queue_thread(thread);
         }
 
-        unsafe { self.clear_queue(false) };
+        unsafe {
+            self.clear_queue(false);
+
+            for (lock, unlock_fn) in &self.held_locks {
+                unlock_fn(*lock)
+            }
+        };
     }
 }

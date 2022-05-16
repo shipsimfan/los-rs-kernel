@@ -1,5 +1,7 @@
 #![no_std]
 
+use base::log_info;
+
 mod gdt;
 mod idt;
 
@@ -35,6 +37,8 @@ pub struct Registers {
     pub rax: u64,
 }
 
+const MODULE_NAME: &str = "Interrupts";
+
 static mut INTERRUPTS_INITIALIZED: bool = false;
 
 pub fn initialize(
@@ -43,6 +47,8 @@ pub fn initialize(
     post_irq_handler: irqs::PostIRQHandler,
     system_call_handler: system_calls::Handler,
 ) {
+    log_info!("Initializing . . . ");
+
     unsafe {
         assert!(!INTERRUPTS_INITIALIZED);
         INTERRUPTS_INITIALIZED = true;
@@ -59,6 +65,8 @@ pub fn initialize(
     system_calls::initialize(system_call_handler);
 
     unsafe { core::arch::asm!("sti") };
+
+    log_info!("Initialized!");
 }
 
 pub fn set_interrupt_stack(stack_pointer: usize) {

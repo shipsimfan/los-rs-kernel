@@ -1,3 +1,5 @@
+use base::log_info;
+
 use crate::Registers;
 
 pub type Handler = fn(
@@ -61,6 +63,8 @@ fn default_system_call_handler(
 }
 
 pub fn initialize(system_call_handler: Handler) {
+    log_info!("Initializing system calls . . . ");
+
     unsafe {
         assert!(!SYSTEM_CALLS_INITIALIZED);
         SYSTEM_CALLS_INITIALIZED = true;
@@ -69,4 +73,6 @@ pub fn initialize(system_call_handler: Handler) {
     }
 
     unsafe { init_system_calls() };
+
+    log_info!("Initialized system calls!");
 }

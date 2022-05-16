@@ -5,8 +5,10 @@ pub type Result<T> = core::result::Result<T, Box<dyn Error>>;
 
 pub const DEVICE_MODULE_NUMBER: i32 = 0;
 pub const SESSION_MODULE_NUMBER: i32 = 1;
+pub const TIME_MODULE_NUMBER: i32 = 2;
 
 pub const UEFI_DRIVER_MODULE_NUMBER: i32 = 0x1000000;
+pub const HPET_DRIVER_MODULE_NUMBER: i32 = 0x1000001;
 
 #[derive(Debug, PartialEq, Eq)]
 #[repr(u32)]

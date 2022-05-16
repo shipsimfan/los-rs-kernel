@@ -1,7 +1,6 @@
 use crate::{ProcessTypes, Thread, ThreadControl};
-use alloc::boxed::Box;
-use base::{critical::CriticalLock, multi_owner::Owner};
-use core::{ffi::c_void, mem::ManuallyDrop, ptr::null};
+use base::{log_info, multi_owner::Owner};
+use core::{ffi::c_void, ptr::null};
 
 mod process;
 mod thread;
@@ -9,29 +8,26 @@ mod thread;
 pub use process::*;
 pub use thread::*;
 
-type ThreadControlType<T> = &'static CriticalLock<ThreadControl<T>>;
+crate::static_generic_local!(
+    base::critical::CriticalLock<crate::ThreadControl<T>>,
+    thread_control
+);
 
-// THREAD_CONTROL_PTR doesn't need a critical lock because it is set once at boot
-static mut THREAD_CONTROL_PTR: *const c_void = null();
-
-// CURRENT_THREAD_PTR sits inside THREAD_CONTROL_POINTER, this allows fast access without locking
+// CURRENT_THREAD_PTR sits inside thread_control, this allows fast access without locking
 // Accessing the current thread from the thread control without locking is fine.
 static mut CURRENT_THREAD_PTR: *const c_void = null();
 
 pub fn initialize<T: ProcessTypes + 'static>() {
+    log_info!("Initializing thread control . . . ");
+
+    thread_control::initialize(ThreadControl::<T>::new());
+
     unsafe {
-        assert_eq!(THREAD_CONTROL_PTR, null());
-
-        let thread_control = ManuallyDrop::new(Box::new(ThreadControl::<T>::new()));
-        THREAD_CONTROL_PTR = thread_control.as_ref() as *const _ as *const _;
-        CURRENT_THREAD_PTR = thread_control.lock().current_thread() as *const _ as *const _;
+        CURRENT_THREAD_PTR =
+            thread_control::get::<T>().lock().current_thread() as *const _ as *const _;
     }
-}
 
-// Used to get around rust not liking generics on statics
-#[inline(always)]
-fn thread_control<T: ProcessTypes>() -> ThreadControlType<T> {
-    unsafe { &*(THREAD_CONTROL_PTR as *const _) }
+    log_info!("Initialized thread control!");
 }
 
 #[inline(always)]
