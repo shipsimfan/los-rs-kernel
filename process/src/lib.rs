@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(const_fn_trait_bound)]
 
 mod control;
 mod execution;

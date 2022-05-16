@@ -5,6 +5,7 @@ members = [
   "acpi",
   "base",
   "device",
+  "drivers/cmos",
   "drivers/hpet",
   "drivers/uefi",
   "interrupts",

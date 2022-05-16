@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(const_fn_trait_bound)]
 
 use alloc::{boxed::Box, string::String};
 use base::{log_info, multi_owner::Reference};

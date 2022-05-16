@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(generic_associated_types)]
-#![feature(const_fn_trait_bound)]
 
 pub mod bootloader;
 pub mod critical;

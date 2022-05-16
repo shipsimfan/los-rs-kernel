@@ -1,0 +1,18 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "cmos"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "cmos"
+test = false
+
+[dependencies]
+base = {path = "../../base"}
+device = {path = "../../device"}
+time = {path = "../../time"}

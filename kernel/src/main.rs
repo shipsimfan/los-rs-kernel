@@ -117,6 +117,8 @@ fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     sessions::create_console_session::<T>(device::get_device("/boot_video").unwrap()).unwrap();
     log_info!("Initial session started!");
 
+    cmos::initialize();
+
     time::sleep::<T>(2100);
 
     log_info!("Killing thread. Alive - {}", thread.alive());

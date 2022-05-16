@@ -15,6 +15,7 @@ process = {path = "../process"}
 sessions = {path = "../sessions"}
 time = {path = "../time"}
 
+cmos = {path = "../drivers/cmos"}
 hpet = {path = "../drivers/hpet"}
 uefi = {path = "../drivers/uefi"}
 
