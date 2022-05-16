@@ -63,51 +63,63 @@ pub fn yield_thread<T: ProcessTypes + 'static>(queue: Option<CurrentQueue<T>>) {
     unsafe {
         assert!(LOCAL_CRITICAL_COUNT == 0);
 
-        loop {
-            base::critical::enter_local();
+        base::critical::enter_local();
 
-            let mut tc = thread_control::get::<T>().lock();
+        let control = thread_control::get::<T>();
 
-            let next_thread = match tc.next_thread() {
-                Some(thread) => thread,
-                None => {
+        let mut tc = control.lock();
+
+        let (next_thread, queue) = match tc.next_thread() {
+            Some(thread) => (thread, queue),
+            None => {
+                match queue {
+                    Some(queue) => queue.add(tc.current_thread().as_ref().unwrap().clone()),
+                    None => {}
+                }
+
+                loop {
+                    match tc.next_thread() {
+                        Some(next_thread) => break (next_thread, None),
+                        None => {}
+                    }
                     drop(tc);
                     base::critical::leave_local();
                     assert!(LOCAL_CRITICAL_COUNT == 0);
                     core::arch::asm!("hlt");
-                    continue;
+                    base::critical::enter_local();
+                    tc = control.lock();
                 }
-            };
+            }
+        };
 
-            // Access the current thread
-            let default_location = 0;
-            let current_stack_save_location = match tc.current_thread() {
-                Some(current_thread) => current_thread.lock(|thread| {
-                    thread.save_float();
-                    thread.stack_pointer_location() as *const usize
-                }),
-                None => &default_location,
-            };
-
-            // Switch what we can now
-            let new_stack_load_location = next_thread.lock(|thread| {
-                thread
-                    .process()
-                    .lock(|process| process.set_address_space_as_current());
-                thread.load_float();
-                interrupts::set_interrupt_stack(thread.stack_top());
+        // Access the current thread
+        let default_location = 0;
+        let current_stack_save_location = match tc.current_thread() {
+            Some(current_thread) => current_thread.lock(|thread| {
+                thread.save_float();
                 thread.stack_pointer_location() as *const usize
-            });
+            }),
+            None => &default_location,
+        };
 
-            // Stage next thread
-            tc.set_staged_thread(next_thread, queue);
-            drop(tc);
+        // Switch what we can now
+        let new_stack_load_location = next_thread.lock(|thread| {
+            thread
+                .process()
+                .lock(|process| process.set_address_space_as_current());
+            thread.load_float();
+            interrupts::set_interrupt_stack(thread.stack_top());
+            thread.stack_pointer_location() as *const usize
+        });
 
-            // Switch stacks
-            switch_stacks(current_stack_save_location, new_stack_load_location);
+        // Stage next thread
+        tc.set_staged_thread(next_thread, queue);
+        drop(tc);
 
-            return post_yield::<T>(null(), 0);
-        }
+        // Switch stacks
+        switch_stacks(current_stack_save_location, new_stack_load_location);
+
+        return post_yield::<T>(null(), 0);
     }
 }
 

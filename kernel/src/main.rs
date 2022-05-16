@@ -86,7 +86,13 @@ pub extern "C" fn kmain(
     loop {}
 }
 
+process::static_generic!(process::Mutex<usize, T>, test_lock);
+
 fn test<T: ProcessTypes + 'static>(_: usize) -> isize {
+    let mut lock = test_lock::get::<T>().lock();
+
+    *lock = 69;
+
     loop {
         log_debug!("Test Loop");
 
@@ -94,18 +100,10 @@ fn test<T: ProcessTypes + 'static>(_: usize) -> isize {
     }
 }
 
-fn sleeper<T: ProcessTypes + 'static>(_: usize) -> isize {
-    loop {
-        process::queue_and_yield::<T>();
-    }
-}
-
 fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     log_info!("kinit running!");
 
-    log_info!("Creating sleeper thread");
-    process::create_thread::<T>(sleeper::<T>, 0);
-    log_info!("Sleeper created");
+    test_lock::initialize::<T>(process::Mutex::new(0));
 
     sessions::initialize::<T>();
 
@@ -126,6 +124,8 @@ fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     process::kill_thread(&thread, 69);
 
     log_info!("Killed thread. Alive - {}", thread.alive());
+
+    log_debug!("Value under lock: {}", *test_lock::get::<T>().lock());
 
     for i in 0..10 {
         log_debug!("Test: {}", i);
