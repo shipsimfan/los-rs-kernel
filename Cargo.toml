@@ -8,6 +8,7 @@ members = [
   "drivers/cmos",
   "drivers/hpet",
   "drivers/uefi",
+  "filesystem",
   "interrupts",
   "kernel",
   "memory",

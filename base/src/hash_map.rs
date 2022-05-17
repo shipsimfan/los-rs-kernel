@@ -37,6 +37,19 @@ impl<K: Hash, V> HashMap<K, V> {
         }
     }
 
+    pub fn try_insert(&mut self, key: K, value: V) -> bool {
+        let index = key.hash() as usize;
+
+        for (inner_key, _) in &self.data[index] {
+            if *inner_key == key {
+                return false;
+            }
+        }
+
+        self.data[index].push((key, value));
+        true
+    }
+
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let ret = self.remove(&key);
 

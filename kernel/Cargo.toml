@@ -9,6 +9,7 @@ version = "0.1.0"
 acpi = {path = "../acpi"}
 base = {path = "../base"}
 device = {path = "../device"}
+filesystem = {path = "../filesystem"}
 interrupts = {path = "../interrupts"}
 memory = {path = "../memory"}
 process = {path = "../process"}

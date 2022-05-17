@@ -69,8 +69,11 @@ pub extern "C" fn kmain(
     // Initialize Time
     time::initialize::<process_types::ProcessTypes>();
 
-    // Initialize System Timer
-    hpet::initialize::<process_types::ProcessTypes>();
+    // Initialize Filesystem
+    filesystem::initialize::<process_types::ProcessTypes>();
+
+    // Initialize Sessions
+    sessions::initialize::<process_types::ProcessTypes>();
 
     // Launch kinit process
     log_info!("Starting kinit process . . .");
@@ -88,13 +91,19 @@ pub extern "C" fn kmain(
 
 process::static_generic!(process::Mutex<usize, T>, test_lock);
 
-fn test<T: ProcessTypes + 'static>(_: usize) -> isize {
-    let mut lock = test_lock::get::<T>().lock();
+fn test<T: ProcessTypes + 'static>(id: usize) -> isize {
+    let _lock = if id == 1 {
+        let mut lock = test_lock::get::<T>().lock();
 
-    *lock = 69;
+        *lock = 69;
+
+        Some(lock)
+    } else {
+        None
+    };
 
     loop {
-        log_debug!("Test Loop");
+        log_debug!("Test Loop {}", id);
 
         time::sleep::<T>(500);
     }
@@ -103,34 +112,51 @@ fn test<T: ProcessTypes + 'static>(_: usize) -> isize {
 fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     log_info!("kinit running!");
 
+    // Initialize System Timer
+    hpet::initialize::<process_types::ProcessTypes>();
+
+    // Create test lock
     test_lock::initialize::<T>(process::Mutex::new(0));
 
-    sessions::initialize::<T>();
+    // Create first test thread
+    let thread = process::create_thread::<T>(test::<T>, 1);
 
-    let thread = process::create_thread::<T>(test::<T>, 0);
-
-    process::queue_and_yield::<T>();
-
+    // Create initial session
     log_info!("Starting initial session . . .");
     sessions::create_console_session::<T>(device::get_device("/boot_video").unwrap()).unwrap();
     log_info!("Initial session started!");
 
+    // Initialize CMOS
     cmos::initialize();
+
+    // Test loop 1
+    for i in 0..5 {
+        log_debug!("{}", 5 - i);
+        time::sleep::<T>(250);
+    }
+
+    // Create second test thread
+    let thread2 = process::create_thread::<T>(test::<T>, 2);
 
     time::sleep::<T>(2100);
 
+    // Test killing thread
     log_info!("Killing thread. Alive - {}", thread.alive());
-
     process::kill_thread(&thread, 69);
-
     log_info!("Killed thread. Alive - {}", thread.alive());
 
+    // Test dropping of locks after killed thread
     log_debug!("Value under lock: {}", *test_lock::get::<T>().lock());
 
+    // Test loop 2
     for i in 0..10 {
         log_debug!("Test: {}", i);
         time::sleep::<T>(250);
     }
+
+    // Kill second thread
+    process::kill_thread(&thread2, 120);
+    log_debug!("Killed second loop: {}", !thread2.alive());
 
     0
 }

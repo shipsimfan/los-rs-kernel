@@ -24,7 +24,7 @@ pub struct Process<T: ProcessTypes + 'static> {
     owner: Owner<T::Owner>,
     exit_queue: ThreadQueue<T>,
     exit_status: isize,
-    _descriptors: T::Descriptor,
+    descriptors: T::Descriptor,
     process_time: isize,
     _name: String,
     signals: T::Signals,
@@ -44,7 +44,7 @@ impl<T: ProcessTypes> Process<T> {
             owner: owner.clone(),
             exit_queue: ThreadQueue::new(),
             exit_status: 128, // Random exit
-            _descriptors: descriptors,
+            descriptors,
             process_time: 0,
             _name: name,
             signals,
@@ -88,6 +88,10 @@ impl<T: ProcessTypes> Process<T> {
 
     pub fn exit_queue(&self) -> CurrentQueue<T> {
         self.exit_queue.current_queue()
+    }
+
+    pub fn descriptors(&self) -> &T::Descriptor {
+        &self.descriptors
     }
 
     pub fn remove_thread(&mut self, id: isize) {
