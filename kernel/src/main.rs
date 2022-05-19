@@ -115,6 +115,9 @@ fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     // Initialize System Timer
     hpet::initialize::<process_types::ProcessTypes>();
 
+    // Initialize PCI
+    pci::initialize::<process_types::ProcessTypes>();
+
     // Create test lock
     test_lock::initialize::<T>(process::Mutex::new(0));
 

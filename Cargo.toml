@@ -7,6 +7,7 @@ members = [
   "device",
   "drivers/cmos",
   "drivers/hpet",
+  "drivers/pci",
   "drivers/uefi",
   "filesystem",
   "interrupts",

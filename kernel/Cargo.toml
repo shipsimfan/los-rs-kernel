@@ -18,6 +18,7 @@ time = {path = "../time"}
 
 cmos = {path = "../drivers/cmos"}
 hpet = {path = "../drivers/hpet"}
+pci = {path = "../drivers/pci"}
 uefi = {path = "../drivers/uefi"}
 
 [[bin]]
