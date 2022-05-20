@@ -33,7 +33,11 @@ pub fn register_drive<T: ProcessTypes + 'static>(
     path: &str,
     size: usize,
 ) -> base::error::Result<()> {
-    log_info!("Registering \"{}\" as a drive", path);
+    log_info!(
+        "Registering \"{}\" as a drive with a size of {} KB . . .",
+        path,
+        size / 1024
+    );
 
     let mut drives = drives::get::<T>().lock();
 

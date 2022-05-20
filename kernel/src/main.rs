@@ -115,8 +115,14 @@ fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     // Initialize System Timer
     hpet::initialize::<process_types::ProcessTypes>();
 
+    // Initialize CMOS
+    cmos::initialize();
+
     // Initialize PCI
     pci::initialize::<process_types::ProcessTypes>();
+
+    // Initialize IDE
+    ide::initialize::<process_types::ProcessTypes>();
 
     // Create test lock
     test_lock::initialize::<T>(process::Mutex::new(0));
@@ -128,9 +134,6 @@ fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
     log_info!("Starting initial session . . .");
     sessions::create_console_session::<T>(device::get_device("/boot_video").unwrap()).unwrap();
     log_info!("Initial session started!");
-
-    // Initialize CMOS
-    cmos::initialize();
 
     // Test loop 1
     for i in 0..5 {

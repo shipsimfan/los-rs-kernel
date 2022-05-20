@@ -77,7 +77,7 @@ impl<T: ProcessTypes> Tree<T> {
             None => return Err(DeviceError::invalid_path()),
         };
 
-        if path.len() > 1 {
+        if path.len() > 0 {
             let parent_device = match self.root_devices.child_mut(path.as_slices().0) {
                 Some(device) => device,
                 None => return Err(DeviceError::device_not_found()),

@@ -39,6 +39,8 @@ pub fn register_device<T: ProcessTypes + 'static>(
     path: &str,
     device: Box<dyn Device>,
 ) -> base::error::Result<()> {
+    log_info!("Registering device \"{}\" . . .", path);
+
     let mut lock = device_tree::get::<T>().lock();
 
     lock.register_device(path, device)

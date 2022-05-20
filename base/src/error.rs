@@ -11,6 +11,7 @@ pub const FILESYSTEM_MODULE_NUMBER: i32 = 3;
 pub const UEFI_DRIVER_MODULE_NUMBER: i32 = 0x1000000;
 pub const HPET_DRIVER_MODULE_NUMBER: i32 = 0x1000001;
 pub const PCI_DRIVER_MODULE_NUMBER: i32 = 0x1000002;
+pub const IDE_DRIVER_MODULE_NUMBER: i32 = 0x1000002;
 
 #[derive(Debug, PartialEq, Eq)]
 #[repr(u32)]

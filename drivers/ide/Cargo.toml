@@ -1,0 +1,22 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "ide"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "ide"
+test = false
+
+[dependencies]
+base = {path = "../../base"}
+device = {path = "../../device"}
+filesystem = {path = "../../filesystem"}
+interrupts = {path = "../../interrupts"}
+pci = {path = "../pci"}
+process = {path = "../../process"}
+time = {path = "../../time"}
