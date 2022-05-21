@@ -57,7 +57,7 @@ pub fn register_drive<T: ProcessTypes + 'static>(
     for driver in &*drivers {
         match driver(&drive, 0, size)? {
             Some(volume) => {
-                volumes.insert(Owner::new(volume));
+                volumes.insert(volume);
                 break;
             }
             None => {}

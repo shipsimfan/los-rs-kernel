@@ -1,0 +1,19 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "fat32"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "fat32"
+test = false
+
+[dependencies]
+base = {path = "../../base"}
+device = {path = "../../device"}
+filesystem = {path = "../../filesystem"}
+process = {path = "../../process"}

@@ -4,11 +4,12 @@ use base::{log_info, multi_owner::Owner};
 use device::Device;
 use process::{Mutex, MutexGuard, ProcessTypes};
 
-pub type DetectFilesystemFunction<T> = fn(
-    drive: &Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
-    start: usize,
-    size: usize,
-) -> base::error::Result<Option<Volume<T>>>;
+pub type DetectFilesystemFunction<T> =
+    fn(
+        drive: &Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
+        start: usize,
+        size: usize,
+    ) -> base::error::Result<Option<Owner<Volume<T>, Mutex<Volume<T>, T>>>>;
 
 process::static_generic!(
     process::Mutex<alloc::vec::Vec<crate::DetectFilesystemFunction<T>>, T>,

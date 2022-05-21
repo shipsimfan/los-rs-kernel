@@ -13,6 +13,8 @@ pub const HPET_DRIVER_MODULE_NUMBER: i32 = 0x1000001;
 pub const PCI_DRIVER_MODULE_NUMBER: i32 = 0x1000002;
 pub const IDE_DRIVER_MODULE_NUMBER: i32 = 0x1000002;
 
+pub const FAT32_FS_DRIVER_MODULE_NUMBER: i32 = 0x2000000;
+
 #[derive(Debug, PartialEq, Eq)]
 #[repr(u32)]
 #[allow(dead_code)]

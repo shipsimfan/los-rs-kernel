@@ -6,6 +6,7 @@ members = [
   "base",
   "device",
   "drivers/cmos",
+  "drivers/fat32",
   "drivers/hpet",
   "drivers/ide",
   "drivers/pci",

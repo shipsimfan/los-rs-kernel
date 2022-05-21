@@ -2,7 +2,7 @@ use crate::{Directory, DirectoryTrait, Parent};
 use alloc::{boxed::Box, string::String};
 use base::{
     map::{Mappable, INVALID_ID},
-    multi_owner::Owner,
+    multi_owner::{Lock, Owner},
 };
 use process::{Mutex, ProcessTypes};
 
@@ -82,5 +82,11 @@ impl<T: ProcessTypes + 'static> Mappable for Volume<T> {
 
     fn set_id(&mut self, id: isize) {
         self.drive_index = id
+    }
+}
+
+impl<T: VolumeTrait, L: Lock<Data = T>> VolumeTrait for Owner<T, L> {
+    fn set_name(&mut self, new_name: String) -> base::error::Result<()> {
+        self.lock(|inner| inner.set_name(new_name))
     }
 }
