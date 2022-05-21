@@ -70,6 +70,45 @@ impl<T: ProcessTypes + 'static> FAT<T> {
         Ok(())
     }
 
+    pub fn write_cluster(&self, cluster: u32, buffer: &[u8]) -> base::error::Result<()> {
+        self.cache
+            .drive()
+            .lock(|drive| drive.write(self.cluster_to_sector(cluster), buffer))?;
+        Ok(())
+    }
+
+    pub fn free_cluster_chain(&mut self, first_cluster: Cluster) -> base::error::Result<()> {
+        let mut cluster = first_cluster;
+
+        loop {
+            let next_cluster = self.cache.get_next_cluster(cluster)?;
+
+            self.free_cluster(cluster)?;
+
+            cluster = match next_cluster {
+                ClusterState::Some(cluster) => cluster,
+                ClusterState::End => return Ok(()),
+                ClusterState::Free => return Err(Box::new(FATError::Corrupt)),
+            }
+        }
+    }
+
+    pub fn free_cluster(&mut self, cluster: u32) -> base::error::Result<()> {
+        if self.next_free_cluster == 0xFFFFFFFF {
+            self.find_next_free_cluster()?;
+        }
+
+        self.set_next_cluster(cluster, ClusterState::Free)?;
+        if cluster < self.next_free_cluster {
+            self.next_free_cluster = cluster;
+        }
+        Ok(())
+    }
+
+    pub fn flush_buffer(&mut self) -> base::error::Result<()> {
+        self.cache.flush_buffer()
+    }
+
     pub fn allocate_cluster(&mut self) -> base::error::Result<Cluster> {
         let cluster = self.find_next_free_cluster()?;
         self.cache.set_next_cluster(cluster, ClusterState::End)?;

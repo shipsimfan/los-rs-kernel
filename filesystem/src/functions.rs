@@ -3,10 +3,8 @@ use alloc::{boxed::Box, vec::Vec};
 use base::{error::FILESYSTEM_MODULE_NUMBER, multi_owner::Owner};
 use process::{Mutex, ProcessTypes};
 
-pub trait WorkingDirectory {
-    fn working_directory<T: ProcessTypes<Descriptor = Self> + 'static>(
-        &self,
-    ) -> Option<&DirectoryDescriptor<T>>;
+pub trait WorkingDirectory<T: ProcessTypes<Descriptor = Self> + 'static> {
+    fn working_directory(&self) -> Option<&DirectoryDescriptor<T>>;
 }
 
 #[derive(Debug)]
@@ -28,7 +26,7 @@ pub const OPEN_TRUNCATE: usize = 4;
 pub const OPEN_APPEND: usize = 8;
 pub const OPEN_CREATE: usize = 16;
 
-pub fn open<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
+pub fn open<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(
     filepath: &str,
     flags: usize,
     starting_root: Option<&DirectoryDescriptor<T>>,
@@ -90,7 +88,7 @@ pub fn open<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
     Ok(FileDescriptor::new(file, read, write, starting_offset))
 }
 
-pub fn open_directory<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
+pub fn open_directory<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(
     path: &str,
     starting_root: Option<&DirectoryDescriptor<T>>,
 ) -> base::error::Result<DirectoryDescriptor<T>> {
@@ -109,7 +107,7 @@ pub fn open_directory<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
     Ok(DirectoryDescriptor::new(directory))
 }
 
-pub fn read<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
+pub fn read<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(
     filepath: &str,
 ) -> base::error::Result<Vec<u8>> {
     // Parse filepath
@@ -156,7 +154,7 @@ pub fn read<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
     Ok(buffer)
 }
 
-pub fn remove<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
+pub fn remove<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(
     path: &str,
 ) -> base::error::Result<()> {
     // Parse filepath
@@ -179,7 +177,7 @@ pub fn remove<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
     parent_directory_lock.lock(|parent_directory| parent_directory.remove(filename))
 }
 
-pub fn create_directory<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
+pub fn create_directory<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(
     path: &str,
 ) -> base::error::Result<()> {
     // Parse filepath
@@ -233,7 +231,7 @@ fn parse_filepath(filepath: &str, file: bool) -> Option<(Option<usize>, Vec<&str
     Some((drive_number, path))
 }
 
-fn get_root_directory<T: ProcessTypes<Descriptor: WorkingDirectory> + 'static>(
+fn get_root_directory<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(
     fs_number: Option<usize>,
     provided_root: Option<&DirectoryDescriptor<T>>,
 ) -> base::error::Result<Owner<Directory<T>, Mutex<Directory<T>, T>>> {

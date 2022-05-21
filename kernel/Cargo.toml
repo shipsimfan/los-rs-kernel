@@ -22,6 +22,8 @@ ide = {path = "../drivers/ide"}
 pci = {path = "../drivers/pci"}
 uefi = {path = "../drivers/uefi"}
 
+fat32 = {path = "../drivers/fat32"}
+
 [[bin]]
 bench = false
 doc = false

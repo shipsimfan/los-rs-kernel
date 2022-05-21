@@ -17,6 +17,7 @@ extern crate alloc;
 mod cluster_chain;
 mod directory;
 mod fat;
+mod file;
 
 static mut FAT32_INITLAIZED: bool = false;
 
@@ -38,24 +39,15 @@ pub fn initialize<T: ProcessTypes + 'static>() {
 }
 
 fn detect_fat32_filesystem<T: ProcessTypes + 'static>(
-    drive_lock: &Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
-    start: usize,
-    size: usize,
-) -> base::error::Result<Option<Owner<Volume<T>, Mutex<Volume<T>, T>>>> {
-    log_info!("Detecting if a volume is fat32 . . .");
-
-    drive_lock.lock(|drive| inner_detect_fat32_filesystem(drive_lock.clone(), drive, start, size))
-}
-
-fn inner_detect_fat32_filesystem<T: ProcessTypes + 'static>(
-    drive_lock: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
-    drive: &mut Box<dyn Device>,
+    drive: &Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
     start: usize,
     _: usize,
 ) -> base::error::Result<Option<Owner<Volume<T>, Mutex<Volume<T>, T>>>> {
+    log_info!("Detecting if a volume is fat32 . . .");
+
     // Get the BIOS Parameter Block
     let mut bpb = Box::new([0u8; SECTOR_SIZE]);
-    drive.read(start, bpb.as_mut_slice())?;
+    drive.lock(|drive| drive.read(start, bpb.as_mut_slice()))?;
 
     // Locate signature in bpb
     let bpb_signature = bpb[0x42];
@@ -81,7 +73,7 @@ fn inner_detect_fat32_filesystem<T: ProcessTypes + 'static>(
     // Get FSInfo
     let mut fs_info = Box::new([0u8; 512]);
     let fs_info_sector = (bpb[0x30] as usize) | ((bpb[0x31] as usize) << 8);
-    drive.read(fs_info_sector, fs_info.as_mut_slice())?;
+    drive.lock(|drive| drive.read(fs_info_sector, fs_info.as_mut_slice()))?;
 
     // Verify lead, middle, and trailing signatures
     if fs_info[0] != 0x52 || fs_info[1] != 0x52 || fs_info[2] != 0x61 || fs_info[3] != 0x41 {
@@ -137,7 +129,7 @@ fn inner_detect_fat32_filesystem<T: ProcessTypes + 'static>(
 
     // Create FAT
     let fat = FAT::new(
-        drive_lock,
+        drive.clone(),
         bytes_per_sector,
         sectors_per_cluster,
         reserved_sector_count,
@@ -147,7 +139,8 @@ fn inner_detect_fat32_filesystem<T: ProcessTypes + 'static>(
     );
 
     // Create root directory
-    let root_directory = Directory::new(root_directory_cluster, fat)?;
+    let root_directory =
+        fat.lock(|fat_inner| Directory::new(root_directory_cluster, fat_inner, fat.clone()))?;
 
     // Create volume
     Ok(Some(Volume::new(

@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
+#![feature(associated_type_bounds)]
 #![feature(alloc_error_handler)]
 
 extern crate alloc;
@@ -8,6 +9,7 @@ extern crate alloc;
 use alloc::borrow::ToOwned;
 use base::{critical::CriticalLock, log_debug, log_fatal, log_info};
 use core::arch::asm;
+use filesystem::WorkingDirectory;
 use memory::Heap;
 use process::ProcessTypes;
 
@@ -80,7 +82,7 @@ pub extern "C" fn kmain(
     process::create_process::<process_types::ProcessTypes>(
         kinit::<process_types::ProcessTypes>,
         0,
-        process_types::TempDescriptors,
+        process_types::Descriptors::new(None),
         "kinit".to_owned(),
         false,
     );
@@ -109,23 +111,32 @@ fn test<T: ProcessTypes + 'static>(id: usize) -> isize {
     }
 }
 
-fn kinit<T: ProcessTypes + 'static>(_: usize) -> isize {
+fn kinit<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(_: usize) -> isize {
     log_info!("kinit running!");
 
     // Initialize System Timer
-    hpet::initialize::<process_types::ProcessTypes>();
+    hpet::initialize::<T>();
 
     // Initialize CMOS
     cmos::initialize();
 
+    // Initialize FAT32
+    fat32::initialize::<T>();
+
     // Initialize PCI
-    pci::initialize::<process_types::ProcessTypes>();
+    pci::initialize::<T>();
 
     // Initialize IDE
-    ide::initialize::<process_types::ProcessTypes>();
+    ide::initialize::<T>();
 
     // Create test lock
     test_lock::initialize::<T>(process::Mutex::new(0));
+
+    log_debug!("Attempting to read file");
+
+    let contents = filesystem::read::<T>(":0/test.txt").unwrap();
+
+    log_debug!("File contents: {:?}", contents);
 
     // Create first test thread
     let thread = process::create_thread::<T>(test::<T>, 1);

@@ -1,27 +1,21 @@
-use crate::fat::FAT;
+use crate::fat::{ClusterState, FAT};
 use alloc::vec::Vec;
-use base::multi_owner::Owner;
-use process::{Mutex, ProcessTypes};
+use process::ProcessTypes;
 
 pub type Cluster = u32;
 
-pub struct ClusterChain<T: ProcessTypes + 'static> {
+pub struct ClusterChain {
     chain: Vec<Cluster>,
-    fat: Owner<FAT<T>, Mutex<FAT<T>, T>>,
 }
 
-impl<T: ProcessTypes + 'static> ClusterChain<T> {
-    pub fn new(
+impl ClusterChain {
+    pub fn new<T: ProcessTypes + 'static>(
         first_cluster: Cluster,
-        fat: Owner<FAT<T>, Mutex<FAT<T>, T>>,
+        fat: &mut FAT<T>,
     ) -> base::error::Result<Self> {
-        let mut chain = fat.lock(|fat| fat.get_cluster_chain(first_cluster))?;
-
-        Ok(ClusterChain { chain, fat })
-    }
-
-    pub fn fat(&self) -> &Owner<FAT<T>, Mutex<FAT<T>, T>> {
-        &self.fat
+        Ok(ClusterChain {
+            chain: fat.get_cluster_chain(first_cluster)?,
+        })
     }
 
     pub fn first(&self) -> Cluster {
@@ -34,6 +28,43 @@ impl<T: ProcessTypes + 'static> ClusterChain<T> {
 
     pub fn get(&self, index: usize) -> Option<Cluster> {
         self.chain.get(index).map(|cluster| *cluster)
+    }
+
+    pub fn as_slice(&self) -> &[Cluster] {
+        self.chain.as_slice()
+    }
+
+    pub fn shrink<T: ProcessTypes + 'static>(
+        &mut self,
+        new_length: usize,
+        fat: &mut FAT<T>,
+    ) -> base::error::Result<()> {
+        let last_cluster = self.chain[new_length - 1];
+
+        fat.set_next_cluster(last_cluster, ClusterState::End)?;
+        for i in new_length..self.chain.len() {
+            fat.free_cluster(self.chain[i])?;
+        }
+
+        self.chain.truncate(new_length);
+
+        Ok(())
+    }
+
+    pub fn grow<T: ProcessTypes + 'static>(
+        &mut self,
+        new_length: usize,
+        fat: &mut FAT<T>,
+    ) -> base::error::Result<()> {
+        for i in self.chain.len()..new_length {
+            let new_cluster = fat.allocate_cluster()?;
+            fat.set_next_cluster(self.chain[i - 1], ClusterState::Some(new_cluster))?;
+            self.chain.push(new_cluster);
+        }
+
+        fat.set_next_cluster(*self.chain.last().unwrap(), ClusterState::End)?;
+
+        Ok(())
     }
 
     pub fn push(&mut self, new_cluster: Cluster) {

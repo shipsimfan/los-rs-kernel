@@ -1,5 +1,9 @@
 use crate::cluster_chain::Cluster;
-use alloc::string::String;
+use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
+use base::error::FAT32_FS_DRIVER_MODULE_NUMBER;
+
+#[derive(Debug)]
+struct InvalidArgument;
 
 pub struct DirectoryEntry {
     name: String,
@@ -27,6 +31,7 @@ pub struct DiskDirectoryEntry {
 }
 
 #[repr(packed(1))]
+#[allow(unused)]
 pub struct LongDirectoryEntry {
     order: u8,
     name1: [u16; 5],
@@ -43,6 +48,7 @@ const ATTRIBUTE_HIDDEN: u8 = 0x02;
 const ATTRIBUTE_SYSTEM: u8 = 0x04;
 pub const ATTRIBUTE_VOLUME_ID: u8 = 0x08;
 pub const ATTRIBUTE_DIRECTORY: u8 = 0x10;
+#[allow(unused)]
 const ATTRIBUTE_ARCHIVE: u8 = 0x20;
 pub const ATTRIBUTE_LONG_FILE_NAME: u8 =
     ATTRIBUTE_READ_ONLY | ATTRIBUTE_HIDDEN | ATTRIBUTE_SYSTEM | ATTRIBUTE_VOLUME_ID;
@@ -122,14 +128,17 @@ impl LongDirectoryEntry {
         self.checksum
     }
 
+    #[allow(unaligned_references)]
     pub fn name1(&self) -> &[u16] {
         &self.name1
     }
 
+    #[allow(unaligned_references)]
     pub fn name2(&self) -> &[u16] {
         &self.name2
     }
 
+    #[allow(unaligned_references)]
     pub fn name3(&self) -> &[u16] {
         &self.name3
     }
@@ -159,5 +168,228 @@ impl DirectoryEntry {
 
     pub fn file_size(&self) -> usize {
         self.file_size
+    }
+
+    pub fn first_cluster(&self) -> Cluster {
+        self.first_cluster
+    }
+
+    pub fn set_file_size(&mut self, new_size: usize) {
+        self.file_size = new_size;
+    }
+
+    pub fn to_disk_entries(
+        self,
+    ) -> base::error::Result<(DiskDirectoryEntry, Vec<LongDirectoryEntry>)> {
+        // Check to see if long file name is nescessary
+        let is_long_filename = if self.directory {
+            if self.name.len() > 11 {
+                return Err(Box::new(InvalidArgument));
+            } else {
+                false
+            }
+        } else {
+            let mut filename_length = 0;
+            let mut extension_length = 0;
+            let mut extension = false;
+            for c in self.name.chars() {
+                if c == ' ' {
+                    filename_length = 9;
+                    break;
+                }
+
+                if c == '.' {
+                    if extension {
+                        filename_length = 9;
+                        break;
+                    } else {
+                        extension = true;
+                    }
+                } else {
+                    if extension {
+                        extension_length += 1;
+                    } else {
+                        filename_length += 1;
+                    }
+                }
+            }
+            filename_length > 8 || extension_length > 3
+        };
+
+        // Generate short name
+        let short_name = if is_long_filename {
+            // Generate basis name
+            let basis_name = self
+                .name
+                .to_ascii_uppercase()
+                .replace(' ', "")
+                .trim_start_matches('.')
+                .to_owned();
+
+            let mut short_name = [b' '; 11];
+
+            let mut i = 0;
+            let mut iter = basis_name.chars();
+            let mut extension = false;
+            while let Some(c) = iter.next() {
+                if c == '.' {
+                    extension = true;
+                    break;
+                }
+
+                short_name[i] = c as u8;
+                i += 1;
+                if i >= 8 {
+                    break;
+                }
+            }
+
+            if !extension {
+                while let Some(c) = iter.next() {
+                    if c == '.' {
+                        break;
+                    }
+                }
+            }
+
+            i = 8;
+            while let Some(c) = iter.next() {
+                short_name[i] = c as u8;
+
+                i += 1;
+                if i >= 11 {
+                    break;
+                }
+            }
+
+            // TODO: Generate tail
+
+            short_name
+        } else {
+            let mut short_name = [b' '; 11];
+            let mut i = 0;
+            for c in self.name.chars() {
+                if c == '.' && !self.directory {
+                    i = 8;
+                    continue;
+                }
+
+                short_name[i] = c.to_ascii_uppercase() as u8;
+                i += 1;
+            }
+
+            short_name
+        };
+
+        // Generate disk directory entry
+        let disk_entry = DiskDirectoryEntry {
+            filename: short_name,
+            attributes: if self.directory {
+                ATTRIBUTE_DIRECTORY
+            } else {
+                0
+            },
+            reserved: 0,
+            creation_tenths: 0,
+            creation_time: 0,
+            creation_date: 0,
+            last_accessed_date: 0,
+            first_cluster_high: (self.first_cluster.wrapping_shr(16) & 0xFFFF) as u16,
+            last_modification_time: 0,
+            last_modification_date: 0,
+            first_cluster_low: (self.first_cluster & 0xFFFF) as u16,
+            file_size: self.file_size as u32,
+        };
+
+        // Generate long directory entries
+        let mut long_entries = Vec::new();
+        if is_long_filename {
+            let checksum = {
+                let mut sum: u8 = 0;
+                for c in short_name {
+                    sum = if sum & 1 == 0 { 0u8 } else { 0x80u8 }
+                        .wrapping_add(sum.wrapping_shr(1))
+                        .wrapping_add(c);
+                }
+                sum
+            };
+
+            let mut ord = 1;
+            let mut offset = 0;
+            let mut current = [0xFFFFu16; 13];
+
+            for c in self.name.chars() {
+                current[offset] = c as u16;
+
+                offset += 1;
+                if offset >= 13 {
+                    long_entries.push(LongDirectoryEntry {
+                        order: ord,
+                        name1: [current[0], current[1], current[2], current[3], current[4]],
+                        attr: ATTRIBUTE_LONG_FILE_NAME,
+                        class: 0,
+                        checksum,
+                        name2: [
+                            current[5],
+                            current[6],
+                            current[7],
+                            current[8],
+                            current[9],
+                            current[10],
+                        ],
+                        first_cluster_low: 0,
+                        name3: [current[11], current[12]],
+                    });
+
+                    ord += 1;
+                    offset = 0;
+                    for val in &mut current {
+                        *val = 0xFFFF;
+                    }
+                }
+            }
+
+            if offset == 0 {
+                let len = long_entries.len();
+                long_entries[len - 1].order |= 0x40;
+            } else {
+                current[offset] = 0;
+                long_entries.push(LongDirectoryEntry {
+                    order: ord | 0x40,
+                    name1: [current[0], current[1], current[2], current[3], current[4]],
+                    attr: ATTRIBUTE_LONG_FILE_NAME,
+                    class: 0,
+                    checksum,
+                    name2: [
+                        current[5],
+                        current[6],
+                        current[7],
+                        current[8],
+                        current[9],
+                        current[10],
+                    ],
+                    first_cluster_low: 0,
+                    name3: [current[11], current[12]],
+                });
+            }
+        }
+
+        Ok((disk_entry, long_entries))
+    }
+}
+
+impl base::error::Error for InvalidArgument {
+    fn module_number(&self) -> i32 {
+        FAT32_FS_DRIVER_MODULE_NUMBER
+    }
+
+    fn error_number(&self) -> base::error::Status {
+        base::error::Status::InvalidArgument
+    }
+}
+
+impl core::fmt::Display for InvalidArgument {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Invalid argument")
     }
 }

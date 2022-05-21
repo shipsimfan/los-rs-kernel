@@ -57,7 +57,8 @@ pub fn register_drive<T: ProcessTypes + 'static>(
     for driver in &*drivers {
         match driver(&drive, 0, size)? {
             Some(volume) => {
-                volumes.insert(volume);
+                let id = volumes.insert(volume);
+                crate::mount_volume(volumes.get(id).unwrap().clone(), 0)?;
                 break;
             }
             None => {}

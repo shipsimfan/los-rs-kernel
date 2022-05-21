@@ -13,15 +13,18 @@ pub use descriptor::*;
 pub use entry::*;
 
 pub trait DirectoryTrait: Send {
-    fn get_children(&self) -> base::error::Result<Vec<(String, Metadata)>>; // Used to get sub files on initialization
-    fn open_file(&self, filename: &str) -> base::error::Result<Box<dyn FileTrait>>;
-    fn open_directory(&self, directory_name: &str) -> base::error::Result<Box<dyn DirectoryTrait>>;
-    fn make_file(&self, filename: &str) -> base::error::Result<()>;
-    fn make_directory(&self, directory_name: &str) -> base::error::Result<()>;
-    fn rename_file(&self, old_name: &str, new_name: &str) -> base::error::Result<()>;
-    fn rename_directory(&self, old_name: &str, new_name: &str) -> base::error::Result<()>;
-    fn remove(&self, name: &str) -> base::error::Result<()>;
-    fn update_metadata(&self, name: &str, new_metadata: Metadata) -> base::error::Result<()>;
+    fn get_children(&mut self) -> base::error::Result<Vec<(String, Metadata)>>; // Used to get sub files on initialization
+    fn open_file(&mut self, filename: &str) -> base::error::Result<Box<dyn FileTrait>>;
+    fn open_directory(
+        &mut self,
+        directory_name: &str,
+    ) -> base::error::Result<Box<dyn DirectoryTrait>>;
+    fn make_file(&mut self, filename: &str) -> base::error::Result<()>;
+    fn make_directory(&mut self, directory_name: &str) -> base::error::Result<()>;
+    fn rename_file(&mut self, old_name: &str, new_name: &str) -> base::error::Result<()>;
+    fn rename_directory(&mut self, old_name: &str, new_name: &str) -> base::error::Result<()>;
+    fn remove(&mut self, name: &str) -> base::error::Result<()>;
+    fn update_metadata(&mut self, name: &str, new_metadata: Metadata) -> base::error::Result<()>;
 }
 
 pub enum Parent<T: ProcessTypes + 'static> {
@@ -54,7 +57,7 @@ enum DirectoryError {
 
 impl<T: ProcessTypes + 'static> Directory<T> {
     pub fn new(
-        inner: Box<dyn DirectoryTrait>,
+        mut inner: Box<dyn DirectoryTrait>,
     ) -> base::error::Result<Owner<Directory<T>, Mutex<Directory<T>, T>>> {
         let driver_children = inner.get_children()?;
         let mut children = Vec::with_capacity(driver_children.len());
@@ -257,7 +260,7 @@ impl<T: ProcessTypes + 'static> Directory<T> {
     pub fn remove(&mut self, name: &str) -> base::error::Result<()> {
         let mut status: Option<Box<dyn base::error::Error>> =
             Some(Box::new(DirectoryError::NotFound));
-        let directory = &self.inner;
+        let directory = &mut self.inner;
         self.children.retain(|(sub_name, metadata, child)| -> bool {
             if sub_name == name {
                 return match child {
@@ -268,7 +271,7 @@ impl<T: ProcessTypes + 'static> Directory<T> {
                     None => {
                         if metadata.is_directory() {
                             // Verify sub-directory has zero children
-                            let target_directory = match directory.open_directory(name) {
+                            let mut target_directory = match directory.open_directory(name) {
                                 Ok(directory) => directory,
                                 Err(ret_status) => {
                                     status = Some(ret_status);
