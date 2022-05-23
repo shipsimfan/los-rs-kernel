@@ -3,7 +3,6 @@ use alloc::boxed::Box;
 use base::{error::FILESYSTEM_MODULE_NUMBER, multi_owner::Owner};
 use process::{Mutex, ProcessTypes};
 
-#[derive(Clone)]
 pub struct FileDescriptor<T: ProcessTypes + 'static> {
     inner: Owner<File<T>, Mutex<File<T>, T>>,
     current_offset: usize,
@@ -92,6 +91,17 @@ impl<T: ProcessTypes + 'static> FileDescriptor<T> {
 
     pub fn tell(&self) -> usize {
         self.current_offset
+    }
+}
+
+impl<T: ProcessTypes + 'static> Clone for FileDescriptor<T> {
+    fn clone(&self) -> Self {
+        FileDescriptor {
+            inner: self.inner.clone(),
+            current_offset: 0,
+            read: self.read,
+            write: self.write,
+        }
     }
 }
 

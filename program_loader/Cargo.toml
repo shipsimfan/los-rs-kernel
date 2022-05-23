@@ -1,0 +1,20 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "program_loader"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "program_loader"
+test = false
+
+[dependencies]
+base = {path = "../base"}
+filesystem = {path = "../filesystem"}
+process = {path = "../process"}
+process_types = {path = "../process_types"}
+sessions = {path = "../sessions"}

@@ -13,9 +13,12 @@ members = [
   "drivers/uefi",
   "filesystem",
   "interrupts",
+  "ipc",
   "kernel",
   "memory",
   "process",
+  "process_types",
+  "program_loader",
   "sessions",
   "time",
 ]

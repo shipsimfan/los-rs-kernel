@@ -53,18 +53,18 @@ pub const IOCTRL_SET_CURSOR_STATE: usize = 8;
 impl<T: ProcessTypes> ConsoleSession<T> {
     pub fn new(
         output_device: Reference<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
-    ) -> base::error::Result<Owner<Box<dyn Session<T>>, Mutex<Box<dyn Session<T>>, T>>> {
+    ) -> base::error::Result<Owner<Box<dyn Session<T>>>> {
         //output_device.lock().ioctrl(IOCTRL_CLEAR, 0)?;
 
-        let session = Box::new(ConsoleSession {
+        let session = Owner::new(Box::new(ConsoleSession {
             processes: Map::new(),
             id: INVALID_ID,
             output_device,
             event_queue: Queue::new(),
             event_thread_queue: ThreadQueue::new(),
-        }) as Box<dyn Session<T>>;
+        }) as Box<dyn Session<T>>);
 
-        Ok(Owner::new(session))
+        Ok(session)
     }
 
     pub fn get_output_device(&self) -> ConsoleOutputDevice<T> {

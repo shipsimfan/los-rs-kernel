@@ -1,0 +1,21 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "process_types"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "process_types"
+test = false
+
+[dependencies]
+base = {path = "../base"}
+device = {path = "../device"}
+filesystem = {path = "../filesystem"}
+ipc = {path = "../ipc"}
+process = {path = "../process"}
+sessions = {path = "../sessions"}

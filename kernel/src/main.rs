@@ -9,12 +9,11 @@ extern crate alloc;
 use alloc::borrow::ToOwned;
 use base::{critical::CriticalLock, log_debug, log_fatal, log_info};
 use core::arch::asm;
-use filesystem::WorkingDirectory;
 use memory::Heap;
-use process::ProcessTypes;
+use process_types::ProcessTypes;
+use program_loader::{StandardIO, StandardIOType};
 
 mod interrupt_handlers;
-mod process_types;
 mod system_calls;
 
 const MODULE_NAME: &str = "Kernel";
@@ -80,7 +79,7 @@ pub extern "C" fn kmain(
     // Launch kinit process
     log_info!("Starting kinit process . . .");
     process::create_process::<process_types::ProcessTypes>(
-        kinit::<process_types::ProcessTypes>,
+        kinit,
         0,
         process_types::Descriptors::new(None),
         "kinit".to_owned(),
@@ -93,7 +92,7 @@ pub extern "C" fn kmain(
 
 process::static_generic!(process::Mutex<usize, T>, test_lock);
 
-fn test<T: ProcessTypes + 'static>(id: usize) -> isize {
+fn test<T: process::ProcessTypes + 'static>(id: usize) -> isize {
     let _lock = if id == 1 {
         let mut lock = test_lock::get::<T>().lock();
 
@@ -111,51 +110,67 @@ fn test<T: ProcessTypes + 'static>(id: usize) -> isize {
     }
 }
 
-fn kinit<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(_: usize) -> isize {
+fn kinit(_: usize) -> isize {
     log_info!("kinit running!");
 
     // Initialize System Timer
-    hpet::initialize::<T>();
+    hpet::initialize::<ProcessTypes>();
 
     // Initialize CMOS
     cmos::initialize();
 
     // Initialize FAT32
-    fat32::initialize::<T>();
+    fat32::initialize::<ProcessTypes>();
 
     // Initialize PCI
-    pci::initialize::<T>();
+    pci::initialize::<ProcessTypes>();
 
     // Initialize IDE
-    ide::initialize::<T>();
+    ide::initialize::<ProcessTypes>();
 
     // Create test lock
-    test_lock::initialize::<T>(process::Mutex::new(0));
+    test_lock::initialize::<ProcessTypes>(process::Mutex::new(0));
 
     log_debug!("Attempting to read file");
 
-    let contents = filesystem::read::<T>(":0/test.txt").unwrap();
+    let contents = filesystem::read::<ProcessTypes>(":0/test.txt").unwrap();
 
     log_debug!("File contents: {:?}", contents);
 
     // Create first test thread
-    let thread = process::create_thread::<T>(test::<T>, 1);
+    let thread = process::create_thread::<ProcessTypes>(test::<ProcessTypes>, 1);
 
     // Create initial session
     log_info!("Starting initial session . . .");
-    sessions::create_console_session::<T>(device::get_device("/boot_video").unwrap()).unwrap();
+    let session = sessions::create_console_session::<ProcessTypes>(
+        device::get_device("/boot_video").unwrap(),
+    )
+    .unwrap();
+    program_loader::execute_session::<&str, &str>(
+        ":0/los/bin/cshell.app",
+        &[],
+        &[],
+        StandardIO::new(
+            StandardIOType::Console,
+            StandardIOType::Console,
+            StandardIOType::Console,
+        ),
+        session,
+        false,
+    )
+    .unwrap();
     log_info!("Initial session started!");
 
     // Test loop 1
     for i in 0..5 {
         log_debug!("{}", 5 - i);
-        time::sleep::<T>(250);
+        time::sleep::<ProcessTypes>(250);
     }
 
     // Create second test thread
-    let thread2 = process::create_thread::<T>(test::<T>, 2);
+    let thread2 = process::create_thread::<ProcessTypes>(test::<ProcessTypes>, 2);
 
-    time::sleep::<T>(2100);
+    time::sleep::<ProcessTypes>(2100);
 
     // Test killing thread
     log_info!("Killing thread. Alive - {}", thread.alive());
@@ -163,12 +178,15 @@ fn kinit<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static>(_: usize) -
     log_info!("Killed thread. Alive - {}", thread.alive());
 
     // Test dropping of locks after killed thread
-    log_debug!("Value under lock: {}", *test_lock::get::<T>().lock());
+    log_debug!(
+        "Value under lock: {}",
+        *test_lock::get::<ProcessTypes>().lock()
+    );
 
     // Test loop 2
     for i in 0..10 {
         log_debug!("Test: {}", i);
-        time::sleep::<T>(250);
+        time::sleep::<ProcessTypes>(250);
     }
 
     // Kill second thread

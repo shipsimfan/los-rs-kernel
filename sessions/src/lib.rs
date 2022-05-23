@@ -38,12 +38,7 @@ static mut SESSIONS_INITIALIZED: bool = false;
 
 process::static_generic!(
     process::Mutex<
-        base::map::Map<
-            base::multi_owner::Owner<
-                alloc::boxed::Box<dyn crate::Session<T>>,
-                process::Mutex<alloc::boxed::Box<dyn crate::Session<T>>, T>,
-            >,
-        >,
+        base::map::Map<base::multi_owner::Owner<alloc::boxed::Box<dyn crate::Session<T>>>>,
         T,
     >,
     sessions
@@ -64,7 +59,7 @@ pub fn initialize<T: ProcessTypes + 'static>() {
 
 pub fn create_console_session<T: ProcessTypes>(
     output_device: Reference<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
-) -> base::error::Result<Owner<Box<dyn Session<T>>, Mutex<Box<dyn Session<T>>, T>>> {
+) -> base::error::Result<Owner<Box<dyn Session<T>>>> {
     let new_session = ConsoleSession::new(output_device)?;
 
     sessions::get().lock().insert(new_session.clone());

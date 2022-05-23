@@ -4,7 +4,7 @@ use crate::{
     Signals, ThreadFunction,
 };
 use alloc::string::String;
-use base::multi_owner::Reference;
+use base::multi_owner::{Owner, Reference};
 
 pub fn create_process<T: ProcessTypes + 'static>(
     entry: ThreadFunction,
@@ -14,27 +14,37 @@ pub fn create_process<T: ProcessTypes + 'static>(
     inherit_signals: bool,
 ) -> Reference<Process<T>> {
     // Get the process owner
-    let (process_owner, signals) = match current_thread_option::<T>() {
-        Some(current_thread) => current_thread.lock(|thread| {
-            thread.process().lock(|process| {
-                (
-                    process.owner().clone(),
-                    if inherit_signals {
-                        process.signals().clone()
-                    } else {
-                        T::Signals::new()
-                    },
-                )
-            })
-        }),
-        None => (
-            thread_control::get::<T>().lock().daemon_owner().clone(),
-            T::Signals::new(),
-        ),
+    let owner = match current_thread_option::<T>() {
+        Some(current_thread) => {
+            current_thread.lock(|thread| thread.process().lock(|process| process.owner().clone()))
+        }
+        None => thread_control::get::<T>().lock().daemon_owner().clone(),
+    };
+
+    create_process_owner(entry, context, descriptors, name, inherit_signals, owner)
+}
+
+pub fn create_process_owner<T: ProcessTypes + 'static>(
+    entry: ThreadFunction,
+    context: usize,
+    descriptors: T::Descriptor,
+    name: String,
+    inherit_signals: bool,
+    owner: Owner<T::Owner>,
+) -> Reference<Process<T>> {
+    // Determine signals
+    let signals = if inherit_signals {
+        match current_thread_option::<T>() {
+            Some(current_thread) => current_thread
+                .lock(|thread| thread.process().lock(|process| process.signals().clone())),
+            None => T::Signals::new(),
+        }
+    } else {
+        T::Signals::new()
     };
 
     // Create a new process
-    let new_process = Process::new(process_owner, descriptors, signals, name);
+    let new_process = Process::new(owner, descriptors, signals, name);
     let ret = new_process.as_ref();
 
     // Create the first thread

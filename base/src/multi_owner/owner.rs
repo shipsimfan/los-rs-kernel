@@ -1,6 +1,5 @@
-use crate::{critical::CriticalLock, map::Mappable};
-
 use super::{reference::new_reference, Lock, Reference};
+use crate::{critical::CriticalLock, map::Mappable};
 use alloc::sync::Arc;
 
 pub struct Owner<T, L: Lock<Data = T> = CriticalLock<T>>(Arc<L>);

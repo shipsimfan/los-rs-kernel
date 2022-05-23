@@ -109,7 +109,7 @@ impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
     }
 }
 
-impl<T: Send, PT: ProcessTypes + 'static> Lock for Mutex<T, PT> {
+impl<T, PT: ProcessTypes + 'static> Lock for Mutex<T, PT> {
     type Data = T;
 
     fn new(data: Self::Data) -> Self {
@@ -122,8 +122,8 @@ impl<T: Send, PT: ProcessTypes + 'static> Lock for Mutex<T, PT> {
     }
 }
 
-unsafe impl<T: Send, PT: ProcessTypes> Sync for Mutex<T, PT> {}
-unsafe impl<T: Send, PT: ProcessTypes> Send for Mutex<T, PT> {}
+unsafe impl<T, PT: ProcessTypes> Sync for Mutex<T, PT> {}
+unsafe impl<T, PT: ProcessTypes> Send for Mutex<T, PT> {}
 
 impl<'a, T, PT: ProcessTypes> Deref for MutexGuard<'a, T, PT> {
     type Target = T;

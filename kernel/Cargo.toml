@@ -13,6 +13,8 @@ filesystem = {path = "../filesystem"}
 interrupts = {path = "../interrupts"}
 memory = {path = "../memory"}
 process = {path = "../process"}
+process_types = {path = "../process_types"}
+program_loader = {path = "../program_loader"}
 sessions = {path = "../sessions"}
 time = {path = "../time"}
 
