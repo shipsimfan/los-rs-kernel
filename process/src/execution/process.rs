@@ -48,7 +48,7 @@ pub fn create_process_owner<T: ProcessTypes + 'static>(
     let ret = new_process.as_ref();
 
     // Create the first thread
-    let new_thread = Process::create_thread(new_process, entry, context);
+    let new_thread = Process::create_thread(new_process, entry as usize, context);
     queue_thread(new_thread);
 
     ret

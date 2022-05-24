@@ -57,6 +57,21 @@ impl StandardIO {
 
         new_descriptors
     }
+
+    pub fn into_c(&self) -> CStandardIO {
+        let (stdout_type, stdout_desc) = self.stdout.into_c();
+        let (stderr_type, stderr_desc) = self.stderr.into_c();
+        let (stdin_type, stdin_desc) = self.stdin.into_c();
+
+        CStandardIO {
+            stdout_type,
+            stdout_desc,
+            stderr_type,
+            stderr_desc,
+            stdin_type,
+            stdin_desc,
+        }
+    }
 }
 
 impl StandardIOType {
@@ -83,6 +98,15 @@ impl StandardIOType {
                 };
                 new_descriptors.insert_device(descriptor);
             }
+        }
+    }
+
+    pub fn into_c(&self) -> (usize, isize) {
+        match self {
+            StandardIOType::None => (STDIO_TYPE_NONE, 0),
+            StandardIOType::Console => (STDIO_TYPE_CONSOLE, 0),
+            StandardIOType::File(descriptor) => (STDIO_TYPE_FILE, *descriptor),
+            StandardIOType::Device(descriptor) => (STDIO_TYPE_DEVICE, *descriptor),
         }
     }
 }

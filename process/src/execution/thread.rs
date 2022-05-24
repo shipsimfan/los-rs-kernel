@@ -16,6 +16,13 @@ pub fn create_thread<T: ProcessTypes + 'static>(
     entry: ThreadFunction,
     context: usize,
 ) -> Reference<Thread<T>> {
+    create_thread_usize(entry as usize, context)
+}
+
+pub fn create_thread_usize<T: ProcessTypes + 'static>(
+    entry: usize,
+    context: usize,
+) -> Reference<Thread<T>> {
     let current_process = current_thread().lock(|thread| thread.process().as_ref());
 
     let thread = Process::create_thread(current_process.upgrade(), entry, context);

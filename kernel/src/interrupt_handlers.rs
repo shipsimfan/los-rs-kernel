@@ -1,5 +1,6 @@
 use base::log_fatal;
 use interrupts::{exceptions::ExceptionInfo, irqs::IRQInfo, Registers};
+use process_types::ProcessTypes;
 
 const EXCEPTION_STRINGS: [&str; 32] = [
     "A divide by zero exception",
@@ -116,9 +117,10 @@ pub unsafe fn post_irq_handler(irq: usize, _: &Registers, _: &IRQInfo) {
     acpi::end_interrupt();
 }
 
-pub unsafe fn null_access_exception_handler(address: usize) {
-    log_fatal!("Null access at {}", address);
-    panic!();
+pub unsafe fn null_access_exception_handler(_: usize) {
+    //log_fatal!("Null access at {}", address);
+    //panic!();
+    process::exit_process::<ProcessTypes>(129);
 }
 
 pub unsafe fn invalid_access_exception_handler(address: usize) {

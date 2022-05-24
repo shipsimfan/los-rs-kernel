@@ -46,7 +46,7 @@ extern "C" {
 }
 
 impl<T: ProcessTypes + 'static> Thread<T> {
-    pub fn new(process: Owner<Process<T>>, entry: ThreadFunction, context: usize) -> Owner<Self> {
+    pub fn new(process: Owner<Process<T>>, entry: usize, context: usize) -> Owner<Self> {
         let entry = entry as usize;
 
         let mut kernel_stack = Stack::new();

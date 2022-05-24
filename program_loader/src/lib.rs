@@ -1,15 +1,15 @@
 #![no_std]
 
-use core::mem::ManuallyDrop;
+use core::{mem::ManuallyDrop, ptr::null_mut};
 
 use alloc::{borrow::ToOwned, boxed::Box, string::String};
 use base::{
-    log_info,
+    log_fatal, log_info,
     multi_owner::{Owner, Reference},
 };
-use context::KernelspaceContext;
+use context::{KernelspaceContext, UserspaceContext};
 use filesystem::{DirectoryDescriptor, WorkingDirectory, OPEN_READ};
-use process::{current_thread, Process};
+use process::{current_thread, exit_process, Process};
 use process_types::ProcessTypes;
 use sessions::Session;
 
@@ -19,9 +19,15 @@ mod stdio;
 
 pub use stdio::{StandardIO, StandardIOType};
 
+use crate::stdio::CStandardIO;
+
 extern crate alloc;
 
 const MODULE_NAME: &str = "Program Loader";
+
+const TLS_LOCATION: usize = 0x700000000000;
+const USERSPACE_CONTEXT_LOCATION: *mut UserspaceContext =
+    (TLS_LOCATION - core::mem::size_of::<UserspaceContext>()) as *mut UserspaceContext;
 
 pub fn execute_session<S1: AsRef<str>, S2: AsRef<str>>(
     filepath: &str,
@@ -128,15 +134,120 @@ fn load_process(context: usize) -> isize {
         unsafe { ManuallyDrop::new(Box::from_raw(context as *mut KernelspaceContext)) };
 
     // Load the executable
+    let (entry, tls_size, tls_align) =
+        match elf::load_executable(context.file(), TLS_LOCATION as *mut u8) {
+            Ok(result) => result,
+            Err(error) => {
+                unsafe { ManuallyDrop::drop(&mut context) };
+                log_fatal!("Error while loading executable: {}", error);
+                exit_process::<ProcessTypes>(error.to_status_code());
+            }
+        };
+
+    // Determine context locations
+
+    /*  |===========| TLS_LOCATION + tls_size
+     *  |    TLS    |
+     *  |===========| TLS_LOCATION (0x700000000000)
+     *  | Userspace |
+     *  |  Context  |
+     *  |===========| USERSPACE_CONTEXT_LOCATION
+     *  |   Stdio   |
+     *  |===========| c_stdio_location
+     *  | Args List |
+     *  |===========| arg_list_start
+     *  | Envs List |
+     *  |===========| env_list_start
+     *  |  Args...  |
+     *  |===========|
+     *  |  Envs...  |
+     *  |===========|
+     *
+     *  Args and envs are built downwards, putting the first argument at the top
+     */
+
+    let c_stdio_location =
+        USERSPACE_CONTEXT_LOCATION as usize - core::mem::size_of::<CStandardIO>();
+    let arg_list_start =
+        c_stdio_location - (core::mem::size_of::<*mut u8>() * (context.args().len() + 1));
+    let env_list_start =
+        arg_list_start - (core::mem::size_of::<*mut u8>() * (context.environment().len() + 1));
+
+    let arg_list = unsafe {
+        core::slice::from_raw_parts_mut(arg_list_start as *mut *mut u8, context.args().len() + 1)
+    };
+    let env_list = unsafe {
+        core::slice::from_raw_parts_mut(
+            env_list_start as *mut *mut u8,
+            context.environment().len() + 1,
+        )
+    };
 
     // Create the userspace context
+    unsafe {
+        // Copy stdio
+        let c_stdio = c_stdio_location as *mut CStandardIO;
+        *c_stdio = context.stdio().into_c();
 
-    log_info!("Testing: {}", context.file().tell());
+        // Copy context
+        *USERSPACE_CONTEXT_LOCATION = UserspaceContext::new(
+            context.args().len(),
+            arg_list.as_ptr() as *const *const _,
+            env_list.as_ptr() as *const *const _,
+            c_stdio,
+            tls_size,
+            tls_align,
+        );
+
+        // Copy arguments
+        let mut ptr = env_list_start as *mut u8;
+        for i in 0..context.args().len() {
+            let arg = &context.args()[i];
+
+            // Move pointer
+            ptr = ptr.sub(arg.len() + 1);
+
+            // Set list
+            arg_list[i] = ptr;
+
+            // Copy string
+            let mut p = ptr;
+            for byte in arg.as_bytes() {
+                *p = *byte;
+                p = p.add(1);
+            }
+            *p = 0;
+        }
+        arg_list[context.args().len()] = null_mut();
+
+        // Copy environment variables
+        for i in 0..context.environment().len() {
+            let env = &context.environment()[i];
+
+            // Move pointer
+            ptr = ptr.sub(env.len() + 1);
+
+            // Set list
+            env_list[i] = ptr;
+
+            // Copy string
+            let mut p = ptr;
+            for byte in env.as_bytes() {
+                *p = *byte;
+                p = p.add(1);
+            }
+            *p = 0;
+        }
+        env_list[context.environment().len()] = null_mut();
+    }
 
     // Drop the kernelspace context
     unsafe { ManuallyDrop::drop(&mut context) };
 
     // Create the userspace thread
+    process::create_thread_usize::<ProcessTypes>(entry, USERSPACE_CONTEXT_LOCATION as usize);
+
+    log_info!("Testing");
 
     0
 }

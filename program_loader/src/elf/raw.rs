@@ -2,6 +2,8 @@
 
 use alloc::boxed::Box;
 use base::error::PROGRAM_LOADER_MODULE_NUMBER;
+use filesystem::{FileDescriptor, SeekFrom};
+use process_types::ProcessTypes;
 
 pub type Elf64_Addr = u64;
 pub type Elf64_Half = u16;
@@ -75,8 +77,12 @@ pub const PT_LOAD: Elf64_Word = 1;
 pub const PT_TLS: Elf64_Word = 7;
 
 impl Elf64_Ehdr {
-    pub fn from_array(slice: [u8; core::mem::size_of::<Elf64_Ehdr>()]) -> Self {
-        Elf64_Ehdr {
+    pub fn from_file(file: &mut FileDescriptor<ProcessTypes>) -> base::error::Result<Self> {
+        let mut slice = [0; core::mem::size_of::<Elf64_Ehdr>()];
+        file.seek(0, SeekFrom::Start);
+        file.read(slice.as_mut_slice())?;
+
+        Ok(Elf64_Ehdr {
             e_ident: [
                 slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7],
                 slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14],
@@ -122,7 +128,7 @@ impl Elf64_Ehdr {
             e_shentsize: (slice[58] as Elf64_Half) | ((slice[59] as Elf64_Half) << 8),
             e_shnum: (slice[60] as Elf64_Half) | ((slice[61] as Elf64_Half) << 8),
             e_shstrndx: (slice[62] as Elf64_Half) | ((slice[63] as Elf64_Half) << 8),
-        }
+        })
     }
 
     pub fn verify(&self) -> base::error::Result<()> {
@@ -163,6 +169,10 @@ impl Elf64_Ehdr {
         Ok(())
     }
 
+    pub fn e_entry(&self) -> usize {
+        self.e_entry as usize
+    }
+
     pub fn e_phoff(&self) -> usize {
         self.e_phoff as usize
     }
@@ -177,8 +187,19 @@ impl Elf64_Ehdr {
 }
 
 impl Elf64_Phdr {
-    pub fn from_slice(slice: &[u8]) -> Self {
-        Elf64_Phdr {
+    pub fn from_file(
+        file: &mut FileDescriptor<ProcessTypes>,
+        idx: usize,
+        header: &Elf64_Ehdr,
+    ) -> base::error::Result<Self> {
+        let mut slice = [0; core::mem::size_of::<Elf64_Phdr>()];
+        file.seek(
+            header.e_phoff() + idx * header.e_phentsize(),
+            SeekFrom::Start,
+        );
+        file.read(&mut slice)?;
+
+        Ok(Elf64_Phdr {
             p_type: (slice[0] as Elf64_Word)
                 | ((slice[1] as Elf64_Word) << 8)
                 | ((slice[2] as Elf64_Word) << 16)
@@ -235,7 +256,7 @@ impl Elf64_Phdr {
                 | ((slice[53] as Elf64_Xword) << 40)
                 | ((slice[54] as Elf64_Xword) << 48)
                 | ((slice[55] as Elf64_Xword) << 56),
-        }
+        })
     }
 
     pub fn p_type(&self) -> Elf64_Word {

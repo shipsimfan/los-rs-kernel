@@ -1,6 +1,4 @@
-use crate::{
-    queue_thread, thread_queue::ThreadQueue, CurrentQueue, ProcessTypes, Thread, ThreadFunction,
-};
+use crate::{queue_thread, thread_queue::ThreadQueue, CurrentQueue, ProcessTypes, Thread};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use base::{
     map::{Map, Mappable, INVALID_ID},
@@ -55,11 +53,7 @@ impl<T: ProcessTypes> Process<T> {
         process
     }
 
-    pub fn create_thread(
-        process: Owner<Self>,
-        entry: ThreadFunction,
-        context: usize,
-    ) -> Owner<Thread<T>> {
+    pub fn create_thread(process: Owner<Self>, entry: usize, context: usize) -> Owner<Thread<T>> {
         let thread = Thread::new(process.clone(), entry, context);
         process.lock(|process| process.threads.insert(thread.as_ref()));
         thread
