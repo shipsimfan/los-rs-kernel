@@ -1,5 +1,5 @@
 [workspace]
-default-members = ["kernel"]
+default-members = ["init"]
 
 members = [
   "acpi",
@@ -12,13 +12,14 @@ members = [
   "drivers/pci",
   "drivers/uefi",
   "filesystem",
+  "init",
   "interrupts",
   "ipc",
-  "kernel",
   "memory",
   "process",
   "process_types",
   "program_loader",
   "sessions",
+  "system_calls",
   "time",
 ]

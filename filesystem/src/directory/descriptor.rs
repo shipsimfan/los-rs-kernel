@@ -21,7 +21,7 @@ impl<T: ProcessTypes + 'static> DirectoryDescriptor<T> {
         }
     }
 
-    pub fn get_directory(&self) -> &Owner<Directory<T>, Mutex<Directory<T>, T>> {
+    pub fn directory(&self) -> &Owner<Directory<T>, Mutex<Directory<T>, T>> {
         &self.directory
     }
 

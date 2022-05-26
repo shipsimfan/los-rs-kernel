@@ -12,12 +12,12 @@ extern crate alloc;
 use base::log_info;
 pub use control::ThreadControl;
 pub use execution::{
-    create_process, create_thread, create_thread_usize, current_thread, current_thread_option,
-    exit_process, exit_thread, kill_process, kill_thread, preempt, queue_and_yield, queue_thread,
-    wait_process, wait_thread, yield_thread,
+    create_process, create_process_owner, create_thread, create_thread_usize, current_thread,
+    current_thread_option, exit_process, exit_thread, handle_signals, kill_process, kill_thread,
+    preempt, queue_and_yield, queue_thread, wait_process, wait_thread, yield_thread,
 };
 pub use mutex::*;
-pub use process::{Process, ProcessOwner, Signals};
+pub use process::{Process, ProcessOwner, SignalHandleReturn, Signals};
 pub use thread::{CurrentQueue, Thread, ThreadFunction};
 pub use thread_queue::{SortedThreadQueue, ThreadQueue};
 

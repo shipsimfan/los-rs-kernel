@@ -10,6 +10,7 @@ use memory::KERNEL_VMA;
 extern "C" {
     fn switch_stacks(save_location: *const usize, load_location: *const usize);
     fn thread_enter_user(context: usize, entry: *const c_void) -> !;
+    fn set_fs_base(fs_base: usize);
 }
 
 pub fn create_thread<T: ProcessTypes + 'static>(
@@ -116,6 +117,7 @@ pub fn yield_thread<T: ProcessTypes + 'static>(queue: Option<CurrentQueue<T>>) {
                 .lock(|process| process.set_address_space_as_current());
             thread.load_float();
             interrupts::set_interrupt_stack(thread.stack_top());
+            set_fs_base(thread.tls_base());
             thread.stack_pointer_location() as *const usize
         });
 

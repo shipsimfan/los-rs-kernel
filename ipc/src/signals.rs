@@ -1,10 +1,5 @@
 use core::ops::{Index, IndexMut};
-
-pub enum SignalHandleReturn {
-    None,
-    Kill(isize),
-    Userspace(u64, usize, u64),
-}
+use process::SignalHandleReturn;
 
 #[derive(Clone, Copy)]
 pub enum SignalHandler {
@@ -57,16 +52,6 @@ pub struct UserspaceSignalContext {
     pub rip: u64,
 }
 
-impl Signal {
-    pub fn new() -> Self {
-        Signal {
-            handler: SignalHandler::Ignore,
-            mask: false,
-            pending: false,
-        }
-    }
-}
-
 impl Signals {
     pub fn new() -> Self {
         let mut signals = Signals {
@@ -102,11 +87,44 @@ impl Signals {
             self[signal].mask = mask;
         }
     }
+}
 
-    pub fn handle(
-        &mut self,
-        userspace_context: (UserspaceSignalContext, u64),
-    ) -> SignalHandleReturn {
+impl Index<SignalType> for Signals {
+    type Output = Signal;
+
+    fn index(&self, index: SignalType) -> &Self::Output {
+        &self.signals[index as usize]
+    }
+}
+
+impl Index<u8> for Signals {
+    type Output = Signal;
+
+    fn index(&self, index: u8) -> &Self::Output {
+        &self.signals[index as usize]
+    }
+}
+
+impl IndexMut<SignalType> for Signals {
+    fn index_mut(&mut self, index: SignalType) -> &mut Self::Output {
+        &mut self.signals[index as usize]
+    }
+}
+
+impl IndexMut<u8> for Signals {
+    fn index_mut(&mut self, index: u8) -> &mut Self::Output {
+        &mut self.signals[index as usize]
+    }
+}
+
+impl process::Signals for Signals {
+    type UserspaceContext = UserspaceSignalContext;
+
+    fn new() -> Self {
+        Self::new()
+    }
+
+    fn handle(&mut self, userspace_context: (Self::UserspaceContext, u64)) -> SignalHandleReturn {
         for i in 0..=255 {
             if self[i].pending {
                 match self[i].handler {
@@ -144,42 +162,13 @@ impl Signals {
     }
 }
 
-impl SignalHandler {
-    pub fn from(value: usize) -> Option<SignalHandler> {
-        match value {
-            0 => Some(SignalHandler::Terminate),
-            1 => Some(SignalHandler::Ignore),
-            2 => Some(SignalHandler::Userspace),
-            _ => None,
+impl Signal {
+    pub fn new() -> Self {
+        Signal {
+            handler: SignalHandler::Ignore,
+            mask: false,
+            pending: false,
         }
-    }
-}
-
-impl Index<SignalType> for Signals {
-    type Output = Signal;
-
-    fn index(&self, index: SignalType) -> &Self::Output {
-        &self.signals[index as usize]
-    }
-}
-
-impl Index<u8> for Signals {
-    type Output = Signal;
-
-    fn index(&self, index: u8) -> &Self::Output {
-        &self.signals[index as usize]
-    }
-}
-
-impl IndexMut<SignalType> for Signals {
-    fn index_mut(&mut self, index: SignalType) -> &mut Self::Output {
-        &mut self.signals[index as usize]
-    }
-}
-
-impl IndexMut<u8> for Signals {
-    fn index_mut(&mut self, index: u8) -> &mut Self::Output {
-        &mut self.signals[index as usize]
     }
 }
 
@@ -193,8 +182,13 @@ impl Clone for Signal {
     }
 }
 
-impl process::Signals for Signals {
-    fn new() -> Self {
-        Self::new()
+impl SignalHandler {
+    pub fn from(value: usize) -> Option<SignalHandler> {
+        match value {
+            0 => Some(SignalHandler::Terminate),
+            1 => Some(SignalHandler::Ignore),
+            2 => Some(SignalHandler::Userspace),
+            _ => None,
+        }
     }
 }

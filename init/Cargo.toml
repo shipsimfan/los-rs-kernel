@@ -2,7 +2,7 @@
 authors = ["Lance Hart <shipsimfan@hotmail.com>"]
 build = "build.rs"
 edition = "2021"
-name = "kernel"
+name = "init"
 version = "0.1.0"
 
 [dependencies]
@@ -11,11 +11,13 @@ base = {path = "../base"}
 device = {path = "../device"}
 filesystem = {path = "../filesystem"}
 interrupts = {path = "../interrupts"}
+ipc = {path = "../ipc"}
 memory = {path = "../memory"}
 process = {path = "../process"}
 process_types = {path = "../process_types"}
 program_loader = {path = "../program_loader"}
 sessions = {path = "../sessions"}
+system_calls = {path = "../system_calls"}
 time = {path = "../time"}
 
 cmos = {path = "../drivers/cmos"}
@@ -30,5 +32,5 @@ fat32 = {path = "../drivers/fat32"}
 bench = false
 doc = false
 doctest = false
-name = "kernel"
+name = "init"
 test = false

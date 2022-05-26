@@ -19,7 +19,7 @@ pub use current_queue::{CurrentQueue, QueueAccess};
 
 use self::floating_point_storage::FloatingPointStorage;
 
-#[allow(unused)]
+#[derive(PartialEq, Eq)]
 enum InterruptState {
     NotInterruptable,
     Interruptable,
@@ -35,9 +35,10 @@ pub struct Thread<T: ProcessTypes + 'static> {
     queue_data: isize,
     exit_queue: ThreadQueue<T>,
     exit_status: isize,
-    _interrupt_state: InterruptState,
+    interrupt_state: InterruptState,
     self_reference: Option<Reference<Thread<T>>>,
     held_locks: Vec<(*const c_void, unsafe fn(*const c_void))>,
+    tls_base: usize,
 }
 
 extern "C" {
@@ -63,9 +64,10 @@ impl<T: ProcessTypes + 'static> Thread<T> {
             queue_data: 0,
             exit_queue: ThreadQueue::new(),
             exit_status: 128, // Random kill
-            _interrupt_state: InterruptState::NotInterruptable,
+            interrupt_state: InterruptState::NotInterruptable,
             self_reference: None,
             held_locks: Vec::new(),
+            tls_base: 0,
         });
 
         let reference = ret.as_ref();
@@ -92,6 +94,44 @@ impl<T: ProcessTypes + 'static> Thread<T> {
 
     pub fn queue_data(&self) -> isize {
         self.queue_data
+    }
+
+    pub fn tls_base(&self) -> usize {
+        self.tls_base
+    }
+
+    pub fn signal_interrupted(&mut self) -> bool {
+        let ret = self.interrupt_state == InterruptState::Interrupted;
+        self.interrupt_state = InterruptState::NotInterruptable;
+        ret
+    }
+
+    pub fn set_signal_interruptable(&mut self) {
+        if self.interrupt_state == InterruptState::NotInterruptable {
+            self.interrupt_state = InterruptState::Interruptable;
+        }
+    }
+
+    pub fn signal_interrupt(&mut self) -> Option<Owner<Thread<T>>> {
+        unsafe {
+            base::critical::enter_local();
+
+            let thread = if self.interrupt_state == InterruptState::Interruptable {
+                let thread = self.clear_queue(false);
+                self.interrupt_state = InterruptState::Interrupted;
+                thread
+            } else {
+                None
+            };
+
+            base::critical::leave_local();
+
+            thread
+        }
+    }
+
+    pub fn set_tls_base(&mut self, tls_base: usize) {
+        self.tls_base = tls_base;
     }
 
     pub fn add_lock(&mut self, lock: *const c_void, unlock_func: unsafe fn(*const c_void)) {

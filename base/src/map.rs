@@ -112,6 +112,16 @@ impl<T: Mappable> Map<T> {
         None
     }
 
+    pub fn ids(&self) -> Vec<isize> {
+        let mut ids = Vec::new();
+        for vec in self.data.iter() {
+            for value in vec {
+                ids.push(value.id())
+            }
+        }
+        ids
+    }
+
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.length

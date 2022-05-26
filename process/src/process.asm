@@ -66,3 +66,32 @@ switch_stacks:
     PopAllRegisters
 
     ret
+
+EXTERN LOCAL_CRITICAL_COUNT
+
+GLOBAL handle_userspace_signal
+handle_userspace_signal:
+    cli
+
+    ; Leave local critical
+    mov rbx, LOCAL_CRITICAL_COUNT
+    xor rax, rax
+    mov [rbx], rax
+
+    ; Setup sysret registers
+    mov rcx, rsi   ; Return address
+    mov r11, 0x202 ; RFLAGS
+    mov rsp, rdi   ; Stack
+    mov rdi, rdx   ; Signal number
+
+    ; Return to userspace
+    o64 sysret
+
+GLOBAL set_fs_base
+set_fs_base:
+    mov eax, edi
+    shr rdi, 32
+    mov edx, edi
+    mov ecx, 0xC0000100
+    wrmsr
+    ret

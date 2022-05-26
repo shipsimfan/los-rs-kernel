@@ -1,5 +1,5 @@
 use crate::{Event, Session};
-use alloc::boxed::Box;
+use alloc::{boxed::Box, vec::Vec};
 use base::{
     map::{Map, Mappable, INVALID_ID},
     multi_owner::{Owner, Reference},
@@ -50,21 +50,21 @@ pub const IOCTRL_GET_WIDTH: usize = 6;
 pub const IOCTRL_GET_HEIGHT: usize = 7;
 pub const IOCTRL_SET_CURSOR_STATE: usize = 8;
 
-impl<T: ProcessTypes> ConsoleSession<T> {
+impl<T: ProcessTypes<Owner = Box<dyn Session<T>>>> ConsoleSession<T> {
     pub fn new(
         output_device: Reference<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
     ) -> base::error::Result<Owner<Box<dyn Session<T>>>> {
-        //output_device.lock().ioctrl(IOCTRL_CLEAR, 0)?;
+        output_device.lock(|device| device.ioctrl(IOCTRL_CLEAR, 0));
 
-        let session = Owner::new(Box::new(ConsoleSession {
-            processes: Map::new(),
-            id: INVALID_ID,
-            output_device,
-            event_queue: Queue::new(),
-            event_thread_queue: ThreadQueue::new(),
-        }) as Box<dyn Session<T>>);
-
-        Ok(session)
+        Ok(Owner::<Box<dyn Session<T>>>::new(Box::new(
+            ConsoleSession {
+                processes: Map::new(),
+                id: INVALID_ID,
+                output_device,
+                event_queue: Queue::new(),
+                event_thread_queue: ThreadQueue::new(),
+            },
+        )))
     }
 
     pub fn get_output_device(&self) -> ConsoleOutputDevice<T> {
@@ -74,7 +74,7 @@ impl<T: ProcessTypes> ConsoleSession<T> {
     }
 }
 
-impl<T: ProcessTypes> Session<T> for ConsoleSession<T> {
+impl<T: ProcessTypes<Owner = Box<dyn Session<T>>>> Session<T> for ConsoleSession<T> {
     fn push_event(&mut self, event: Event) {
         match self.event_thread_queue.pop() {
             Some(thread) => process::queue_thread(thread),
@@ -95,6 +95,14 @@ impl<T: ProcessTypes> Session<T> for ConsoleSession<T> {
 
     fn get_event_thread_queue(&self) -> Option<CurrentQueue<T>> {
         Some(self.event_thread_queue.current_queue())
+    }
+
+    fn get_process(&self, id: isize) -> Option<&Reference<Process<T>>> {
+        self.processes.get(id)
+    }
+
+    fn processes(&self) -> Vec<isize> {
+        self.processes.ids()
     }
 
     fn as_console(&mut self) -> Option<&mut ConsoleSession<T>> {
@@ -125,45 +133,45 @@ impl<T: ProcessTypes> Mappable for ConsoleSession<T> {
 unsafe impl<T: ProcessTypes> Send for ConsoleSession<T> {}
 
 impl<T: ProcessTypes> ConsoleOutputDevice<T> {
-    pub fn write(&mut self, buffer: &[u8]) -> base::error::Result<usize> {
+    pub fn write(&self, buffer: &[u8]) -> base::error::Result<usize> {
         self.output_device
             .lock(|device| device.write(0, buffer))
             .unwrap_or(Err(NoDeviceError::new()))
     }
 
-    pub fn write_str(&mut self, string: &str) -> base::error::Result<usize> {
+    pub fn write_str(&self, string: &str) -> base::error::Result<usize> {
         self.write(string.as_bytes())
     }
 
-    pub fn clear(&mut self) -> base::error::Result<()> {
+    pub fn clear(&self) -> base::error::Result<()> {
         self.output_device
             .lock(|device| device.ioctrl(IOCTRL_CLEAR, 0))
             .unwrap_or(Err(NoDeviceError::new()))?;
         Ok(())
     }
 
-    pub fn set_attribute(&mut self, attribute: usize) -> base::error::Result<()> {
+    pub fn set_attribute(&self, attribute: usize) -> base::error::Result<()> {
         self.output_device
             .lock(|device| device.ioctrl(IOCTRL_SET_ATTRIBUTE, attribute))
             .unwrap_or(Err(NoDeviceError::new()))?;
         Ok(())
     }
 
-    pub fn set_foreground_color(&mut self, color: Color) -> base::error::Result<()> {
+    pub fn set_foreground_color(&self, color: Color) -> base::error::Result<()> {
         self.output_device
             .lock(|device| device.ioctrl(IOCTRL_SET_FOREGROUND_COLOR, color.as_usize()))
             .unwrap_or(Err(NoDeviceError::new()))?;
         Ok(())
     }
 
-    pub fn set_background_color(&mut self, color: Color) -> base::error::Result<()> {
+    pub fn set_background_color(&self, color: Color) -> base::error::Result<()> {
         self.output_device
             .lock(|device| device.ioctrl(IOCTRL_SET_BACKGROUND_COLOR, color.as_usize()))
             .unwrap_or(Err(NoDeviceError::new()))?;
         Ok(())
     }
 
-    pub fn set_cursor_pos(&mut self, x: usize, y: usize) -> base::error::Result<()> {
+    pub fn set_cursor_pos(&self, x: usize, y: usize) -> base::error::Result<()> {
         self.output_device
             .lock(|device| match device.ioctrl(IOCTRL_SET_CURSOR_X, x) {
                 Ok(_) => device.ioctrl(IOCTRL_SET_CURSOR_Y, y),
@@ -173,21 +181,21 @@ impl<T: ProcessTypes> ConsoleOutputDevice<T> {
         Ok(())
     }
 
-    pub fn set_cursor_state(&mut self, state: bool) -> base::error::Result<()> {
+    pub fn set_cursor_state(&self, state: bool) -> base::error::Result<()> {
         self.output_device
             .lock(|device| device.ioctrl(IOCTRL_SET_CURSOR_STATE, if state { 1 } else { 0 }))
             .unwrap_or(Err(NoDeviceError::new()))?;
         Ok(())
     }
 
-    pub fn get_width(&mut self) -> base::error::Result<isize> {
+    pub fn get_width(&self) -> base::error::Result<isize> {
         Ok(self
             .output_device
             .lock(|device| device.ioctrl(IOCTRL_GET_WIDTH, 0))
             .unwrap_or(Err(NoDeviceError::new()))? as isize)
     }
 
-    pub fn get_height(&mut self) -> base::error::Result<isize> {
+    pub fn get_height(&self) -> base::error::Result<isize> {
         Ok(self
             .output_device
             .lock(|device| device.ioctrl(IOCTRL_GET_HEIGHT, 0))

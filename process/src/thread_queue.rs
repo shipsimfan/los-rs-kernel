@@ -1,3 +1,5 @@
+use core::mem::ManuallyDrop;
+
 use crate::{thread::QueueAccess, CurrentQueue, ProcessTypes, Thread};
 use alloc::boxed::Box;
 use base::{
@@ -19,9 +21,45 @@ pub struct SortedThreadQueue<
     T: ProcessTypes + 'static,
 >(CriticalLock<SortedQueue<K, QueuedThread<T>>>);
 
-struct ThreadQueueAccess;
+unsafe fn add<T: ProcessTypes>(queue: *mut core::ffi::c_void, thread: Owner<Thread<T>>, _: usize) {
+    let queue = &mut *(queue as *mut ThreadQueue<T>);
+    queue.push(thread)
+}
 
-struct SortedThreadQueueAccess<K: PartialOrd + Copy + Send + Sync + 'static>(K);
+unsafe fn remove<T: ProcessTypes>(
+    queue: *mut core::ffi::c_void,
+    thread: &Reference<Thread<T>>,
+    _: usize,
+) -> Option<Owner<Thread<T>>> {
+    let queue = &mut *(queue as *mut ThreadQueue<T>);
+    queue.remove(thread)
+}
+
+unsafe fn drop(_: usize) {}
+
+unsafe fn add_sorted<K: PartialOrd + Copy + Send + Sync + Clone + 'static, T: ProcessTypes>(
+    queue: *mut core::ffi::c_void,
+    thread: Owner<Thread<T>>,
+    context: usize,
+) {
+    let key = ManuallyDrop::new(Box::from_raw(context as *mut K));
+    let queue = &mut *(queue as *mut SortedThreadQueue<K, T>);
+    queue.insert(thread, key.as_ref().clone())
+}
+
+unsafe fn remove_sorted<K: PartialOrd + Copy + Send + Sync + 'static, T: ProcessTypes>(
+    queue: *mut core::ffi::c_void,
+    thread: &Reference<Thread<T>>,
+    _: usize,
+) -> Option<Owner<Thread<T>>> {
+    let queue = &mut *(queue as *mut SortedThreadQueue<K, T>);
+    queue.remove(thread)
+}
+
+unsafe fn drop_sorted<K: PartialOrd + Copy + Send + Sync>(context: usize) {
+    let mut key = ManuallyDrop::new(Box::from_raw(context as *mut K));
+    ManuallyDrop::drop(&mut key);
+}
 
 impl<T: ProcessTypes> ThreadQueue<T> {
     pub const fn new() -> Self {
@@ -49,27 +87,14 @@ impl<T: ProcessTypes> ThreadQueue<T> {
     }
 
     pub fn current_queue(&self) -> CurrentQueue<T> {
-        CurrentQueue::new(Box::new(ThreadQueueAccess), self as *const _ as *mut _)
+        CurrentQueue::new(
+            QueueAccess::new(0, add::<T>, remove::<T>, drop),
+            self as *const _ as *mut _,
+        )
     }
 
     pub fn length(&self) -> usize {
         self.0.lock().len()
-    }
-}
-
-impl<T: ProcessTypes> QueueAccess<T> for ThreadQueueAccess {
-    unsafe fn add(&self, queue: *mut core::ffi::c_void, thread: Owner<Thread<T>>) {
-        let queue = &mut *(queue as *mut ThreadQueue<T>);
-        queue.push(thread)
-    }
-
-    unsafe fn remove(
-        &self,
-        queue: *mut core::ffi::c_void,
-        thread: &Reference<Thread<T>>,
-    ) -> Option<Owner<Thread<T>>> {
-        let queue = &mut *(queue as *mut ThreadQueue<T>);
-        queue.remove(thread)
     }
 }
 
@@ -106,28 +131,17 @@ impl<K: PartialOrd + Copy + Send + Sync + 'static, T: ProcessTypes> SortedThread
     }
 
     pub fn current_queue(&self, key: K) -> CurrentQueue<T> {
+        let key = ManuallyDrop::new(Box::new(key));
+
         CurrentQueue::new(
-            Box::new(SortedThreadQueueAccess(key)),
+            QueueAccess::new(
+                key.as_ref() as *const _ as usize,
+                add_sorted::<K, T>,
+                remove_sorted::<K, T>,
+                drop_sorted::<K>,
+            ),
             self as *const _ as *mut _,
         )
-    }
-}
-
-impl<I: PartialOrd + Copy + Send + Sync + 'static, T: ProcessTypes> QueueAccess<T>
-    for SortedThreadQueueAccess<I>
-{
-    unsafe fn add(&self, queue: *mut core::ffi::c_void, thread: Owner<Thread<T>>) {
-        let queue = &mut *(queue as *mut SortedThreadQueue<I, T>);
-        queue.insert(thread, self.0)
-    }
-
-    unsafe fn remove(
-        &self,
-        queue: *mut core::ffi::c_void,
-        thread: &Reference<Thread<T>>,
-    ) -> Option<Owner<Thread<T>>> {
-        let queue = &mut *(queue as *mut SortedThreadQueue<I, T>);
-        queue.remove(thread)
     }
 }
 

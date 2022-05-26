@@ -1,4 +1,5 @@
-use crate::Session;
+use crate::{ConsoleSession, Session};
+use alloc::{boxed::Box, vec::Vec};
 use base::{
     map::{Map, Mappable, INVALID_ID},
     multi_owner::Reference,
@@ -19,12 +20,24 @@ impl<T: ProcessTypes> DaemonSession<T> {
     }
 }
 
-impl<T: ProcessTypes> Session<T> for DaemonSession<T> {
+impl<T: ProcessTypes<Owner = Box<dyn Session<T>>>> Session<T> for DaemonSession<T> {
     fn push_event(&mut self, _: crate::Event) {}
     fn peek_event(&mut self) -> Option<crate::Event> {
         None
     }
     fn get_event_thread_queue(&self) -> Option<process::CurrentQueue<T>> {
+        None
+    }
+
+    fn get_process(&self, id: isize) -> Option<&Reference<Process<T>>> {
+        self.processes.get(id)
+    }
+
+    fn processes(&self) -> Vec<isize> {
+        self.processes.ids()
+    }
+
+    fn as_console(&mut self) -> Option<&mut ConsoleSession<T>> {
         None
     }
 }

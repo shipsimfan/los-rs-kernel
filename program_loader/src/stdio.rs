@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use alloc::boxed::Box;
+use base::error::PROGRAM_LOADER_MODULE_NUMBER;
 use filesystem::DirectoryDescriptor;
 use process::Process;
 use process_types::{Descriptors, ProcessTypes};
@@ -26,6 +28,9 @@ pub struct CStandardIO {
     stdin_type: usize,
     stdin_desc: isize,
 }
+
+#[derive(Debug)]
+struct InvalidStandardIOType;
 
 const STDIO_TYPE_NONE: usize = 0;
 const STDIO_TYPE_CONSOLE: usize = 1;
@@ -108,5 +113,40 @@ impl StandardIOType {
             StandardIOType::File(descriptor) => (STDIO_TYPE_FILE, *descriptor),
             StandardIOType::Device(descriptor) => (STDIO_TYPE_DEVICE, *descriptor),
         }
+    }
+}
+
+impl CStandardIO {
+    pub fn to_stdio(&self) -> base::error::Result<StandardIO> {
+        Ok(StandardIO::new(
+            CStandardIO::parse(self.stdout_type, self.stdout_desc)?,
+            CStandardIO::parse(self.stderr_type, self.stderr_desc)?,
+            CStandardIO::parse(self.stdin_type, self.stdin_desc)?,
+        ))
+    }
+
+    fn parse(class: usize, desc: isize) -> base::error::Result<StandardIOType> {
+        match class {
+            STDIO_TYPE_NONE => Ok(StandardIOType::None),
+            STDIO_TYPE_CONSOLE => Ok(StandardIOType::Console),
+            STDIO_TYPE_FILE => Ok(StandardIOType::File(desc)),
+            _ => Err(Box::new(InvalidStandardIOType)),
+        }
+    }
+}
+
+impl base::error::Error for InvalidStandardIOType {
+    fn module_number(&self) -> i32 {
+        PROGRAM_LOADER_MODULE_NUMBER
+    }
+
+    fn error_number(&self) -> base::error::Status {
+        base::error::Status::OutOfRange
+    }
+}
+
+impl core::fmt::Display for InvalidStandardIOType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Invalid standard I/O type")
     }
 }

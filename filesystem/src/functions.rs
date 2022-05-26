@@ -241,12 +241,12 @@ fn get_root_directory<T: ProcessTypes<Descriptor: WorkingDirectory<T>> + 'static
             None => Err(Box::new(RootDirectoryError::InvalidMountPoint)),
         },
         None => match provided_root {
-            Some(root_descriptor) => Ok(root_descriptor.get_directory().clone()),
+            Some(root_descriptor) => Ok(root_descriptor.directory().clone()),
             None => process::current_thread::<T>().lock(|thread| {
                 thread
                     .process()
                     .lock(|process| match process.descriptors().working_directory() {
-                        Some(dir) => Ok(dir.get_directory().clone()),
+                        Some(dir) => Ok(dir.directory().clone()),
                         None => Err(RootDirectoryError::process_has_no_current_directory()),
                     })
             }),

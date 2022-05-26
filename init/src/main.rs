@@ -14,7 +14,6 @@ use process_types::ProcessTypes;
 use program_loader::{StandardIO, StandardIOType};
 
 mod interrupt_handlers;
-mod system_calls;
 
 const MODULE_NAME: &str = "Kernel";
 
@@ -130,12 +129,6 @@ fn kinit(_: usize) -> isize {
 
     // Create test lock
     test_lock::initialize::<ProcessTypes>(process::Mutex::new(0));
-
-    log_debug!("Attempting to read file");
-
-    let contents = filesystem::read::<ProcessTypes>(":0/test.txt").unwrap();
-
-    log_debug!("File contents: {:?}", contents);
 
     // Create first test thread
     let thread = process::create_thread::<ProcessTypes>(test::<ProcessTypes>, 1);

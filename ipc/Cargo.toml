@@ -13,4 +13,5 @@ name = "ipc"
 test = false
 
 [dependencies]
+base = {path = "../base"}
 process = {path = "../process"}

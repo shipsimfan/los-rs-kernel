@@ -1,10 +1,14 @@
 use super::{current_thread_option, thread_control};
 use crate::{
-    current_thread, exit_thread, kill_thread, queue_thread, yield_thread, Process, ProcessTypes,
-    Signals, ThreadFunction,
+    current_thread, exit_thread, kill_thread, process::SignalHandleReturn, queue_thread,
+    yield_thread, Process, ProcessTypes, Signals, ThreadFunction,
 };
 use alloc::string::String;
 use base::multi_owner::{Owner, Reference};
+
+extern "C" {
+    fn handle_userspace_signal(rsp: u64, handler: usize, signal_number: u64) -> !;
+}
 
 pub fn create_process<T: ProcessTypes + 'static>(
     entry: ThreadFunction,
@@ -62,6 +66,37 @@ pub fn wait_process<T: ProcessTypes + 'static>(process: &Reference<Process<T>>) 
         }
         None => None,
     }
+}
+
+pub fn handle_signals<T: ProcessTypes + 'static>(
+    userspace_context: (
+        <<T as ProcessTypes>::Signals as Signals>::UserspaceContext,
+        u64,
+    ),
+) {
+    unsafe { base::critical::enter_local() };
+    match current_thread_option::<T>() {
+        Some(thread) => {
+            let ret = thread.lock(|thread| {
+                thread
+                    .process()
+                    .lock(|process| process.handle_signals(userspace_context))
+            });
+            match ret {
+                SignalHandleReturn::Kill(status) => {
+                    unsafe { base::critical::leave_local_without_sti() };
+                    exit_process::<T>(status)
+                }
+                SignalHandleReturn::None => {}
+                SignalHandleReturn::Userspace(rsp, handler, signal_number) => unsafe {
+                    base::critical::leave_local_without_sti();
+                    handle_userspace_signal(rsp, handler, signal_number)
+                },
+            }
+        }
+        None => {}
+    }
+    unsafe { base::critical::leave_local() };
 }
 
 pub fn kill_process<T: ProcessTypes + 'static>(

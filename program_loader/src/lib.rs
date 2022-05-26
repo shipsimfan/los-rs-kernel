@@ -17,9 +17,7 @@ mod context;
 mod elf;
 mod stdio;
 
-pub use stdio::{StandardIO, StandardIOType};
-
-use crate::stdio::CStandardIO;
+pub use stdio::{CStandardIO, StandardIO, StandardIOType};
 
 extern crate alloc;
 
@@ -87,7 +85,7 @@ fn do_execute<S1: AsRef<str>, S2: AsRef<str>>(
             let descriptors: &process_types::Descriptors<ProcessTypes> = process.descriptors();
             match descriptors.working_directory() {
                 Some(working_directory) => Some(DirectoryDescriptor::new(
-                    working_directory.get_directory().clone(),
+                    working_directory.directory().clone(),
                 )),
                 None => None,
             }
@@ -119,12 +117,13 @@ fn do_execute<S1: AsRef<str>, S2: AsRef<str>>(
     let name = filepath.split(&['/', '\\']).last().unwrap().to_owned();
 
     // Create new thread
-    Ok(process::create_process::<ProcessTypes>(
+    Ok(process::create_process_owner::<ProcessTypes>(
         load_process,
         context.as_ref() as *const _ as usize,
         descriptors,
         name,
         inherit_signals,
+        session,
     ))
 }
 

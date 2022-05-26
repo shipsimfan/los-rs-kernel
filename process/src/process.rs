@@ -12,7 +12,21 @@ pub trait ProcessOwner<T: ProcessTypes> {
 }
 
 pub trait Signals: Clone {
+    type UserspaceContext;
+
     fn new() -> Self;
+
+    fn handle(&mut self, userspace_context: (Self::UserspaceContext, u64)) -> SignalHandleReturn;
+}
+
+pub trait Descriptors {
+    fn working_directory_string(&self) -> String;
+}
+
+pub enum SignalHandleReturn {
+    None,
+    Kill(isize),
+    Userspace(u64, usize, u64),
 }
 
 pub struct Process<T: ProcessTypes + 'static> {
@@ -24,7 +38,7 @@ pub struct Process<T: ProcessTypes + 'static> {
     exit_status: isize,
     descriptors: T::Descriptor,
     process_time: isize,
-    _name: String,
+    name: String,
     signals: T::Signals,
 }
 
@@ -44,7 +58,7 @@ impl<T: ProcessTypes> Process<T> {
             exit_status: 128, // Random exit
             descriptors,
             process_time: 0,
-            _name: name,
+            name: name,
             signals,
         });
 
@@ -86,6 +100,40 @@ impl<T: ProcessTypes> Process<T> {
 
     pub fn descriptors(&self) -> &T::Descriptor {
         &self.descriptors
+    }
+
+    pub fn time(&self) -> isize {
+        self.process_time
+    }
+
+    pub fn get_thread(&self, id: isize) -> Option<&Reference<Thread<T>>> {
+        self.threads.get(id)
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn thread_count(&self) -> usize {
+        self.threads.len()
+    }
+
+    pub fn descriptors_mut(&mut self) -> &mut T::Descriptor {
+        &mut self.descriptors
+    }
+
+    pub fn signals_mut(&mut self) -> &mut T::Signals {
+        &mut self.signals
+    }
+
+    pub fn handle_signals(
+        &mut self,
+        userspace_context: (
+            <<T as ProcessTypes>::Signals as Signals>::UserspaceContext,
+            u64,
+        ),
+    ) -> SignalHandleReturn {
+        self.signals.handle(userspace_context)
     }
 
     pub fn remove_thread(&mut self, id: isize) {

@@ -1,13 +1,13 @@
 #![no_std]
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, vec::Vec};
 use base::{
     log_info,
     map::{Map, Mappable},
     multi_owner::{Owner, Reference},
 };
 use device::Device;
-use process::{CurrentQueue, Mutex, ProcessOwner, ProcessTypes};
+use process::{CurrentQueue, Mutex, Process, ProcessOwner, ProcessTypes};
 
 extern crate alloc;
 
@@ -19,14 +19,15 @@ pub use console::*;
 pub use daemon::DaemonSession;
 pub use event::Event;
 
-pub trait Session<T: ProcessTypes>: ProcessOwner<T> + Mappable + Send {
+pub trait Session<T: ProcessTypes<Owner = Box<dyn Session<T>>>>:
+    ProcessOwner<T> + Mappable + Send
+{
     fn push_event(&mut self, event: Event);
     fn peek_event(&mut self) -> Option<Event>;
     fn get_event_thread_queue(&self) -> Option<CurrentQueue<T>>;
-
-    fn as_console(&mut self) -> Option<&mut ConsoleSession<T>> {
-        None
-    }
+    fn get_process(&self, id: isize) -> Option<&Reference<Process<T>>>;
+    fn processes(&self) -> Vec<isize>;
+    fn as_console(&mut self) -> Option<&mut ConsoleSession<T>>;
 }
 
 pub const DAEMON_SESSION_ID: usize = 0;
@@ -57,7 +58,7 @@ pub fn initialize<T: ProcessTypes + 'static>() {
     log_info!("Initialized!");
 }
 
-pub fn create_console_session<T: ProcessTypes>(
+pub fn create_console_session<T: ProcessTypes<Owner = Box<dyn Session<T>>>>(
     output_device: Reference<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
 ) -> base::error::Result<Owner<Box<dyn Session<T>>>> {
     let new_session = ConsoleSession::new(output_device)?;
@@ -65,6 +66,15 @@ pub fn create_console_session<T: ProcessTypes>(
     sessions::get().lock().insert(new_session.clone());
 
     Ok(new_session)
+}
+
+pub fn get_session<T: ProcessTypes<Owner = Box<dyn Session<T>>> + 'static>(
+    id: isize,
+) -> Option<Owner<Box<dyn Session<T>>>> {
+    sessions::get::<T>()
+        .lock()
+        .get(id)
+        .map(|session| session.clone())
 }
 
 impl<T: ProcessTypes> ProcessOwner<T> for Box<dyn Session<T>> {
