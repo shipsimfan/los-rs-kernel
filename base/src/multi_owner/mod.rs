@@ -9,4 +9,6 @@ pub trait Lock: Send + Sync {
 
     fn new(data: Self::Data) -> Self;
     fn lock<R>(&self, f: impl FnOnce(&mut Self::Data) -> R) -> R;
+
+    unsafe fn as_ptr(&self) -> *mut Self::Data;
 }

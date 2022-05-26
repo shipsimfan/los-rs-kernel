@@ -33,6 +33,10 @@ impl<T, L: Lock<Data = T>> Owner<T, L> {
     pub fn compare_ref(&self, other: &Reference<T, L>) -> bool {
         other.compare(&self.as_ref())
     }
+
+    pub unsafe fn as_ptr(&self) -> *mut T {
+        self.0.as_ptr()
+    }
 }
 
 impl<T: Mappable, L: Lock<Data = T>> Mappable for Owner<T, L> {

@@ -1,6 +1,9 @@
 use crate::constants::*;
 use alloc::{boxed::Box, format, string::String};
-use base::{error::IDE_DRIVER_MODULE_NUMBER, multi_owner::Reference};
+use base::{
+    error::IDE_DRIVER_MODULE_NUMBER,
+    multi_owner::{Owner, Reference},
+};
 use core::u8;
 use device::Device;
 use process::{Mutex, ProcessTypes};
@@ -38,13 +41,13 @@ impl<T: ProcessTypes + 'static> ATA<T> {
 
         device::register_device::<T>(
             &path,
-            Box::new(ATA {
+            Owner::new(Box::new(ATA {
                 controller: controller,
                 channel: channel,
                 drive: drive,
                 capabilities: capabilities,
                 size: size,
-            }),
+            }) as Box<dyn Device>),
         )
     }
 }

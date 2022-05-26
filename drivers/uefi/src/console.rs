@@ -1,7 +1,8 @@
 use crate::{font::FONT, framebuffer::Framebuffer};
 use alloc::boxed::Box;
-use base::error::UEFI_DRIVER_MODULE_NUMBER;
+use base::{error::UEFI_DRIVER_MODULE_NUMBER, multi_owner::Owner};
 use device::Device;
+use process::{Mutex, ProcessTypes};
 use sessions::Color;
 
 #[allow(dead_code)]
@@ -34,11 +35,13 @@ enum UEFIError {
 }
 
 impl UEFIConsole {
-    pub fn new(gmode: &base::bootloader::GraphicsMode) -> Box<dyn Device> {
+    pub fn new<T: ProcessTypes>(
+        gmode: &base::bootloader::GraphicsMode,
+    ) -> Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>> {
         let mut framebuffer = Framebuffer::new(gmode);
         framebuffer.clear(0);
 
-        Box::new(UEFIConsole {
+        Owner::new(Box::new(UEFIConsole {
             width: framebuffer.width() / 8,
             height: framebuffer.height() / 16,
             framebuffer: framebuffer,
@@ -50,7 +53,7 @@ impl UEFIConsole {
             strikethrough: false,
             underline: false,
             cursor_state: false,
-        })
+        }) as Box<dyn Device>)
     }
 
     fn set_cursor_state(&mut self, state: bool) {

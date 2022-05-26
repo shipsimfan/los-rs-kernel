@@ -1,0 +1,22 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "ps2"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "ps2"
+test = false
+
+[dependencies]
+acpi = {path = "../../acpi"}
+base = {path = "../../base"}
+device = {path = "../../device"}
+interrupts = {path = "../../interrupts"}
+process = {path = "../../process"}
+sessions = {path = "../../sessions"}
+time = {path = "../../time"}

@@ -1,7 +1,10 @@
 #![no_std]
 
 use alloc::{boxed::Box, string::String};
-use base::{log_info, multi_owner::Reference};
+use base::{
+    log_info,
+    multi_owner::{Owner, Reference},
+};
 use process::{Mutex, ProcessTypes};
 use tree::Tree;
 
@@ -37,7 +40,7 @@ pub fn initialize<T: ProcessTypes + 'static>() {
 
 pub fn register_device<T: ProcessTypes + 'static>(
     path: &str,
-    device: Box<dyn Device>,
+    device: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
 ) -> base::error::Result<()> {
     log_info!("Registering device \"{}\" . . .", path);
 

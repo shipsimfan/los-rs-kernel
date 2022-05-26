@@ -120,6 +120,11 @@ impl<T, PT: ProcessTypes + 'static> Lock for Mutex<T, PT> {
         let mut guard = Self::lock(&self);
         f(&mut *guard)
     }
+
+    #[inline(always)]
+    unsafe fn as_ptr(&self) -> *mut Self::Data {
+        self.data.get()
+    }
 }
 
 unsafe impl<T, PT: ProcessTypes> Sync for Mutex<T, PT> {}

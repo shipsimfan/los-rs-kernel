@@ -22,7 +22,7 @@ pub struct SortedThreadQueue<
 >(CriticalLock<SortedQueue<K, QueuedThread<T>>>);
 
 unsafe fn add<T: ProcessTypes>(queue: *mut core::ffi::c_void, thread: Owner<Thread<T>>, _: usize) {
-    let queue = &mut *(queue as *mut ThreadQueue<T>);
+    let queue = &*(queue as *const ThreadQueue<T>);
     queue.push(thread)
 }
 
@@ -31,7 +31,7 @@ unsafe fn remove<T: ProcessTypes>(
     thread: &Reference<Thread<T>>,
     _: usize,
 ) -> Option<Owner<Thread<T>>> {
-    let queue = &mut *(queue as *mut ThreadQueue<T>);
+    let queue = &*(queue as *const ThreadQueue<T>);
     queue.remove(thread)
 }
 
@@ -43,7 +43,7 @@ unsafe fn add_sorted<K: PartialOrd + Copy + Send + Sync + Clone + 'static, T: Pr
     context: usize,
 ) {
     let key = ManuallyDrop::new(Box::from_raw(context as *mut K));
-    let queue = &mut *(queue as *mut SortedThreadQueue<K, T>);
+    let queue = &*(queue as *const SortedThreadQueue<K, T>);
     queue.insert(thread, key.as_ref().clone())
 }
 
@@ -52,7 +52,7 @@ unsafe fn remove_sorted<K: PartialOrd + Copy + Send + Sync + 'static, T: Process
     thread: &Reference<Thread<T>>,
     _: usize,
 ) -> Option<Owner<Thread<T>>> {
-    let queue = &mut *(queue as *mut SortedThreadQueue<K, T>);
+    let queue = &*(queue as *const SortedThreadQueue<K, T>);
     queue.remove(thread)
 }
 

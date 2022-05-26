@@ -2,7 +2,10 @@ use crate::Device;
 
 use self::node::Children;
 use alloc::{borrow::ToOwned, boxed::Box, collections::VecDeque, string::String};
-use base::{error::DEVICE_MODULE_NUMBER, multi_owner::Reference};
+use base::{
+    error::DEVICE_MODULE_NUMBER,
+    multi_owner::{Owner, Reference},
+};
 use process::{Mutex, ProcessTypes};
 
 mod node;
@@ -69,7 +72,7 @@ impl<T: ProcessTypes> Tree<T> {
     pub fn register_device(
         &mut self,
         path: &str,
-        device: Box<dyn Device>,
+        device: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
     ) -> base::error::Result<()> {
         let mut path = parse_path(path)?;
         let name = match path.pop_back() {

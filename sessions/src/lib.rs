@@ -17,7 +17,7 @@ mod event;
 
 pub use console::*;
 pub use daemon::DaemonSession;
-pub use event::Event;
+pub use event::{Event, KeyState, Keycode};
 
 pub trait Session<T: ProcessTypes<Owner = Box<dyn Session<T>>>>:
     ProcessOwner<T> + Mappable + Send

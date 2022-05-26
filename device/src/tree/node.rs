@@ -14,10 +14,10 @@ pub struct Children<T: ProcessTypes + 'static> {
 }
 
 impl<T: ProcessTypes> Node<T> {
-    pub fn new(name: String, device: Box<dyn Device>) -> Self {
+    pub fn new(name: String, device: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>) -> Self {
         Node {
             name,
-            device: Owner::new(device),
+            device,
             children: Children::new(),
         }
     }
@@ -38,7 +38,11 @@ impl<T: ProcessTypes> Node<T> {
         self.children.child_mut(path)
     }
 
-    pub fn insert(&mut self, name: String, device: Box<dyn Device>) -> bool {
+    pub fn insert(
+        &mut self,
+        name: String,
+        device: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
+    ) -> bool {
         self.children.insert(name, device)
     }
 
@@ -111,7 +115,11 @@ impl<T: ProcessTypes> Children<T> {
         }
     }
 
-    pub fn insert(&mut self, name: String, device: Box<dyn Device>) -> bool {
+    pub fn insert(
+        &mut self,
+        name: String,
+        device: Owner<Box<dyn Device>, Mutex<Box<dyn Device>, T>>,
+    ) -> bool {
         for child in &self.children {
             if child.name == name {
                 return false;

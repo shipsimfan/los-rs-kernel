@@ -1,7 +1,7 @@
 #![no_std]
 
 use alloc::boxed::Box;
-use base::{error::HPET_DRIVER_MODULE_NUMBER, log_error, log_info};
+use base::{error::HPET_DRIVER_MODULE_NUMBER, log_error, log_info, multi_owner::Owner};
 use device::Device;
 use memory::KERNEL_VMA;
 use process::ProcessTypes;
@@ -71,7 +71,8 @@ pub fn initialize<T: ProcessTypes + 'static>() {
     }
 
     // Create and register the timer device
-    if device::register_device::<T>("/hpet", Box::new(HPET)).is_err() {
+    if device::register_device::<T>("/hpet", Owner::new(Box::new(HPET) as Box<dyn Device>)).is_err()
+    {
         return log_error!("Failed to register device!");
     }
 

@@ -1,7 +1,7 @@
 #![no_std]
 
 use alloc::boxed::Box;
-use base::{log_error, log_info};
+use base::{log_error, log_info, multi_owner::Owner};
 use constants::{IDE_PATH, PCI_IDE_PATH};
 use device::Device;
 use process::ProcessTypes;
@@ -59,9 +59,9 @@ pub fn initialize<T: ProcessTypes + 'static>() {
     // Create and register the IDE Controller
     match device::register_device::<T>(
         IDE_PATH,
-        Box::new(controller::IDEController::<T>::new(
+        Owner::new(Box::new(controller::IDEController::<T>::new(
             bar0, bar1, bar2, bar3, bar4,
-        )),
+        )) as Box<dyn Device>),
     ) {
         Ok(()) => {}
         Err(status) => return log_error!("\nError while registering IDE controller: {}", status),

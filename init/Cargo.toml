@@ -24,6 +24,7 @@ cmos = {path = "../drivers/cmos"}
 hpet = {path = "../drivers/hpet"}
 ide = {path = "../drivers/ide"}
 pci = {path = "../drivers/pci"}
+ps2 = {path = "../drivers/ps2"}
 uefi = {path = "../drivers/uefi"}
 
 fat32 = {path = "../drivers/fat32"}

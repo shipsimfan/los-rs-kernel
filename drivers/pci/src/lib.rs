@@ -1,8 +1,9 @@
 #![no_std]
 
 use alloc::boxed::Box;
-use base::{error::PCI_DRIVER_MODULE_NUMBER, log_error, log_info};
+use base::{error::PCI_DRIVER_MODULE_NUMBER, log_error, log_info, multi_owner::Owner};
 use core::convert::{TryFrom, TryInto};
+use device::Device;
 use process::ProcessTypes;
 
 extern crate alloc;
@@ -145,7 +146,10 @@ fn check_pci_function<T: ProcessTypes + 'static>(bus: u8, device: u8, function: 
     let sub_class = read_config_b(bus, device, function, Register::SubClass);
 
     let path = alloc::format!("/pci/{:X}_{:X}", class, sub_class);
-    match device::register_device::<T>(&path, Box::new(new_device.clone())) {
+    match device::register_device::<T>(
+        &path,
+        Owner::new(Box::new(new_device.clone()) as Box<dyn Device>),
+    ) {
         Ok(()) => {}
         Err(error) => match error.error_number() {
             base::error::Status::Exists => {
@@ -153,7 +157,10 @@ fn check_pci_function<T: ProcessTypes + 'static>(bus: u8, device: u8, function: 
                 loop {
                     let path = alloc::format!("{}_{}", path, i);
 
-                    match device::register_device::<T>(&path, Box::new(new_device.clone())) {
+                    match device::register_device::<T>(
+                        &path,
+                        Owner::new(Box::new(new_device.clone()) as Box<dyn Device>),
+                    ) {
                         Ok(()) => break,
                         Err(error) => match error.error_number() {
                             base::error::Status::Exists => {}
@@ -228,7 +235,7 @@ pub fn initialize<T: ProcessTypes + 'static>() {
         PCI_INITIALIZED = true;
     }
 
-    match device::register_device::<T>("/pci", Box::new(PCIBus)) {
+    match device::register_device::<T>("/pci", Owner::new(Box::new(PCIBus) as Box<dyn Device>)) {
         Ok(()) => {}
         Err(error) => {
             log_error!("Error while registering PCI bus: {}", error);

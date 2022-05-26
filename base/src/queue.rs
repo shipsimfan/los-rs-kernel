@@ -93,6 +93,10 @@ impl<T: PartialEq> Queue<T> {
                             .as_ref()
                             .map(|node| node.borrow_mut().prev = Some(prev.clone()));
 
+                        if current_node.next.is_none() {
+                            self.tail = Some(prev.clone());
+                        }
+
                         prev.borrow_mut().next = current_node.next.take();
 
                         current_node.data.take().unwrap()
@@ -102,6 +106,10 @@ impl<T: PartialEq> Queue<T> {
                             .next
                             .as_ref()
                             .map(|node| node.borrow_mut().prev = None);
+
+                        if current_node.next.is_none() {
+                            self.tail = None;
+                        }
 
                         self.head = current_node.next.take();
                         current_node.data.take().unwrap()
@@ -224,54 +232,48 @@ impl<K: PartialOrd, T> SortedQueue<K, T> {
 
 impl<K: PartialOrd, T: PartialEq> SortedQueue<K, T> {
     pub fn remove(&mut self, value: T) -> Option<T> {
-        // Locate the value
-        let mut current_node_opt = self.head.clone();
+        let mut current_node_opt = match self.head.clone() {
+            Some(head) => head,
+            None => return None,
+        };
 
         loop {
-            let current_node = match &current_node_opt {
-                Some(current_node) => current_node,
-                None => return None,
-            };
-
-            let current_node = current_node.borrow();
+            let mut current_node = current_node_opt.borrow_mut();
 
             if current_node.data.as_ref().unwrap() == &value {
-                break;
+                let data = match current_node.prev.take() {
+                    Some(prev) => {
+                        current_node
+                            .next
+                            .as_ref()
+                            .map(|node| node.borrow_mut().prev = Some(prev.clone()));
+
+                        prev.borrow_mut().next = current_node.next.take();
+
+                        current_node.data.take().unwrap()
+                    }
+                    None => {
+                        current_node
+                            .next
+                            .as_ref()
+                            .map(|node| node.borrow_mut().prev = None);
+
+                        self.head = current_node.next.take();
+                        current_node.data.take().unwrap()
+                    }
+                };
+
+                self.length -= 1;
+                return Some(data);
             }
 
-            let next_node = current_node.next.clone();
-
-            drop(current_node);
-
-            current_node_opt = next_node;
+            current_node_opt = match current_node.next.clone() {
+                Some(next) => {
+                    drop(current_node);
+                    next
+                }
+                None => return None,
+            }
         }
-
-        if current_node_opt.is_none() {
-            return None;
-        }
-
-        let current_node_ref = current_node_opt.unwrap();
-
-        // Remove it
-        let mut current_node = current_node_ref.borrow_mut();
-        let previous_node = current_node.prev.take();
-        let next_node = current_node.next.take();
-
-        match &previous_node {
-            Some(previous_node) => previous_node.borrow_mut().next = next_node.clone(),
-            None => self.head = next_node.clone(),
-        }
-
-        match &next_node {
-            Some(next_node) => next_node.borrow_mut().prev = previous_node,
-            None => {}
-        }
-
-        let ret = current_node.data.take().unwrap();
-        drop(current_node);
-
-        self.length -= 1;
-
-        Some(ret)
     }
 }

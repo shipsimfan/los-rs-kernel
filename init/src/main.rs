@@ -154,6 +154,9 @@ fn kinit(_: usize) -> isize {
     .unwrap();
     log_info!("Initial session started!");
 
+    // Initialize PS/2
+    ps2::initialize::<ProcessTypes>();
+
     // Test loop 1
     for i in 0..5 {
         log_debug!("{}", 5 - i);

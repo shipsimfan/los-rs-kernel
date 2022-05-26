@@ -10,6 +10,7 @@ members = [
   "drivers/hpet",
   "drivers/ide",
   "drivers/pci",
+  "drivers/ps2",
   "drivers/uefi",
   "filesystem",
   "init",

@@ -68,6 +68,11 @@ impl<T: Sized> Lock for CriticalLock<T> {
         let mut guard = Self::lock(&self);
         f(&mut *guard)
     }
+
+    #[inline(always)]
+    unsafe fn as_ptr(&self) -> *mut Self::Data {
+        self.data.get()
+    }
 }
 
 unsafe impl<T: Sized> Sync for CriticalLock<T> {}
