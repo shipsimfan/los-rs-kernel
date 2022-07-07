@@ -317,6 +317,47 @@ impl<T: ProcessTypes + 'static> Directory<T> {
         self.parent = new_parent;
     }
 
+    pub unsafe fn close_file(&mut self, reference: &Reference<File<T>, Mutex<File<T>, T>>) {
+        for (_, _, child) in &mut self.children {
+            match child {
+                None => continue,
+                Some(child) => match child {
+                    Child::File(file) => {
+                        if !file.compare(reference) {
+                            continue;
+                        }
+                    }
+                    _ => continue,
+                },
+            }
+
+            *child = None;
+            return;
+        }
+    }
+
+    pub unsafe fn close_directory(
+        &mut self,
+        reference: &Reference<Directory<T>, Mutex<Directory<T>, T>>,
+    ) {
+        for (_, _, child) in &mut self.children {
+            match child {
+                None => continue,
+                Some(child) => match child {
+                    Child::Directory(directory) => {
+                        if !directory.compare(reference) {
+                            continue;
+                        }
+                    }
+                    _ => continue,
+                },
+            }
+
+            *child = None;
+            return;
+        }
+    }
+
     fn get_name(&self, reference: &Reference<Directory<T>, Mutex<Directory<T>, T>>) -> &str {
         for (name, _, child) in &self.children {
             match child {
@@ -340,6 +381,17 @@ impl<T: ProcessTypes + 'static> Directory<T> {
         self_reference: Reference<Directory<T>, Mutex<Directory<T>, T>>,
     ) {
         self.self_reference = Some(self_reference);
+    }
+}
+
+impl<T: ProcessTypes + 'static> Drop for Directory<T> {
+    fn drop(&mut self) {
+        match &self.parent {
+            Parent::Directory(parent) => {
+                parent.lock(|parent| unsafe { parent.close_directory(self.self_reference.as_ref().unwrap())})
+            }
+            _ => {}
+        }
     }
 }
 

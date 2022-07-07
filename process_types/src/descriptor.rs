@@ -7,6 +7,10 @@ impl<T> Descriptor<T> {
     pub fn new(inner: T) -> Self {
         Descriptor(INVALID_ID, inner)
     }
+
+    pub fn into_inner(self) -> T {
+        self.1
+    }
 }
 
 impl<T> Mappable for Descriptor<T> {

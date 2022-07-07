@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(map_first_last)]
 #![feature(generic_associated_types)]
 
 pub mod bootloader;

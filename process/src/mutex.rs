@@ -27,7 +27,7 @@ unsafe fn unlock_mutex<T, PT: ProcessTypes + 'static>(mutex: *const c_void) {
 
 impl<T, PT: ProcessTypes + 'static> Mutex<T, PT> {
     #[inline(always)]
-    pub const fn new(data: T) -> Self {
+    pub fn new(data: T) -> Self {
         Mutex {
             lock: AtomicBool::new(false),
             queue: ThreadQueue::new(),

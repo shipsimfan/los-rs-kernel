@@ -44,7 +44,7 @@ fn parse_path(path: &str) -> base::error::Result<VecDeque<&str>> {
 }
 
 impl<T: ProcessTypes> Tree<T> {
-    pub const fn new() -> Mutex<Self, T> {
+    pub fn new() -> Mutex<Self, T> {
         Mutex::new(Tree {
             root_devices: Children::new(),
         })

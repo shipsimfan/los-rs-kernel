@@ -5,7 +5,7 @@ pub struct ConditionalVariable<T: ProcessTypes + 'static> {
 }
 
 impl<T: ProcessTypes> ConditionalVariable<T> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         ConditionalVariable {
             queue: ThreadQueue::new(),
         }

@@ -40,6 +40,7 @@ pub struct Process<T: ProcessTypes + 'static> {
     process_time: isize,
     name: String,
     signals: T::Signals,
+    pre_exited: bool,
 }
 
 impl<T: ProcessTypes> Process<T> {
@@ -60,6 +61,7 @@ impl<T: ProcessTypes> Process<T> {
             process_time: 0,
             name: name,
             signals,
+            pre_exited: false,
         });
 
         owner.lock(|owner| owner.insert_process(process.as_ref()));
@@ -147,6 +149,25 @@ impl<T: ProcessTypes> Process<T> {
     pub fn increase_time(&mut self, amount: isize) {
         self.process_time += amount;
     }
+
+    pub unsafe fn pre_exit(&mut self) {
+        if self.pre_exited {
+            return;
+        }
+
+        if self.threads.len() > 1 {
+            return;
+        }
+
+        self.pre_exited = true;
+
+        self.owner.lock(|owner| owner.remove_process(self.id));
+
+        while let Some(thread) = self.exit_queue.pop() {
+            thread.lock(|thread| thread.set_queue_data(self.exit_status));
+            queue_thread(thread);
+        }
+    }
 }
 
 impl<T: ProcessTypes> Mappable for Process<T> {
@@ -161,13 +182,9 @@ impl<T: ProcessTypes> Mappable for Process<T> {
 
 impl<T: ProcessTypes> Drop for Process<T> {
     fn drop(&mut self) {
-        unsafe { self.address_space.free() };
-
-        self.owner.lock(|owner| owner.remove_process(self.id));
-
-        while let Some(thread) = self.exit_queue.pop() {
-            thread.lock(|thread| thread.set_queue_data(self.exit_status));
-            queue_thread(thread);
+        unsafe {
+            self.pre_exit();
+            self.address_space.free();
         }
     }
 }

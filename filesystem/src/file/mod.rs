@@ -74,3 +74,10 @@ impl<T: ProcessTypes + 'static> File<T> {
         self.self_reference = Some(self_reference)
     }
 }
+
+impl<T: ProcessTypes + 'static> Drop for File<T> {
+    fn drop(&mut self) {
+        self.parent
+            .lock(|parent| unsafe { parent.close_file(self.self_reference.as_ref().unwrap()) });
+    }
+}

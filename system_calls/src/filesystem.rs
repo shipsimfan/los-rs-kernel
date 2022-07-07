@@ -42,11 +42,12 @@ pub fn system_call(
             }))
         }
         CLOSE_FILE_SYSCALL => {
-            process::current_thread::<ProcessTypes>().lock(|thread| {
+            let file = process::current_thread::<ProcessTypes>().lock(|thread| {
                 thread
                     .process()
                     .lock(|process| process.descriptors_mut().remove_file(arg1 as isize))
             });
+            drop(file);
             Ok(0)
         }
         SEEK_FILE_SYSCALL => {
@@ -90,11 +91,12 @@ pub fn system_call(
             }))
         }
         CLOSE_DIRECTORY_SYSCALL => {
-            process::current_thread::<ProcessTypes>().lock(|thread| {
+            let directory = process::current_thread::<ProcessTypes>().lock(|thread| {
                 thread
                     .process()
                     .lock(|process| process.descriptors_mut().remove_directory(arg1 as isize))
             });
+            drop(directory);
             Ok(0)
         }
         READ_DIRECTORY_SYSCALL => {

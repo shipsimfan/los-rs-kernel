@@ -39,6 +39,7 @@ pub struct Thread<T: ProcessTypes + 'static> {
     self_reference: Option<Reference<Thread<T>>>,
     held_locks: Vec<(*const c_void, unsafe fn(*const c_void))>,
     tls_base: usize,
+    pre_exited: bool,
 }
 
 extern "C" {
@@ -68,6 +69,7 @@ impl<T: ProcessTypes + 'static> Thread<T> {
             self_reference: None,
             held_locks: Vec::new(),
             tls_base: 0,
+            pre_exited: false,
         });
 
         let reference = ret.as_ref();
@@ -162,6 +164,24 @@ impl<T: ProcessTypes + 'static> Thread<T> {
         self.queue = Some(queue);
     }
 
+    pub unsafe fn pre_exit(&mut self) {
+        if self.pre_exited {
+            return;
+        }
+
+        self.pre_exited = true;
+
+        self.process.lock(|process| {
+            process.remove_thread(self.id);
+            process.pre_exit();
+        });
+
+        while let Some(thread) = self.exit_queue.pop() {
+            thread.lock(|t| t.set_queue_data(self.exit_status));
+            queue_thread(thread);
+        }
+    }
+
     pub unsafe fn clear_queue(&mut self, removed: bool) -> Option<Owner<Thread<T>>> {
         let ret = if !removed {
             match &mut self.queue {
@@ -209,14 +229,9 @@ impl<T: ProcessTypes> Mappable for Thread<T> {
 
 impl<T: ProcessTypes + 'static> Drop for Thread<T> {
     fn drop(&mut self) {
-        self.process.lock(|process| process.remove_thread(self.id));
-
-        while let Some(thread) = self.exit_queue.pop() {
-            thread.lock(|t| t.set_queue_data(self.exit_status));
-            queue_thread(thread);
-        }
-
         unsafe {
+            self.pre_exit();
+
             self.clear_queue(false);
 
             for (lock, unlock_fn) in &self.held_locks {

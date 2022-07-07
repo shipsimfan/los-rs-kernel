@@ -7,7 +7,7 @@ pub trait Mappable {
 }
 
 pub struct Map<T: Mappable> {
-    data: Box<[Vec<T>]>,
+    data: Box<[Vec<(isize, T)>]>,
     length: usize,
     next_id: isize,
 }
@@ -15,13 +15,13 @@ pub struct Map<T: Mappable> {
 pub struct Iter<'a, T: Mappable> {
     map: &'a Map<T>,
     index: usize,
-    iter: core::slice::Iter<'a, T>,
+    iter: core::slice::Iter<'a, (isize, T)>,
 }
 
 pub struct IterMut<'a, T: Mappable> {
     map: NonNull<Map<T>>,
     index: usize,
-    iter: core::slice::IterMut<'a, T>,
+    iter: core::slice::IterMut<'a, (isize, T)>,
 }
 
 const MAP_SIZE: usize = 256;
@@ -63,7 +63,7 @@ impl<T: Mappable> Map<T> {
 
         value.set_id(id);
 
-        self.data[(id as usize) & 0xFF].push(value);
+        self.data[(id as usize) & 0xFF].push((id, value));
         self.length += 1;
 
         id
@@ -75,9 +75,9 @@ impl<T: Mappable> Map<T> {
 
         // Remove previous instance
         for i in 0..vec.len() {
-            if vec[i].id() == id {
+            if vec[i].0 == id {
                 self.length -= 1;
-                return Some(vec.remove(i));
+                return Some(vec.remove(i).1);
             }
         }
 
@@ -90,8 +90,8 @@ impl<T: Mappable> Map<T> {
 
         // Locate the item
         for v in vec {
-            if v.id() == id {
-                return Some(v);
+            if v.0 == id {
+                return Some(&mut v.1);
             }
         }
 
@@ -104,8 +104,8 @@ impl<T: Mappable> Map<T> {
 
         // Locate the item
         for v in vec {
-            if v.id() == id {
-                return Some(v);
+            if v.0 == id {
+                return Some(&v.1);
             }
         }
 
@@ -116,7 +116,7 @@ impl<T: Mappable> Map<T> {
         let mut ids = Vec::new();
         for vec in self.data.iter() {
             for value in vec {
-                ids.push(value.id())
+                ids.push(value.0)
             }
         }
         ids
@@ -150,7 +150,7 @@ impl<'a, T: Mappable> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                Some(value) => return Some(&value),
+                Some(value) => return Some(&value.1),
                 None => {}
             }
 
@@ -170,7 +170,7 @@ impl<'a, T: Mappable> Iterator for IterMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                Some(value) => return Some(value),
+                Some(value) => return Some(&mut value.1),
                 None => {}
             }
 

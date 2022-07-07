@@ -7,7 +7,7 @@ pub struct Mutex<T: ProcessTypes + 'static> {
 }
 
 impl<T: ProcessTypes> Mutex<T> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Mutex {
             lock: AtomicBool::new(false),
             queue: ThreadQueue::new(),

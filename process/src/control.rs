@@ -3,7 +3,7 @@ use base::{critical::CriticalLock, multi_owner::Owner};
 
 pub struct ThreadControl<T: ProcessTypes + 'static> {
     running_queue: ThreadQueue<T>,
-    staged_thread: Option<(Owner<Thread<T>>, Option<CurrentQueue<T>>)>, // TODO: Move this into a per-core structure
+    staged_thread: Option<(Owner<Thread<T>>, Option<CurrentQueue<T>>, bool)>, // TODO: Move this into a per-core structure
     current_thread: Option<Owner<Thread<T>>>,
     daemon_owner: Owner<T::Owner>,
 }
@@ -42,16 +42,23 @@ impl<T: ProcessTypes> ThreadControl<T> {
         self.running_queue.current_queue()
     }
 
-    pub fn set_staged_thread(&mut self, thread: Owner<Thread<T>>, queue: Option<CurrentQueue<T>>) {
-        self.staged_thread = Some((thread, queue));
+    pub fn set_staged_thread(
+        &mut self,
+        thread: Owner<Thread<T>>,
+        queue: Option<CurrentQueue<T>>,
+        kill: bool,
+    ) {
+        self.staged_thread = Some((thread, queue, kill));
     }
 
-    pub fn switch_staged_thread(&mut self) -> (Option<Owner<Thread<T>>>, Option<CurrentQueue<T>>) {
-        let (next_thread, queue) = self.staged_thread.take().unwrap();
+    pub fn switch_staged_thread(
+        &mut self,
+    ) -> (Option<Owner<Thread<T>>>, Option<CurrentQueue<T>>, bool) {
+        let (next_thread, queue, kill) = self.staged_thread.take().unwrap();
 
         let old_thread = self.current_thread.take();
         self.current_thread = Some(next_thread);
 
-        (old_thread, queue)
+        (old_thread, queue, kill)
     }
 }

@@ -1,7 +1,8 @@
 use super::{current_thread, thread_control};
-use crate::{CurrentQueue, Process, ProcessTypes, Thread, ThreadFunction};
+use crate::{current_thread_option, CurrentQueue, Process, ProcessTypes, Thread, ThreadFunction};
 use base::{
     critical::LOCAL_CRITICAL_COUNT,
+    log_debug,
     multi_owner::{Owner, Reference},
 };
 use core::{ffi::c_void, ptr::null};
@@ -70,6 +71,14 @@ pub fn preempt<T: ProcessTypes + 'static>() {
 pub fn yield_thread<T: ProcessTypes + 'static>(queue: Option<CurrentQueue<T>>) {
     unsafe {
         assert!(LOCAL_CRITICAL_COUNT == 0);
+        let kill = queue.is_none();
+
+        if kill {
+            match current_thread_option::<T>() {
+                Some(thread) => thread.lock(|thread| thread.pre_exit()),
+                None => {}
+            }
+        }
 
         base::critical::enter_local();
 
@@ -122,7 +131,7 @@ pub fn yield_thread<T: ProcessTypes + 'static>(queue: Option<CurrentQueue<T>>) {
         });
 
         // Stage next thread
-        tc.set_staged_thread(next_thread, queue);
+        tc.set_staged_thread(next_thread, queue, kill);
         drop(tc);
 
         // Switch stacks
@@ -138,13 +147,19 @@ pub unsafe extern "C" fn post_yield<T: ProcessTypes + 'static>(
     context: usize,
 ) {
     // Switch threads in the control
-    let (old_thread, queue) = thread_control::get::<T>().lock().switch_staged_thread();
+    let (old_thread, queue, kill) = thread_control::get::<T>().lock().switch_staged_thread();
 
     // Insert the old thread or drop
     match old_thread {
         Some(old_thread) => match queue {
             Some(queue) => queue.add(old_thread),
-            None => drop(old_thread),
+            None => {
+                let r = old_thread.as_ref();
+                drop(old_thread);
+                if kill {
+                    assert!(!r.alive());
+                }
+            }
         },
         None => {}
     }
@@ -170,6 +185,10 @@ fn thread_enter_kernel<T: ProcessTypes + 'static>(entry: *const c_void, context:
 }
 
 pub fn kill_thread<T: ProcessTypes + 'static>(thread: &Reference<Thread<T>>, exit_status: isize) {
+    if !thread.alive() {
+        return;
+    }
+
     unsafe {
         base::critical::enter_local();
 
@@ -178,12 +197,18 @@ pub fn kill_thread<T: ProcessTypes + 'static>(thread: &Reference<Thread<T>>, exi
             exit_thread::<T>(exit_status);
         }
 
-        thread.lock(|thread| {
-            thread.set_exit_status(exit_status);
-            thread.clear_queue(false).unwrap();
-        });
+        let t = thread
+            .lock(|thread| {
+                thread.set_exit_status(exit_status);
+                thread.clear_queue(false).unwrap()
+            })
+            .unwrap();
+
+        drop(t);
 
         base::critical::leave_local();
+
+        log_debug!("Test: {}", thread.alive())
     }
 }
 

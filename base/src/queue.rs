@@ -1,279 +1,100 @@
-use alloc::rc::Rc;
-use core::cell::RefCell;
-
-struct Node<T> {
-    next: Option<Rc<RefCell<Node<T>>>>,
-    prev: Option<Rc<RefCell<Node<T>>>>,
-    data: Option<T>,
-}
-
-struct SortedNode<K: PartialOrd, T> {
-    next: Option<Rc<RefCell<SortedNode<K, T>>>>,
-    prev: Option<Rc<RefCell<SortedNode<K, T>>>>,
-    data: Option<T>,
-    key: K,
-}
+use alloc::collections::{BTreeMap, VecDeque};
 
 pub struct Queue<T> {
-    head: Option<Rc<RefCell<Node<T>>>>,
-    tail: Option<Rc<RefCell<Node<T>>>>,
-    length: usize,
+    inner: VecDeque<T>,
 }
 
-pub struct SortedQueue<K: PartialOrd, T> {
-    head: Option<Rc<RefCell<SortedNode<K, T>>>>,
-    length: usize,
+pub struct SortedQueue<K: Ord, T> {
+    inner: BTreeMap<K, T>,
 }
 
 impl<T> Queue<T> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Queue {
-            head: None,
-            tail: None,
-            length: 0,
+            inner: VecDeque::new(),
         }
     }
 
     pub fn push(&mut self, data: T) {
-        let new_node = Rc::new(RefCell::new(Node {
-            next: None,
-            prev: self.tail.clone(),
-            data: Some(data),
-        }));
-
-        match &self.tail {
-            Some(tail) => tail.borrow_mut().next = Some(new_node.clone()),
-            None => self.head = Some(new_node.clone()),
-        }
-
-        self.tail = Some(new_node);
-        self.length += 1;
+        self.inner.push_back(data);
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        match self.head.take() {
-            Some(head) => {
-                let mut head = head.borrow_mut();
-
-                match head.next.take() {
-                    Some(new_head) => {
-                        new_head.borrow_mut().prev = None;
-                        self.head = Some(new_head);
-                    }
-                    None => self.tail = None,
-                }
-
-                self.length -= 1;
-                Some(head.data.take().unwrap())
-            }
-            None => None,
-        }
+        self.inner.pop_front()
     }
 
     pub fn len(&self) -> usize {
-        self.length
+        self.inner.len()
     }
 }
 
 impl<T: PartialEq> Queue<T> {
     pub fn remove(&mut self, value: T) -> Option<T> {
-        let mut current_node_opt = match self.head.clone() {
-            Some(head) => head,
+        let mut index = None;
+        for i in 0..self.inner.len() {
+            if self.inner[i] == value {
+                index = Some(i);
+                break;
+            }
+        }
+
+        let index = match index {
+            Some(index) => index,
             None => return None,
         };
 
-        loop {
-            let mut current_node = current_node_opt.borrow_mut();
-
-            if current_node.data.as_ref().unwrap() == &value {
-                let data = match current_node.prev.take() {
-                    Some(prev) => {
-                        current_node
-                            .next
-                            .as_ref()
-                            .map(|node| node.borrow_mut().prev = Some(prev.clone()));
-
-                        if current_node.next.is_none() {
-                            self.tail = Some(prev.clone());
-                        }
-
-                        prev.borrow_mut().next = current_node.next.take();
-
-                        current_node.data.take().unwrap()
-                    }
-                    None => {
-                        current_node
-                            .next
-                            .as_ref()
-                            .map(|node| node.borrow_mut().prev = None);
-
-                        if current_node.next.is_none() {
-                            self.tail = None;
-                        }
-
-                        self.head = current_node.next.take();
-                        current_node.data.take().unwrap()
-                    }
-                };
-
-                self.length -= 1;
-                return Some(data);
-            }
-
-            current_node_opt = match current_node.next.clone() {
-                Some(next) => {
-                    drop(current_node);
-                    next
-                }
-                None => return None,
-            }
-        }
+        self.inner.remove(index)
     }
 }
 
-impl<K: PartialOrd, T> SortedQueue<K, T> {
-    pub const fn new() -> Self {
+impl<K: Ord, T> SortedQueue<K, T> {
+    pub fn new() -> Self {
         SortedQueue {
-            head: None,
-            length: 0,
+            inner: BTreeMap::new(),
         }
     }
 
-    pub fn insert(&mut self, data: T, key: K) {
-        self.length += 1;
-
-        // Create new node
-        let mut new_node = SortedNode {
-            next: None,
-            prev: None,
-            key,
-            data: Some(data),
-        };
-
-        // Check to see if we have a head
-        let mut current_node_opt = match self.head.clone() {
-            Some(head) => Some(head),
-            None => return self.head = Some(Rc::new(RefCell::new(new_node))),
-        };
-
-        // Find where to insert the node
-        let mut previous_node = None;
-        loop {
-            let current_node = match &current_node_opt {
-                Some(current_node) => current_node.borrow(),
-                None => break,
-            };
-
-            if current_node.key > new_node.key {
-                break;
-            }
-
-            let temp = current_node.next.clone();
-
-            drop(current_node);
-
-            previous_node = current_node_opt.take();
-            current_node_opt = temp;
-        }
-
-        // Insert the node after previous_node and before current_node
-        new_node.next = current_node_opt
-            .as_ref()
-            .map(|current_node| current_node.clone());
-        new_node.prev = previous_node
-            .as_ref()
-            .map(|previous_node| previous_node.clone());
-        let new_node = Rc::new(RefCell::new(new_node));
-
-        match previous_node {
-            Some(previous_node) => previous_node.borrow_mut().next = Some(new_node.clone()),
-            None => self.head = Some(new_node.clone()),
-        }
-
-        match &current_node_opt {
-            Some(current_node) => current_node.borrow_mut().prev = Some(new_node),
-            None => {}
-        }
+    pub fn insert(&mut self, value: T, key: K) {
+        self.inner.insert(key, value);
     }
 
-    pub fn pop_le(&mut self, value: K) -> Option<T> {
-        match self.head.as_ref() {
-            Some(head) => {
-                if head.borrow().key <= value {
-                    self.pop()
-                } else {
-                    None
+    pub fn pop_le(&mut self, key: K) -> Option<T> {
+        match self.inner.first_key_value() {
+            Some((inner_key, _)) => {
+                if inner_key > &key {
+                    return None;
                 }
             }
-            None => None,
+            None => return None,
         }
+
+        self.inner.pop_first().map(|(_, value)| value)
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        let ret_node = self.head.take();
-
-        match ret_node {
-            Some(node) => {
-                self.length -= 1;
-                self.head = node.borrow_mut().next.take();
-                self.head
-                    .as_ref()
-                    .map(|next_node| next_node.borrow_mut().prev = None);
-                Some(node.borrow_mut().data.take().unwrap())
-            }
-            None => None,
-        }
+        self.inner.pop_first().map(|(_, value)| value)
     }
 
     pub fn len(&self) -> usize {
-        self.length
+        self.inner.len()
     }
 }
 
-impl<K: PartialOrd, T: PartialEq> SortedQueue<K, T> {
+impl<K: Ord + Clone, T: PartialEq> SortedQueue<K, T> {
     pub fn remove(&mut self, value: T) -> Option<T> {
-        let mut current_node_opt = match self.head.clone() {
-            Some(head) => head,
+        let mut key = None;
+        for (inner_key, inner_value) in &self.inner {
+            if *inner_value == value {
+                key = Some(inner_key.clone());
+                break;
+            }
+        }
+
+        let key = match key {
+            Some(key) => key,
             None => return None,
         };
 
-        loop {
-            let mut current_node = current_node_opt.borrow_mut();
-
-            if current_node.data.as_ref().unwrap() == &value {
-                let data = match current_node.prev.take() {
-                    Some(prev) => {
-                        current_node
-                            .next
-                            .as_ref()
-                            .map(|node| node.borrow_mut().prev = Some(prev.clone()));
-
-                        prev.borrow_mut().next = current_node.next.take();
-
-                        current_node.data.take().unwrap()
-                    }
-                    None => {
-                        current_node
-                            .next
-                            .as_ref()
-                            .map(|node| node.borrow_mut().prev = None);
-
-                        self.head = current_node.next.take();
-                        current_node.data.take().unwrap()
-                    }
-                };
-
-                self.length -= 1;
-                return Some(data);
-            }
-
-            current_node_opt = match current_node.next.clone() {
-                Some(next) => {
-                    drop(current_node);
-                    next
-                }
-                None => return None,
-            }
-        }
+        self.inner.remove(&key)
     }
 }

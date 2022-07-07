@@ -156,12 +156,16 @@ impl<T: process::ProcessTypes<Descriptor = Self> + 'static> Descriptors<T> {
             .insert(Descriptor::new(Arc::new(conditional_variable)))
     }
 
-    pub fn remove_file(&mut self, id: isize) {
-        self.files.remove(id);
+    pub fn remove_file(&mut self, id: isize) -> Option<Owner<FileDescriptor<T>>> {
+        self.files
+            .remove(id)
+            .map(|descriptor| descriptor.into_inner())
     }
 
-    pub fn remove_directory(&mut self, id: isize) {
-        self.directories.remove(id);
+    pub fn remove_directory(&mut self, id: isize) -> Option<Owner<DirectoryDescriptor<T>>> {
+        self.directories
+            .remove(id)
+            .map(|descriptor| descriptor.into_inner())
     }
 
     pub fn remove_device(&mut self, id: isize) {

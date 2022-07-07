@@ -16,10 +16,9 @@ enum QueuedThread<T: ProcessTypes + 'static> {
 
 pub struct ThreadQueue<T: ProcessTypes + 'static>(CriticalLock<Queue<QueuedThread<T>>>);
 
-pub struct SortedThreadQueue<
-    K: PartialOrd + Copy + Send + Sync + 'static,
-    T: ProcessTypes + 'static,
->(CriticalLock<SortedQueue<K, QueuedThread<T>>>);
+pub struct SortedThreadQueue<K: Ord + Copy + Send + Sync + 'static, T: ProcessTypes + 'static>(
+    CriticalLock<SortedQueue<K, QueuedThread<T>>>,
+);
 
 unsafe fn add<T: ProcessTypes>(queue: *mut core::ffi::c_void, thread: Owner<Thread<T>>, _: usize) {
     let queue = &*(queue as *const ThreadQueue<T>);
@@ -37,7 +36,7 @@ unsafe fn remove<T: ProcessTypes>(
 
 unsafe fn drop(_: usize) {}
 
-unsafe fn add_sorted<K: PartialOrd + Copy + Send + Sync + Clone + 'static, T: ProcessTypes>(
+unsafe fn add_sorted<K: Ord + Copy + Send + Sync + Clone + 'static, T: ProcessTypes>(
     queue: *mut core::ffi::c_void,
     thread: Owner<Thread<T>>,
     context: usize,
@@ -47,7 +46,7 @@ unsafe fn add_sorted<K: PartialOrd + Copy + Send + Sync + Clone + 'static, T: Pr
     queue.insert(thread, key.as_ref().clone())
 }
 
-unsafe fn remove_sorted<K: PartialOrd + Copy + Send + Sync + 'static, T: ProcessTypes>(
+unsafe fn remove_sorted<K: Ord + Copy + Send + Sync + 'static, T: ProcessTypes>(
     queue: *mut core::ffi::c_void,
     thread: &Reference<Thread<T>>,
     _: usize,
@@ -62,7 +61,7 @@ unsafe fn drop_sorted<K: PartialOrd + Copy + Send + Sync>(context: usize) {
 }
 
 impl<T: ProcessTypes> ThreadQueue<T> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         ThreadQueue(CriticalLock::new(Queue::new()))
     }
 
@@ -98,8 +97,8 @@ impl<T: ProcessTypes> ThreadQueue<T> {
     }
 }
 
-impl<K: PartialOrd + Copy + Send + Sync + 'static, T: ProcessTypes> SortedThreadQueue<K, T> {
-    pub const fn new() -> Self {
+impl<K: Ord + Copy + Send + Sync + 'static, T: ProcessTypes> SortedThreadQueue<K, T> {
+    pub fn new() -> Self {
         SortedThreadQueue(CriticalLock::new(SortedQueue::new()))
     }
 

@@ -130,9 +130,6 @@ fn kinit(_: usize) -> isize {
     // Create test lock
     test_lock::initialize::<ProcessTypes>(process::Mutex::new(0));
 
-    // Create first test thread
-    let thread = process::create_thread::<ProcessTypes>(test::<ProcessTypes>, 1);
-
     // Create initial session
     log_info!("Starting initial session . . .");
     let session = sessions::create_console_session::<ProcessTypes>(
@@ -142,7 +139,7 @@ fn kinit(_: usize) -> isize {
     program_loader::execute_session::<&str, &str>(
         ":0/los/bin/cshell.app",
         &[],
-        &[],
+        &["PATH=:0/los/bin"],
         StandardIO::new(
             StandardIOType::Console,
             StandardIOType::Console,
@@ -156,39 +153,44 @@ fn kinit(_: usize) -> isize {
 
     // Initialize PS/2
     ps2::initialize::<ProcessTypes>();
+    /*
+        // Create first test thread
+        let thread = process::create_thread::<ProcessTypes>(test::<ProcessTypes>, 1);
 
-    // Test loop 1
-    for i in 0..5 {
-        log_debug!("{}", 5 - i);
-        time::sleep::<ProcessTypes>(250);
-    }
+        // Test loop 1
+        for i in 0..5 {
+            log_debug!("{}", 5 - i);
+            time::sleep::<ProcessTypes>(250);
+        }
 
-    // Create second test thread
-    let thread2 = process::create_thread::<ProcessTypes>(test::<ProcessTypes>, 2);
+        // Create second test thread
+        let thread2 = process::create_thread::<ProcessTypes>(test::<ProcessTypes>, 2);
 
-    time::sleep::<ProcessTypes>(2100);
+        time::sleep::<ProcessTypes>(2100);
 
-    // Test killing thread
-    log_info!("Killing thread. Alive - {}", thread.alive());
-    process::kill_thread(&thread, 69);
-    log_info!("Killed thread. Alive - {}", thread.alive());
+        // Test killing thread
+        log_info!("Killing thread. Alive - {}", thread.alive());
+        process::kill_thread(&thread, 69);
+        log_info!("Killed thread. Alive - {}", thread.alive());
 
-    // Test dropping of locks after killed thread
-    log_debug!(
-        "Value under lock: {}",
-        *test_lock::get::<ProcessTypes>().lock()
-    );
+        // Test dropping of locks after killed thread
+        log_debug!(
+            "Value under lock: {}",
+            *test_lock::get::<ProcessTypes>().lock()
+        );
 
-    // Test loop 2
-    for i in 0..10 {
-        log_debug!("Test: {}", i);
-        time::sleep::<ProcessTypes>(250);
-    }
+        // Test loop 2
+        for i in 0..10 {
+            log_debug!("Test: {}", i);
+            time::sleep::<ProcessTypes>(250);
+        }
 
-    // Kill second thread
-    process::kill_thread(&thread2, 120);
-    log_debug!("Killed second loop: {}", !thread2.alive());
+        // Kill second thread
+        process::kill_thread(&thread2, 120);
+        log_debug!("Killed second loop: {}", !thread2.alive());
 
+        log_debug!("Done test!");
+    */
     0
 }
 
