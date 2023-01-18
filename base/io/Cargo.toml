@@ -1,17 +1,16 @@
 [package]
 authors = ["Lance Hart <shipsimfan@hotmail.com>"]
-build = "build.rs"
 edition = "2021"
-name = "init"
+name = "io"
 version = "0.1.0"
 
-[dependencies]
-bootloader = { workspace = true }
-log = { workspace = true }
-
-[[bin]]
+[lib]
 bench = false
+crate-type = ["lib"]
 doc = false
 doctest = false
-name = "init"
+name = "io"
 test = false
+
+[dependencies]
+error = { workspace = true }

@@ -1,26 +1,10 @@
 [workspace]
 default-members = ["init"]
 
-members = [
-  "acpi",
-  "base",
-  "device",
-  "drivers/cmos",
-  "drivers/fat32",
-  "drivers/hpet",
-  "drivers/ide",
-  "drivers/pci",
-  "drivers/ps2",
-  "drivers/uefi",
-  "filesystem",
-  "init",
-  "interrupts",
-  "ipc",
-  "memory",
-  "process",
-  "process_types",
-  "program_loader",
-  "sessions",
-  "system_calls",
-  "time",
-]
+members = ["base/error", "base/io", "base/log", "bootloader", "init"]
+
+[workspace.dependencies]
+error = { path = "./base/error" }
+io = { path = "./base/io" }
+log = { path = "./base/log" }
+bootloader = { path = "./bootloader" }
