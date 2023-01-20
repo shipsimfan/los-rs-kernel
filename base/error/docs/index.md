@@ -10,3 +10,4 @@ There are three ways to create an error.
 ## Error Kinds
 The following is a list of error kinds and their explanations
  * **Interrupted** - The operation was interrupted and couldn't complete 
+ * **InvalidArgument** - An argument is invalid
