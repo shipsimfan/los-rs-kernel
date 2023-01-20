@@ -1,14 +1,14 @@
-use crate::{Event, Formatter, Level, LogOutput};
-use alloc::{boxed::Box, sync::Arc};
+use crate::{
+    formatter::{Formatter, ParsedFormatString},
+    Event, Level, LogOutput,
+};
+use alloc::sync::Arc;
 
 pub struct LogController {
     output: Option<Arc<dyn LogOutput>>,
     minimum_level: Level,
-    formatter: Box<dyn Formatter>,
-}
-
-pub trait LogControllerOwner {
-    fn log_controller(&self) -> &LogController; // TODO: Return an &RWLock<LogController>
+    // TODO: Change to a RwLock<Formatter>
+    formatter: Formatter,
 }
 
 #[cfg(debug_assertions)]
@@ -18,13 +18,13 @@ const DEFAULT_MINIMUM_LEVEL: Level = Level::Debug;
 const DEFAULT_MINIMUM_LEVEL: Level = Level::Warning;
 
 impl LogController {
-    pub fn new(formatter: Box<dyn Formatter>) -> Self {
-        // TODO: Return an RWLock<Self>
-        LogController {
+    pub fn new() -> Arc<Self> {
+        // TODO: Return an Arc<RWLock<Self>>
+        Arc::new(LogController {
             output: None,
             minimum_level: DEFAULT_MINIMUM_LEVEL,
-            formatter,
-        }
+            formatter: Formatter::new(),
+        })
     }
 
     pub fn log(&self, event: Event) {
@@ -45,5 +45,10 @@ impl LogController {
 
     pub fn set_minimum_level(&mut self, minimum_level: Level) {
         self.minimum_level = minimum_level;
+    }
+
+    pub fn set_format_string(&self, format_string: &str) {
+        let parse_format_string = ParsedFormatString::parse(format_string);
+        //self.formatter.write().set_format_string(parsed_format_string);
     }
 }

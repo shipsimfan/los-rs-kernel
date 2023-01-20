@@ -37,18 +37,40 @@ impl Event {
     }
 }
 
+impl Level {
+    pub(crate) fn display(&self) -> &'static str {
+        match self {
+            Level::Debug => "Debug",
+            Level::Info => "Info",
+            Level::Warning => "Warning",
+            Level::Error => "Error",
+            Level::Fatal => "Fatal",
+        }
+    }
+
+    pub(crate) fn display_lower(&self) -> &'static str {
+        match self {
+            Level::Debug => "debug",
+            Level::Info => "info",
+            Level::Warning => "warning",
+            Level::Error => "error",
+            Level::Fatal => "fatal",
+        }
+    }
+
+    pub(crate) fn display_upper(&self) -> &'static str {
+        match self {
+            Level::Debug => "DEBUG",
+            Level::Info => "INFO",
+            Level::Warning => "WARNING",
+            Level::Error => "ERROR",
+            Level::Fatal => "FATAL",
+        }
+    }
+}
+
 impl core::fmt::Display for Level {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Level::Debug => "Debug",
-                Level::Info => "Info",
-                Level::Warning => "Warning",
-                Level::Error => "Error",
-                Level::Fatal => "Fatal",
-            }
-        )
+        write!(f, "{}", self.display())
     }
 }

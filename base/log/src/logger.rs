@@ -1,23 +1,21 @@
-use crate::{controller::LogControllerOwner, Event, Level};
-use alloc::string::String;
-use core::marker::PhantomData;
+use crate::{Event, Level, LogController};
+use alloc::{string::String, sync::Arc};
 
-pub struct Logger<G: LogControllerOwner> {
+pub struct Logger {
     module_name: &'static str,
-    phantom: PhantomData<G>,
+    log_controller: Arc<LogController>,
 }
 
-impl<G: LogControllerOwner> Logger<G> {
-    pub fn new(module_name: &'static str) -> Self {
+impl Logger {
+    pub fn new(module_name: &'static str, log_controller: Arc<LogController>) -> Self {
         Logger {
             module_name,
-            phantom: PhantomData,
+            log_controller,
         }
     }
 
     pub fn log(&self, level: Level, message: String) {
         let event = Event::new(level, self.module_name, message);
-
-        //LocalState::get::<G>().global().log_controller().lock_read().log(event);
+        self.log_controller.log(event);
     }
 }
