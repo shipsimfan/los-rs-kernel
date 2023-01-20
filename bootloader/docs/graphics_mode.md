@@ -1,0 +1,2 @@
+# Graphics Mode Information
+The graphics mode information is a condensed version of the UEFI graphics mode structure. It contains the important information used for rendering to the UEFI framebuffer before a native a graphics driver can take over, if there is one.

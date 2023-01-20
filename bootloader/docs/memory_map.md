@@ -1,0 +1,2 @@
+# Memory Map
+The memory map describes the layout of physical memory, including currently used blocks allocated by the bootloader. The kernel's physical memory map uses it to initialize itself. It is the same structures as used by UEFI for it's memory map description.
