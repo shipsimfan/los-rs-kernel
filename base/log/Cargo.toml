@@ -11,3 +11,6 @@ doc = false
 doctest = false
 name = "log"
 test = false
+
+[dependencies]
+error = { workspace = true }

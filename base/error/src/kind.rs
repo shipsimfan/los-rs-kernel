@@ -1,6 +1,7 @@
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
     Interrupted,
+    InvalidArgument,
 }
 
 impl core::fmt::Debug for ErrorKind {
@@ -16,6 +17,7 @@ impl core::fmt::Display for ErrorKind {
             "{}",
             match self {
                 ErrorKind::Interrupted => "Operation interrupted",
+                ErrorKind::InvalidArgument => "Invalid argument",
             }
         )
     }
