@@ -1,10 +1,18 @@
 [workspace]
 default-members = ["init"]
 
-members = ["base/error", "base/io", "base/log", "bootloader", "init"]
+members = [
+    "base/critical",
+    "base/error",
+    "base/io",
+    "base/log",
+    "bootloader",
+    "init",
+]
 
 [workspace.dependencies]
+bootloader = { path = "./bootloader" }
+critical = { path = "./base/critical" }
 error = { path = "./base/error" }
 io = { path = "./base/io" }
 log = { path = "./base/log" }
-bootloader = { path = "./bootloader" }

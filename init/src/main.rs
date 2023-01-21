@@ -5,8 +5,6 @@
 #![feature(alloc_error_handler)]
 
 extern crate alloc;
-#[macro_use]
-extern crate log;
 
 use core::arch::asm;
 
@@ -29,13 +27,13 @@ pub extern "C" fn kmain(
 fn panic(info: &core::panic::PanicInfo) -> ! {
     match info.message() {
         Some(msg) => {
-            log_fatal!("{}", msg);
+            //log_fatal!("{}", msg);
             match info.location() {
-                Some(location) => log_fatal!("\tLocated at {}", location),
+                Some(location) => {} //log_fatal!("\tLocated at {}", location),
                 None => {}
             }
         }
-        None => log_fatal!("{}", info),
+        None => {} //log_fatal!("{}", info),
     }
 
     loop {

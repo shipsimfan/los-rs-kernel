@@ -1,7 +1,7 @@
 [package]
 authors = ["Lance Hart <shipsimfan@hotmail.com>"]
 edition = "2021"
-name = "log"
+name = "critical"
 version = "0.1.0"
 
 [lib]
@@ -9,10 +9,5 @@ bench = false
 crate-type = ["lib"]
 doc = false
 doctest = false
-name = "log"
+name = "critical"
 test = false
-
-[dependencies]
-error = { workspace = true }
-critical = { workspace = true }
-io = { workspace = true }
