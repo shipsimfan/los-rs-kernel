@@ -8,7 +8,7 @@ use core::{
 };
 
 pub trait LocalState: 'static {
-    fn try_critical_state<'a>() -> Option<&'a mut CriticalState>;
+    fn try_critical_state<'a>() -> Option<&'a CriticalState>;
 }
 
 pub struct CriticalLock<T: Sized, L: LocalState> {

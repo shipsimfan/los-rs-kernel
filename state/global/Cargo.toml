@@ -1,0 +1,13 @@
+[package]
+authors = ["Lance Hart <shipsimfan@hotmail.com>"]
+edition = "2021"
+name = "global_state"
+version = "0.1.0"
+
+[lib]
+bench = false
+crate-type = ["lib"]
+doc = false
+doctest = false
+name = "global_state"
+test = false
