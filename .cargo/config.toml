@@ -4,4 +4,4 @@ build-std-features=["compiler-builtins-mem"]
 
 [build]
 target = "x86_64-los.json"
-rustflags = ["-C", "link-args=-T link.ld"]
+rustflags = ["-C", "link-args=-T link.ld", "-C", "code-model=medium", "-C", "relocation-model=static"]

@@ -2,9 +2,13 @@
 
 extern crate alloc;
 
+use core::arch::global_asm;
+
 use alloc::sync::Arc;
 use critical::CriticalState;
 use global_state::GlobalState;
+
+global_asm!(include_str!("./gs.asm"));
 
 pub struct LocalState {
     critical_state: CriticalState,
@@ -34,13 +38,13 @@ impl LocalState {
     pub fn new<'a>(global: Arc<GlobalState>) -> Self {
         LocalState {
             critical_state: CriticalState::new(),
-            global_state,
+            global_state: global,
         }
     }
 }
 
 impl critical::LocalState for LocalState {
     fn try_critical_state<'a>() -> Option<&'a CriticalState> {
-        try_get_local().map(|local_state| local_state.critical_state())
+        try_get_local().map(|local_state| &local_state.critical_state)
     }
 }

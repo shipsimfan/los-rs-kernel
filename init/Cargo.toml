@@ -1,6 +1,5 @@
 [package]
 authors = ["Lance Hart <shipsimfan@hotmail.com>"]
-build = "build.rs"
 edition = "2021"
 name = "init"
 version = "0.1.0"

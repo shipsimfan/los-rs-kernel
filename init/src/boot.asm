@@ -1,44 +1,26 @@
-SECTION .data.low
+.section .data.low
 
-;======================================
-; PAGE TABLES
-;======================================
-ALIGN 4096
-pml4: times 512 dq 0
+.align 4096
+pml4: .fill 512
 
-SECTION .bss
+acpiRootPointer: .8byte 0
 
-;======================================
-; ACPI ROOT TABLE
-;======================================
-GLOBAL acpiRootPointer
-acpiRootPointer: resq 1
-
-;======================================
-; STACK
-;======================================
-stackBottom: resb 32768
-GLOBAL stackTop
+stackBottom: .fill 32768
 stackTop:
 
-SECTION .text.low
+.section .text.low
 
-;======================================
-; BOOT ENTRY POINT
-;======================================
-GLOBAL _start
+higherHalfLocation: .8byte higherHalf
+kmainLocation: .8byte kmain
 
-EXTERN kmain
-
+.global _start
 _start:
-    ; Disable interrupts
     cli
 
     mov rdi, rcx
     mov rsi, rdx
     mov rdx, r8
-
-    ; Copy page structures from UEFI
+    
     mov rbx, cr3
     mov r8, pml4
     mov rcx, 256
@@ -50,7 +32,6 @@ _start:
         add r8, 8
         loop .copyLow
 
-    ; Copy page structures into higher half
     mov rbx, cr3
     mov rcx, 256
     
@@ -61,25 +42,24 @@ _start:
         add r8, 8
         loop .copyHigh
 
-    ; Set page structures
     mov rax, pml4
     mov cr3, rax
 
-    mov rax, higherHalf
+    mov rax, qword ptr [higherHalfLocation]
     jmp rax
 
-SECTION .text
+.section .text
 
 higherHalf:
-    ; Setup the stack    
+    mov rbx, 0xFFFF800000000000
+
     mov rsp, stackTop
+    add rsp, rbx
 
-    ; Move arguments to higher half
-    mov rax, 0xFFFF800000000000
-    add rdi, rax
-    add rsi, rax
-
-    ; Enable SSE for floats
+    add rsp, rbx
+    add rdi, rbx
+    add rsi, rbx
+    
     mov rax, cr0
     and ax, 0xFFFB
     or ax, 0x2
@@ -88,10 +68,9 @@ higherHalf:
     or ax, 3 << 9
     mov cr4, rax
 
-    ; Save ACPI Root table
     mov rax, acpiRootPointer
+    add rax, rbx
     mov [rax], rdx
-
-    ; Call kernel main
-    mov rax, kmain
+    
+    mov rax, qword ptr [kmainLocation]
     call rax

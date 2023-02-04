@@ -4,11 +4,11 @@
 #![feature(associated_type_bounds)]
 #![feature(alloc_error_handler)]
 
-extern crate alloc;
-
 use core::arch::asm;
 
 const MODULE_NAME: &str = "Kernel";
+
+mod boot;
 
 #[no_mangle]
 pub extern "C" fn kmain(
