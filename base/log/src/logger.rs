@@ -1,13 +1,13 @@
 use crate::{Event, Level, LogController};
 use alloc::{string::String, sync::Arc};
 
-pub struct Logger {
+pub struct Logger<'local> {
     module_name: &'static str,
-    log_controller: Arc<LogController>,
+    log_controller: Arc<LogController<'local>>,
 }
 
-impl Logger {
-    pub fn new(module_name: &'static str, log_controller: Arc<LogController>) -> Self {
+impl<'local> Logger<'local> {
+    pub fn new(module_name: &'static str, log_controller: Arc<LogController<'local>>) -> Self {
         Logger {
             module_name,
             log_controller,

@@ -4,8 +4,8 @@ use crate::{
 };
 use alloc::sync::Arc;
 
-pub struct LogController {
-    output: Option<Arc<dyn LogOutput>>,
+pub struct LogController<'local> {
+    output: Option<Arc<dyn LogOutput<'local>>>,
     minimum_level: Level,
     // TODO: Change to a RwLock<Formatter>
     formatter: Formatter,
@@ -17,7 +17,7 @@ const DEFAULT_MINIMUM_LEVEL: Level = Level::Debug;
 #[cfg(not(debug_assertions))]
 const DEFAULT_MINIMUM_LEVEL: Level = Level::Warning;
 
-impl LogController {
+impl<'local> LogController<'local> {
     pub fn new() -> Arc<Self> {
         // TODO: Return an Arc<RWLock<Self>>
         Arc::new(LogController {
@@ -35,7 +35,7 @@ impl LogController {
         }
     }
 
-    pub fn set_output<O: LogOutput>(&mut self, output: Arc<O>) {
+    pub fn set_output<O: LogOutput<'local>>(&mut self, output: Arc<O>) {
         self.output = Some(output);
     }
 

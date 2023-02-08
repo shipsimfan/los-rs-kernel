@@ -20,6 +20,11 @@ pub extern "C" fn kmain(
     let gmode = unsafe { &*gmode };
     let mmap = unsafe { &*mmap };
 
+    // Create the GDT
+    let tss = interrupts::TSS::new();
+    let gdt = interrupts::GDT::new(&tss);
+    gdt.set_active();
+
     loop {}
 }
 

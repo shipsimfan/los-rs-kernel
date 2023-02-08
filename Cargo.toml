@@ -8,6 +8,7 @@ members = [
     "base/log",
     "bootloader",
     "init",
+    "interrupts",
     "state/global",
     "state/local",
 ]
@@ -18,5 +19,6 @@ critical = { path = "./base/critical" }
 error = { path = "./base/error" }
 global_state = { path = "./state/global" }
 io = { path = "./base/io" }
+interrupts = { path = "./interrupts" }
 log = { path = "./base/log" }
 local_state = { path = "./state/local" }

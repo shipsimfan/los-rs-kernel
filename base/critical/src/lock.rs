@@ -7,24 +7,24 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-pub trait LocalState: 'static {
+pub trait LocalState {
     fn try_critical_state<'a>() -> Option<&'a CriticalState>;
 }
 
-pub struct CriticalLock<T: Sized, L: LocalState> {
+pub struct CriticalLock<T: Sized + 'static, L: LocalState> {
     lock: AtomicBool,
     data: UnsafeCell<T>,
     phantom: PhantomData<L>,
 }
 
-pub struct CriticalLockGuard<'a, T: Sized + 'a, L: LocalState> {
+pub struct CriticalLockGuard<'a, T: Sized + 'static, L: LocalState> {
     lock: &'a AtomicBool,
     data: &'a mut T,
     key: Option<CriticalKey>,
     phantom: PhantomData<L>,
 }
 
-impl<T: Sized, L: LocalState> CriticalLock<T, L> {
+impl<T: Sized + 'static, L: LocalState> CriticalLock<T, L> {
     #[inline(always)]
     pub const fn new(data: T) -> Self {
         CriticalLock {
@@ -35,7 +35,7 @@ impl<T: Sized, L: LocalState> CriticalLock<T, L> {
     }
 
     #[inline(always)]
-    pub fn lock(&self) -> CriticalLockGuard<T, L> {
+    pub fn lock<'a>(&'a self) -> CriticalLockGuard<'a, T, L> {
         // Enter local critical
         let key = L::try_critical_state().map(|critical_state| unsafe { critical_state.enter() });
 
@@ -67,7 +67,7 @@ impl<T: Sized, L: LocalState> CriticalLock<T, L> {
 unsafe impl<T: Sized, L: LocalState> Sync for CriticalLock<T, L> {}
 unsafe impl<T: Sized, L: LocalState> Send for CriticalLock<T, L> {}
 
-impl<'a, T: Sized + 'a, L: LocalState> Deref for CriticalLockGuard<'a, T, L> {
+impl<'a, T: Sized + 'static, L: LocalState> Deref for CriticalLockGuard<'a, T, L> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -75,13 +75,13 @@ impl<'a, T: Sized + 'a, L: LocalState> Deref for CriticalLockGuard<'a, T, L> {
     }
 }
 
-impl<'a, T: Sized + 'a, L: LocalState> DerefMut for CriticalLockGuard<'a, T, L> {
+impl<'a, T: Sized + 'static, L: LocalState> DerefMut for CriticalLockGuard<'a, T, L> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data
     }
 }
 
-impl<'a, T: Sized, L: LocalState> Drop for CriticalLockGuard<'a, T, L> {
+impl<'a, T: Sized + 'static, L: LocalState> Drop for CriticalLockGuard<'a, T, L> {
     fn drop(&mut self) {
         unsafe {
             // Unlock globally
@@ -96,7 +96,7 @@ impl<'a, T: Sized, L: LocalState> Drop for CriticalLockGuard<'a, T, L> {
 }
 
 // Needed for locking the heap
-unsafe impl<T: GlobalAlloc, L: LocalState> GlobalAlloc for CriticalLock<T, L> {
+unsafe impl<T: GlobalAlloc + 'static, L: LocalState> GlobalAlloc for CriticalLock<T, L> {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         self.lock().alloc(layout)
     }

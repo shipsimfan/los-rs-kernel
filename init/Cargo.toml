@@ -7,6 +7,7 @@ version = "0.1.0"
 [dependencies]
 bootloader = { workspace = true }
 log = { workspace = true }
+interrupts = {workspace = true}
 
 [[bin]]
 bench = false

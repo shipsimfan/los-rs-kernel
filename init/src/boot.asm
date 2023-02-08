@@ -4,7 +4,7 @@
 pml4: .fill 4096
 pml4Location: .8byte pml4
 
-stackBottom: .fill 32768
+stackBottom: .fill 65536
 stackTop:
 stackTopLocation: .8byte stackTop
 
