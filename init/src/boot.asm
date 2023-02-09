@@ -2,12 +2,9 @@
 
 .align 4096
 pml4: .fill 4096
-pml4Location: .8byte pml4
 
 stackBottom: .fill 65536
 stackTop:
-stackTopLocation: .8byte stackTop
-
 
 .section .text.low
 
@@ -23,7 +20,7 @@ _start:
     mov rdx, r8
     
     mov rbx, cr3
-    mov r8, qword ptr [pml4Location]
+    lea r8, qword ptr [pml4]
     mov rcx, 256
 
     .copyLow:
@@ -43,7 +40,7 @@ _start:
         add r8, 8
         loop .copyHigh
 
-    mov rax, qword ptr [pml4Location]
+    lea rax, qword ptr [pml4]
     mov cr3, rax
 
     mov rax, qword ptr [higherHalfLocation]
@@ -54,7 +51,7 @@ _start:
 higherHalf:
     mov rbx, 0xFFFF800000000000
 
-    mov rax, qword ptr [stackTopLocation]
+    lea rax, qword ptr [stackTop]
     add rax, rbx
     mov rsp, rax
 
