@@ -14,5 +14,5 @@ test = false
 
 [dependencies]
 error = { workspace = true }
-critical = { workspace = true }
 io = { workspace = true }
+local_state = {workspace = true}

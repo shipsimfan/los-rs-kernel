@@ -1,5 +1,39 @@
 #![no_std]
+use exceptions::Exceptions;
+use idt::IDT;
+use local_state::critical::CriticalLock;
 
-mod gdt;
+mod exceptions;
+mod idt;
 
-pub use gdt::{GDT, TSS};
+pub struct InterruptController {
+    idt: IDT,
+    exceptions: Exceptions,
+
+    initialized: bool,
+}
+
+static CONTROLLER: CriticalLock<InterruptController> =
+    CriticalLock::new(InterruptController::null());
+
+impl InterruptController {
+    pub fn get() -> &'static CriticalLock<InterruptController> {
+        &CONTROLLER
+    }
+
+    pub(self) const fn null() -> Self {
+        InterruptController {
+            idt: IDT::null(),
+            exceptions: Exceptions::null(),
+            initialized: false,
+        }
+    }
+
+    pub fn initialize(&mut self) {
+        assert!(!self.initialized);
+        self.initialized = true;
+
+        self.idt.initialize();
+        self.exceptions.initialize(&mut self.idt);
+    }
+}

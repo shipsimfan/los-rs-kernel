@@ -1,9 +1,9 @@
-GLOBAL get_gs
+.global get_gs
 get_gs:
-    mov rax, [gs:0]
+    mov rax, gs:0
     ret
 
-GLOBAL set_gs
+.global set_gs
 set_gs:
     mov eax, edi
     shr rdi, 32

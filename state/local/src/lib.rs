@@ -1,51 +1,56 @@
 #![no_std]
-
-extern crate alloc;
-
-use alloc::sync::Arc;
-use core::arch::global_asm;
+use core::{arch::global_asm, cell::RefCell, ptr::null};
 use critical::CriticalState;
-use global_state::GlobalState;
-use interrupts::GDT;
+use gdt::GDT;
+
+pub mod critical;
+
+pub struct LocalState<'local> {
+    critical_state: CriticalState,
+
+    gdt: &'local GDT<'local>,
+}
+
+pub struct LocalStateContainer<'local> {
+    local_state: LocalState<'local>,
+    local_state_ref: RefCell<*const LocalState<'local>>,
+}
 
 global_asm!(include_str!("./gs.asm"));
 
-pub struct LocalState<'a> {
-    global_state: Arc<GlobalState>,
-
-    critical_state: CriticalState,
-
-    gdt: &'a GDT<'a>,
-}
-
 extern "C" {
     fn get_gs() -> usize;
-    fn set_gs(value: usize);
+    fn set_gs(local_state: usize);
 }
 
-pub fn try_get_local<'a>() -> Option<&'a mut LocalState<'a>> {
-    let gs = unsafe { get_gs() };
-    // TODO: Switch with constant KERNEL_VMA
-    if gs <= 0xFFF8000000000000 {
-        None
-    } else {
-        Some(unsafe { &mut *(gs as *mut LocalState) })
-    }
-}
+impl<'local> LocalState<'local> {
+    pub fn new(gdt: &'local GDT) -> LocalStateContainer<'local> {
+        LocalStateContainer {
+            local_state: LocalState {
+                critical_state: CriticalState::new(),
 
-pub fn get_local<'a>() -> &'a mut LocalState<'a> {
-    try_get_local().unwrap()
-}
-
-impl<'a> LocalState<'a> {
-    pub fn new(gdt: &'a GDT, global: Arc<GlobalState>) -> Self {
-        LocalState {
-            global_state: global,
-
-            critical_state: CriticalState::new(),
-
-            gdt,
+                gdt,
+            },
+            local_state_ref: RefCell::new(null()),
         }
+    }
+
+    pub fn try_get() -> Option<&'local LocalState<'local>> {
+        let gs = unsafe { get_gs() };
+        // TODO: Switch with constant KERNEL_VMA
+        if gs <= 0xFFFF800000000000 {
+            None
+        } else {
+            Some(unsafe { &*(gs as *const LocalState) })
+        }
+    }
+
+    pub fn get() -> &'local LocalState<'local> {
+        LocalState::try_get().unwrap()
+    }
+
+    pub fn critical_state(&self) -> &CriticalState {
+        &self.critical_state
     }
 
     pub fn gdt(&self) -> &GDT {
@@ -53,8 +58,12 @@ impl<'a> LocalState<'a> {
     }
 }
 
-impl<'local> critical::LocalState for LocalState<'local> {
-    fn try_critical_state<'b>() -> Option<&'b CriticalState> {
-        try_get_local().map(|local_state| &local_state.critical_state)
+impl<'local> LocalStateContainer<'local> {
+    pub fn set_active(&'local self) -> &'local LocalState {
+        *self.local_state_ref.borrow_mut() = &self.local_state;
+
+        let ptr = self.local_state_ref.as_ptr();
+        unsafe { set_gs(ptr as usize) };
+        LocalState::get()
     }
 }

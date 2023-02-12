@@ -11,3 +11,7 @@ doc = false
 doctest = false
 name = "global_state"
 test = false
+
+[dependencies]
+interrupts = { workspace = true }
+local_state = { workspace = true }

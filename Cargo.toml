@@ -2,11 +2,11 @@
 default-members = ["init"]
 
 members = [
-    "base/critical",
     "base/error",
     "base/io",
     "base/log",
     "bootloader",
+    "gdt",
     "init",
     "interrupts",
     "state/global",
@@ -15,10 +15,10 @@ members = [
 
 [workspace.dependencies]
 bootloader = { path = "./bootloader" }
-critical = { path = "./base/critical" }
 error = { path = "./base/error" }
+gdt = { path = "./gdt" }
 global_state = { path = "./state/global" }
-io = { path = "./base/io" }
 interrupts = { path = "./interrupts" }
+io = { path = "./base/io" }
 log = { path = "./base/log" }
 local_state = { path = "./state/local" }

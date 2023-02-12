@@ -1,3 +1,4 @@
+#![no_std]
 use core::{arch::global_asm, cell::RefCell};
 
 mod segment;
@@ -13,7 +14,7 @@ pub struct GDT<'a> {
 
 #[repr(packed)]
 #[allow(unused)]
-pub struct GDTR<'a> {
+struct GDTR<'a> {
     limit: u16,
     address: *const GDT<'a>,
 }
@@ -21,7 +22,7 @@ pub struct GDTR<'a> {
 const TSS_ENTRIES: (segment::Descriptor, segment::Descriptor) = segment::Descriptor::new_tss();
 const TSS_INDEX: usize = 5;
 
-const KERNEL_CODE_SEGMENT_OFFSET: usize =
+pub const KERNEL_CODE_SEGMENT_OFFSET: usize =
     core::mem::size_of::<segment::Descriptor>() * KERNEL_CODE_SEGMENT_INDEX;
 const KERNEL_CODE_SEGMENT_INDEX: usize = 1;
 const KERNEL_DATA_SEGMENT_OFFSET: usize =

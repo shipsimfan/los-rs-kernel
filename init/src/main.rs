@@ -6,6 +6,9 @@
 
 use core::arch::asm;
 
+use global_state::GlobalState;
+use local_state::LocalState;
+
 const MODULE_NAME: &str = "Kernel";
 
 mod boot;
@@ -16,14 +19,17 @@ pub extern "C" fn kmain(
     mmap: *const bootloader::MemoryMap,
     rsdp: *const core::ffi::c_void,
 ) -> ! {
-    // Convert passed pointers into references
-    let gmode = unsafe { &*gmode };
-    let mmap = unsafe { &*mmap };
-
     // Create the GDT
-    let tss = interrupts::TSS::new();
-    let gdt = interrupts::GDT::new(&tss);
+    let tss = gdt::TSS::new();
+    let gdt = gdt::GDT::new(&tss);
     gdt.set_active();
+
+    // Create the local state
+    let local_state_container = local_state::LocalState::new(&gdt);
+    let local_state = local_state_container.set_active();
+
+    // Create the global state
+    GlobalState::initialize();
 
     loop {}
 }

@@ -4,14 +4,15 @@ edition = "2021"
 name = "init"
 version = "0.1.0"
 
-[dependencies]
-bootloader = { workspace = true }
-log = { workspace = true }
-interrupts = {workspace = true}
-
 [[bin]]
 bench = false
 doc = false
 doctest = false
 name = "init"
 test = false
+
+[dependencies]
+bootloader = { workspace = true }
+gdt = { workspace = true }
+local_state = { workspace = true }
+global_state = { workspace = true }

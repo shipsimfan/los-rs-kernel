@@ -13,4 +13,5 @@ name = "interrupts"
 test = false
 
 [dependencies]
-critical = {workspace = true}
+local_state = { workspace = true }
+gdt = { workspace = true }
