@@ -4,10 +4,9 @@
 #![feature(associated_type_bounds)]
 #![feature(alloc_error_handler)]
 
+use base::{LocalState, GDT, TSS};
 use core::arch::asm;
-
 use global_state::GlobalState;
-use local_state::LocalState;
 
 const MODULE_NAME: &str = "Kernel";
 
@@ -15,17 +14,17 @@ mod boot;
 
 #[no_mangle]
 pub extern "C" fn kmain(
-    gmode: *const bootloader::GraphicsMode,
-    mmap: *const bootloader::MemoryMap,
+    gmode: *const uefi::graphics::raw::GraphicsMode,
+    mmap: *const uefi::memory::raw::MemoryMap,
     rsdp: *const core::ffi::c_void,
 ) -> ! {
     // Create the GDT
-    let tss = gdt::TSS::new();
-    let gdt = gdt::GDT::new(&tss);
+    let tss = TSS::new();
+    let gdt = GDT::new(&tss);
     gdt.set_active();
 
     // Create the local state
-    let local_state_container = local_state::LocalState::new(&gdt);
+    let local_state_container = LocalState::new(&gdt);
     let local_state = local_state_container.set_active();
 
     // Create the global state

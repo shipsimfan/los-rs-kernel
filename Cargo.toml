@@ -1,24 +1,9 @@
 [workspace]
 default-members = ["init"]
 
-members = [
-    "base/error",
-    "base/io",
-    "base/log",
-    "bootloader",
-    "gdt",
-    "init",
-    "interrupts",
-    "state/global",
-    "state/local",
-]
+members = ["base", "global_state", "init", "uefi"]
 
 [workspace.dependencies]
-bootloader = { path = "./bootloader" }
-error = { path = "./base/error" }
-gdt = { path = "./gdt" }
-global_state = { path = "./state/global" }
-interrupts = { path = "./interrupts" }
-io = { path = "./base/io" }
-log = { path = "./base/log" }
-local_state = { path = "./state/local" }
+base = { path = "./base" }
+global_state = { path = "./global_state" }
+uefi = { path = "./uefi" }

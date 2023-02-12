@@ -1,2 +1,0 @@
-# Log Output
-The log output represents any object that can take a string and log it somewhere. This may be the screen, a file, or even over the network. The log output object must include it's own locking if required. The `LogOuput` trait will be automatically implemented for all `Mutex<T: Write>` or `RwLock<T: Write>`.
