@@ -7,5 +7,5 @@ mod local;
 
 pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard};
 pub use gdt::{GDT, TSS};
-pub use interrupts::{ExceptionHandler, ExceptionInfo, ExceptionType, InterruptController};
+pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;

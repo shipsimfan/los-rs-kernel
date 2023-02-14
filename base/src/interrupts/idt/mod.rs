@@ -6,10 +6,10 @@ mod constants;
 mod idtr;
 mod vector;
 
-pub(crate) use constants::*;
+pub(super) use constants::*;
 
 #[repr(packed, C)]
-pub(crate) struct IDT {
+pub(super) struct IDT {
     vectors: [Vector; NUM_VECTORS],
 }
 
@@ -22,12 +22,17 @@ impl IDT {
         }
     }
 
-    pub(crate) fn initialize(&self) {
+    pub(super) fn initialize(&self) {
         IDTR::load_idt(self);
     }
 
-    pub(crate) fn set_vector(&mut self, vector: usize, handler: u64) {
+    pub(super) fn set_vector(&mut self, vector: usize, handler: u64) {
         assert!(vector < NUM_VECTORS);
         self.vectors[vector] = Vector::new(handler);
+    }
+
+    pub(super) fn clear_vector(&mut self, vector: usize) {
+        assert!(vector < NUM_VECTORS);
+        self.vectors[vector] = Vector::null();
     }
 }

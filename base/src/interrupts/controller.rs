@@ -1,9 +1,14 @@
-use super::{exceptions::Exceptions, idt::IDT};
-use crate::{CriticalLock, ExceptionHandler, ExceptionType};
+use super::{
+    exceptions::{ExceptionHandler, Exceptions},
+    idt::IDT,
+    irqs::{IRQs, IRQ},
+};
+use crate::{CriticalLock, ExceptionType};
 
 pub struct InterruptController {
     idt: IDT,
     exceptions: Exceptions,
+    irqs: IRQs,
 
     initialized: bool,
 }
@@ -20,6 +25,8 @@ impl InterruptController {
         InterruptController {
             idt: IDT::null(),
             exceptions: Exceptions::null(),
+            irqs: IRQs::null(),
+
             initialized: false,
         }
     }
@@ -28,15 +35,30 @@ impl InterruptController {
         &self.exceptions
     }
 
-    pub fn set_exception(&mut self, exception: ExceptionType, handler: ExceptionHandler) {
-        self.exceptions.set_exception(exception, handler)
-    }
-
     pub fn initialize(&mut self) {
         assert!(!self.initialized);
         self.initialized = true;
 
         self.idt.initialize();
         self.exceptions.initialize(&mut self.idt);
+    }
+
+    pub fn set_exception(&mut self, exception: ExceptionType, handler: ExceptionHandler) {
+        self.exceptions.set(exception, handler);
+    }
+
+    pub fn clear_exception(&mut self, exception: ExceptionType) {
+        self.exceptions.clear(exception);
+    }
+
+    pub fn allocate_irq(&mut self, irq: IRQ) -> usize {
+        let vector = self.irqs.allocate(irq);
+        self.idt.set_vector(vector, irq as u64);
+        vector
+    }
+
+    pub fn free_irq(&mut self, irq: usize) {
+        self.irqs.free(irq);
+        self.idt.clear_vector(irq);
     }
 }
