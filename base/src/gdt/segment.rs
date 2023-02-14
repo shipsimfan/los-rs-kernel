@@ -16,7 +16,7 @@ pub(super) enum SegmentType {
     Code,
 }
 
-#[repr(packed)]
+#[repr(packed, C)]
 #[allow(unused)]
 pub(super) struct Descriptor {
     limit_low: u16,

@@ -9,13 +9,13 @@ pub(self) use constants::*;
 
 pub use tss::TSS;
 
-#[repr(packed)]
+#[repr(packed, C)]
 pub struct GDT<'a> {
     entries: [segment::Descriptor; SEGMENT_COUNT],
     tss: &'a RefCell<TSS>,
 }
 
-#[repr(packed)]
+#[repr(packed, C)]
 #[allow(unused)]
 struct GDTR<'a> {
     limit: u16,

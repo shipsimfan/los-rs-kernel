@@ -8,7 +8,7 @@ mod vector;
 
 pub(crate) use constants::*;
 
-#[repr(packed)]
+#[repr(packed, C)]
 pub(crate) struct IDT {
     vectors: [Vector; NUM_VECTORS],
 }

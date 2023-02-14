@@ -1,38 +1,8 @@
-use crate::CriticalLock;
-use exceptions::Exceptions;
-use idt::IDT;
-
+mod controller;
 mod exceptions;
 mod idt;
+mod info;
 
-pub struct InterruptController {
-    idt: IDT,
-    exceptions: Exceptions,
-
-    initialized: bool,
-}
-
-static CONTROLLER: CriticalLock<InterruptController> =
-    CriticalLock::new(InterruptController::null());
-
-impl InterruptController {
-    pub fn get() -> &'static CriticalLock<InterruptController> {
-        &CONTROLLER
-    }
-
-    pub(self) const fn null() -> Self {
-        InterruptController {
-            idt: IDT::null(),
-            exceptions: Exceptions::null(),
-            initialized: false,
-        }
-    }
-
-    pub fn initialize(&mut self) {
-        assert!(!self.initialized);
-        self.initialized = true;
-
-        self.idt.initialize();
-        self.exceptions.initialize(&mut self.idt);
-    }
-}
+pub use controller::InterruptController;
+pub use exceptions::{ExceptionHandler, ExceptionInfo, ExceptionType};
+pub use info::{IRQInfo, Registers};

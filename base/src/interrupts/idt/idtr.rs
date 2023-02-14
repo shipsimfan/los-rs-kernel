@@ -1,11 +1,10 @@
 use super::IDT;
 
 extern "C" {
-    #[allow(improper_ctypes)]
     fn load_idt(idtr: *const IDTR);
 }
 
-#[repr(packed)]
+#[repr(packed, C)]
 #[allow(unused)]
 pub(super) struct IDTR {
     limit: u16,

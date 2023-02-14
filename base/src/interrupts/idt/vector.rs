@@ -1,6 +1,6 @@
 use crate::gdt;
 
-#[repr(packed)]
+#[repr(packed, C)]
 #[derive(Clone, Copy)]
 #[allow(unused)]
 pub(super) struct Vector {

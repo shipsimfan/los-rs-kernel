@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 
-#[repr(packed)]
+#[repr(packed, C)]
 #[derive(Clone, Copy)]
 #[allow(unused)]
 struct Reversedu64 {
@@ -8,7 +8,7 @@ struct Reversedu64 {
     lower: u32,
 }
 
-#[repr(packed)]
+#[repr(packed, C)]
 #[allow(unused)]
 pub struct TSS {
     reserved: u32,
