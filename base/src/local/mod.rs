@@ -20,7 +20,7 @@ extern "C" {
 }
 
 impl<'local> LocalState<'local> {
-    pub fn new(gdt: &'local GDT) -> LocalStateContainer<'local> {
+    pub fn new(gdt: &'local GDT<'local>) -> LocalStateContainer<'local> {
         LocalStateContainer::new(LocalState {
             critical_state: CriticalState::new(),
 
@@ -46,7 +46,7 @@ impl<'local> LocalState<'local> {
         &self.critical_state
     }
 
-    pub fn gdt(&self) -> &GDT {
+    pub fn gdt(&'local self) -> &'local GDT {
         self.gdt
     }
 }
