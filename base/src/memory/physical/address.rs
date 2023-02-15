@@ -21,3 +21,15 @@ impl Into<usize> for PhysicalAddress {
         self.0
     }
 }
+
+impl core::fmt::Debug for PhysicalAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
+
+impl core::fmt::Display for PhysicalAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:#X}", self.0)
+    }
+}
