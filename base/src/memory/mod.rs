@@ -1,5 +1,6 @@
-use self::physical::PhysicalMemoryManager;
 use crate::CriticalLock;
+use core::sync::atomic::{AtomicBool, Ordering};
+use physical::PhysicalMemoryManager;
 
 mod constants;
 mod physical;
@@ -7,16 +8,29 @@ mod physical;
 pub use constants::*;
 
 pub struct MemoryManager {
-    physical: PhysicalMemoryManager,
+    physical: CriticalLock<PhysicalMemoryManager>,
+
+    initialized: AtomicBool,
 }
 
-#[allow(unused)]
-static MEMORY_MANAGER: CriticalLock<MemoryManager> = CriticalLock::new(MemoryManager::null());
+static MEMORY_MANAGER: MemoryManager = MemoryManager::null();
 
 impl MemoryManager {
     pub(self) const fn null() -> Self {
         MemoryManager {
-            physical: PhysicalMemoryManager::null(),
+            physical: CriticalLock::new(PhysicalMemoryManager::null()),
+
+            initialized: AtomicBool::new(false),
         }
+    }
+
+    pub fn get() -> &'static MemoryManager {
+        &MEMORY_MANAGER
+    }
+
+    pub fn initialize(&self, memory_map: *const uefi::memory::raw::MemoryMap) {
+        assert!(!self.initialized.swap(true, Ordering::AcqRel));
+
+        self.physical.lock().initialize(memory_map);
     }
 }

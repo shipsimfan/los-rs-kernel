@@ -1,5 +1,5 @@
-use self::idtr::IDTR;
 use core::arch::global_asm;
+use idtr::IDTR;
 use vector::Vector;
 
 mod constants;
