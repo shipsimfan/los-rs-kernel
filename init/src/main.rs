@@ -14,8 +14,8 @@ mod boot;
 
 #[no_mangle]
 pub extern "C" fn kmain(
-    gmode: *const uefi::graphics::raw::GraphicsMode,
-    memory_map: *const uefi::memory::raw::MemoryMap,
+    gmode: *const uefi::raw::GraphicsMode,
+    memory_map: *const uefi::raw::MemoryMap,
     rsdp: *const core::ffi::c_void,
 ) -> ! {
     // Create the GDT
@@ -28,7 +28,7 @@ pub extern "C" fn kmain(
     let local_state = local_state_container.set_active();
 
     // Create the global state
-    GlobalState::initialize(memory_map);
+    GlobalState::initialize::<uefi::MemoryMap>(memory_map.into());
 
     loop {}
 }

@@ -1,6 +1,22 @@
+use crate::memory::{PAGE_MASK, PAGE_SIZE};
 use core::ops::Deref;
 
-pub(crate) struct PhysicalAddress(usize);
+#[derive(Clone, Copy)]
+pub struct PhysicalAddress(usize);
+
+impl PhysicalAddress {
+    pub(super) const fn null() -> Self {
+        PhysicalAddress(0)
+    }
+
+    pub(super) fn from_page(page: usize) -> Self {
+        PhysicalAddress(page * PAGE_SIZE)
+    }
+
+    pub(super) fn to_page(self) -> usize {
+        (self.0 & PAGE_MASK) / PAGE_SIZE
+    }
+}
 
 impl Deref for PhysicalAddress {
     type Target = usize;

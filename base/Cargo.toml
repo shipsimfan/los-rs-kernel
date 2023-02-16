@@ -11,6 +11,3 @@ doc = false
 doctest = false
 name = "base"
 test = false
-
-[dependencies]
-uefi = { workspace = true }

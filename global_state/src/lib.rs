@@ -1,5 +1,5 @@
 #![no_std]
-use base::{CriticalLock, InterruptController, MemoryManager};
+use base::{CriticalLock, InterruptController, MemoryManager, MemoryMap};
 
 pub struct GlobalState {
     interrupt_controller: &'static CriticalLock<InterruptController>,
@@ -9,7 +9,7 @@ pub struct GlobalState {
 //static mut GLOBAL_STATE: Option<Arc<GlobalState>> = None;
 
 impl GlobalState {
-    pub fn initialize(memory_map: *const uefi::memory::raw::MemoryMap) {
+    pub fn initialize<M: MemoryMap>(memory_map: M) {
         //assert!(unsafe { GLOBAL_STATE.is_none() });
 
         // Initialize static entities (IDT & Memory manager)

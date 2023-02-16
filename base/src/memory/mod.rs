@@ -6,6 +6,7 @@ mod constants;
 mod physical;
 
 pub use constants::*;
+pub use physical::{MemoryDescriptor, MemoryMap, PhysicalAddress};
 
 pub struct MemoryManager {
     physical: CriticalLock<PhysicalMemoryManager>,
@@ -28,7 +29,7 @@ impl MemoryManager {
         &MEMORY_MANAGER
     }
 
-    pub fn initialize(&self, memory_map: *const uefi::memory::raw::MemoryMap) {
+    pub fn initialize<M: MemoryMap>(&self, memory_map: M) {
         assert!(!self.initialized.swap(true, Ordering::AcqRel));
 
         self.physical.lock().initialize(memory_map);
