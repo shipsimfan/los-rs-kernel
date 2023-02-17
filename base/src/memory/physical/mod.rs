@@ -43,7 +43,7 @@ impl PhysicalMemoryManager {
                 self.physical_top = top.into();
             }
 
-            if descriptor.is_freeable() {
+            if descriptor.is_usable() {
                 if *descriptor.address() >= MAXIMUM_PHYSICAL_MEMORY {
                     panic!("Too much physical memory on this machine");
                 }

@@ -7,5 +7,5 @@ pub trait MemoryMap: Iterator<Item = Self::Descriptor> {
 pub trait MemoryDescriptor {
     fn address(&self) -> PhysicalAddress;
     fn num_pages(&self) -> usize;
-    fn is_freeable(&self) -> bool;
+    fn is_usable(&self) -> bool;
 }

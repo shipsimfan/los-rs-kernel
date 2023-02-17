@@ -4,7 +4,7 @@ use base::PhysicalAddress;
 pub struct MemoryDescriptor {
     address: PhysicalAddress,
     num_pages: usize,
-    is_freeable: bool,
+    is_usable: bool,
 }
 
 impl From<*const raw::MemoryDescriptor> for MemoryDescriptor {
@@ -13,11 +13,13 @@ impl From<*const raw::MemoryDescriptor> for MemoryDescriptor {
 
         unsafe {
             MemoryDescriptor {
-                address: (*raw).physical_address().into(),
-                num_pages: (*raw).num_pages(),
-                is_freeable: match (*raw).class() {
+                address: ((*raw).physical_address() as usize).into(),
+                num_pages: (*raw).num_pages() as usize,
+                is_usable: match (*raw).class() {
                     LoaderCode | LoaderData | BootSerivesCode | BootServicesData
-                    | RuntimeServicesCode | RuntimeServiesData | Conventional | Persistent => true,
+                    | RuntimeServicesCode | RuntimeServiesData | Conventional | Persistent => {
+                        ((*raw).attribute() & raw::EFI_MEMORY_SP) == 0
+                    }
                     _ => false,
                 },
             }
@@ -34,7 +36,7 @@ impl base::MemoryDescriptor for MemoryDescriptor {
         self.num_pages
     }
 
-    fn is_freeable(&self) -> bool {
-        self.is_freeable
+    fn is_usable(&self) -> bool {
+        self.is_usable
     }
 }

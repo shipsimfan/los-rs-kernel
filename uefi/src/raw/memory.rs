@@ -31,11 +31,13 @@ pub struct MemoryMap {
 #[repr(C)]
 pub struct MemoryDescriptor {
     class: MemoryClass,
-    physical_address: usize,
-    virtual_address: usize,
-    num_pages: usize,
-    attribute: usize,
+    physical_address: u64,
+    virtual_address: u64,
+    num_pages: u64,
+    attribute: u64,
 }
+
+pub(crate) const EFI_MEMORY_SP: u64 = 0x0000000000040000;
 
 impl MemoryMap {
     pub(crate) fn address(&self) -> *const MemoryDescriptor {
@@ -52,15 +54,19 @@ impl MemoryMap {
 }
 
 impl MemoryDescriptor {
-    pub(crate) fn physical_address(&self) -> usize {
+    pub(crate) fn physical_address(&self) -> u64 {
         self.physical_address
     }
 
-    pub(crate) fn num_pages(&self) -> usize {
+    pub(crate) fn num_pages(&self) -> u64 {
         self.num_pages
     }
 
     pub(crate) fn class(&self) -> MemoryClass {
         self.class
+    }
+
+    pub(crate) fn attribute(&self) -> u64 {
+        self.attribute
     }
 }
