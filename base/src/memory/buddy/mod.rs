@@ -1,5 +1,7 @@
 use super::{IDENTITY_MAP_SIZE, PAGE_SIZE};
-use free_list::FreeList;
+use core::ptr::NonNull;
+use free_list::{FreeList, FreeResult};
+use node::Node;
 
 mod free_list;
 mod node;
@@ -36,7 +38,7 @@ impl BuddyAllocator {
         todo!()
     }
 
-    pub(super) unsafe fn allocate_at(&mut self, address: usize, num_pages: usize) {
+    pub(super) unsafe fn free_at(&mut self, address: usize, num_pages: usize) {
         assert!((address / PAGE_SIZE) % num_pages == 0);
         // Find the list which is the best fit for num pages
         let order = order(num_pages);
@@ -53,24 +55,34 @@ impl BuddyAllocator {
         }
 
         // Search for any chunks equivalent to this allocation
-        //  If found, ignore this allocation
+        let new_node = match self.free(address, num_pages) {
+            Some(new_node) => unsafe { new_node.as_ref() },
+            None => return,
+        };
 
         // Search for any smaller chunks which this allocation contains
-        //  If found, remove them to be merged with this allocation
-
-        // Insert the new node into the linked list for this allocation
+        for order in (0..order).rev() {
+            for node in &mut self.free_lists[order] {
+                if new_node.contains_node(node) {
+                    // If found, remove them to be merged with this allocation
+                    node.remove();
+                } else if node.is_above(address) {
+                    break;
+                }
+            }
+        }
     }
 
-    pub(super) fn free(&mut self, address: usize, num_pages: usize) {
+    pub(super) fn free(&mut self, address: usize, num_pages: usize) -> Option<NonNull<Node>> {
         assert!((address / PAGE_SIZE) % num_pages == 0);
 
         // Find the list which is the best fit for num pages
+        let order = order(num_pages);
 
-        // Search the list for this allocations buddy
-        //  If found, remove buddy, and repeat free for larger chunk
-
-        // Insert the new node into the linked list for this allocation
-
-        todo!()
+        match self.free_lists[order].free(address) {
+            FreeResult::EquivalentFound => return None,
+            FreeResult::NewNode { new_node } => return Some(new_node),
+            FreeResult::BuddyMerge { address, num_pages } => self.free(address, num_pages),
+        }
     }
 }
