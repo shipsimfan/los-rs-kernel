@@ -13,7 +13,7 @@ impl From<*const raw::MemoryDescriptor> for MemoryDescriptor {
 
         unsafe {
             MemoryDescriptor {
-                address: ((*raw).physical_address() as usize).into(),
+                address: PhysicalAddress::from_raw((*raw).physical_address() as usize),
                 num_pages: (*raw).num_pages() as usize,
                 is_usable: match (*raw).class() {
                     LoaderCode | LoaderData | BootSerivesCode | BootServicesData
