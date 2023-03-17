@@ -1,4 +1,4 @@
-use super::{PAGE_MASK, PAGE_SIZE};
+use super::{MemoryUsage, PAGE_MASK, PAGE_SIZE};
 use bitmap::Bitmap;
 
 mod address;
@@ -32,7 +32,11 @@ impl PhysicalMemoryManager {
         }
     }
 
-    pub(super) fn initialize<M: MemoryMap>(&mut self, memory_map: M) {
+    pub(super) fn top(&self) -> PhysicalAddress {
+        self.physical_top
+    }
+
+    pub(super) fn initialize<M: MemoryMap>(&mut self, memory_map: M, usage: &mut MemoryUsage) {
         let kernel_top = PhysicalAddress::from(unsafe { (&__KERNEL_TOP) as *const usize as usize });
         let kernel_top_page =
             kernel_top.to_page() + if *kernel_top & PAGE_MASK == 0 { 0 } else { 1 };
@@ -69,6 +73,8 @@ impl PhysicalMemoryManager {
         }
 
         self.next_free_page = self.page_bitmap.get_next(kernel_top_page, false);
+
+        usage.set_free_and_available(self.free_pages, self.physical_top.to_page())
     }
 
     pub(super) fn allocate(&mut self) -> PhysicalAddress {

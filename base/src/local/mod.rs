@@ -1,4 +1,4 @@
-use crate::{critical::CriticalState, gdt::GDT, memory::KERNAL_VMA};
+use crate::{critical::CriticalState, gdt::GDT, memory::KERNEL_VMA};
 use core::arch::global_asm;
 
 mod container;
@@ -29,7 +29,7 @@ impl<'local> LocalState<'local> {
 
     pub fn try_get() -> Option<&'local LocalState<'local>> {
         let gs = unsafe { get_gs() };
-        if gs <= KERNAL_VMA {
+        if gs <= KERNEL_VMA {
             None
         } else {
             Some(unsafe { &*(gs as *const LocalState) })
