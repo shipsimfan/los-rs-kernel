@@ -4,10 +4,9 @@ use crate::{
     PhysicalAddress,
 };
 
-#[repr(packed(4096))]
+#[repr(align(4096))]
 pub(in crate::memory) struct PML4([PML4Entry; TABLE_ENTRIES]);
 
-#[repr(packed(4096))]
 #[derive(Clone, Copy)]
 pub(in crate::memory) struct PML4Entry(usize);
 

@@ -4,11 +4,10 @@ use crate::{
     PhysicalAddress,
 };
 
-#[repr(packed(4096))]
+#[repr(align(4096))]
 #[derive(Clone, Copy)]
 pub(in crate::memory) struct PDPT([PDPTEntry; TABLE_ENTRIES]);
 
-#[repr(packed(4096))]
 #[derive(Clone, Copy)]
 pub(in crate::memory) struct PDPTEntry(usize);
 
@@ -37,6 +36,10 @@ impl PDPT {
     }
 
     pub fn set_entry(&mut self, index: usize, entry: PDPTEntry) {
+        if index == 0 {
+            // Test
+        }
+
         self.0[index] = entry;
     }
 }

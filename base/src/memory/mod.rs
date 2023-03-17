@@ -1,5 +1,7 @@
-use crate::CriticalLock;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    arch::global_asm,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use page_tables::*;
 
 // ISSUE: Assumes 48-bit physical address bus and no PML5
@@ -17,20 +19,23 @@ pub use physical_address::*;
 
 pub struct MemoryManager {
     initialized: AtomicBool,
-
-    kernel_pml4: CriticalLock<PML4>,
-    identity_mapping: CriticalLock<[PDPT; IDENTITY_MAP_NUM_PDPTS]>,
 }
 
 static MEMORY_MANAGER: MemoryManager = MemoryManager::null();
+
+static mut KERNEL_PML4: PML4 = PML4::null();
+static mut IDENTITY_MAP: [PDPT; IDENTITY_MAP_NUM_PDPTS] = [PDPT::null(); IDENTITY_MAP_NUM_PDPTS];
+
+global_asm!(include_str!("memory.asm"));
+
+extern "C" {
+    fn set_cr3(cr3: usize);
+}
 
 impl MemoryManager {
     pub(self) const fn null() -> Self {
         MemoryManager {
             initialized: AtomicBool::new(false),
-
-            kernel_pml4: CriticalLock::new(PML4::null()),
-            identity_mapping: CriticalLock::new([PDPT::null(); IDENTITY_MAP_NUM_PDPTS]),
         }
     }
 
@@ -41,9 +46,11 @@ impl MemoryManager {
     pub fn initialize<M: MemoryMap>(&self, memory_map: M) {
         assert!(!self.initialized.swap(true, Ordering::AcqRel));
 
-        self.kernel_pml4
-            .lock()
-            .identity_map(&mut *self.identity_mapping.lock());
+        // Setup the PML 4
+        unsafe {
+            KERNEL_PML4.identity_map(&mut IDENTITY_MAP);
+            set_cr3(PhysicalAddress::new(&KERNEL_PML4).into_usize());
+        }
 
         // TODO: Setup the buddy allocator and free memory from the memory map
     }
