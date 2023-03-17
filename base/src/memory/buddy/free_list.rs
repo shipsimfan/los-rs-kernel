@@ -8,7 +8,7 @@ pub(super) enum FreeResult {
     BuddyMerge { address: usize, num_pages: usize },
 }
 
-#[derive(Copy)]
+#[derive(Clone, Copy)]
 pub(super) struct FreeList {
     head: Option<NonNull<Node>>,
     pages_per_node: usize,
@@ -20,15 +20,15 @@ pub(super) struct Iter<'a> {
 }
 
 pub(super) struct IterMut<'a> {
+    list: &'a mut FreeList,
     current: Option<NonNull<Node>>,
-    phantom: PhantomData<&'a mut ()>,
 }
 
 fn calculate_buddy(address: usize, num_pages: usize) -> (usize, bool) {
-    if (address / num_pages) & 1 == 1 {
-        (address - num_pages, true)
+    if (address / (num_pages * PAGE_SIZE)) & 1 == 1 {
+        (address - (num_pages * PAGE_SIZE), true)
     } else {
-        (address + num_pages, false)
+        (address + (num_pages * PAGE_SIZE), false)
     }
 }
 
@@ -47,11 +47,20 @@ impl FreeList {
         }
     }
 
-    pub(super) fn iter_mut<'a>(&'a self) -> IterMut<'a> {
+    pub(super) unsafe fn set_pages_per_node(&mut self, pages_per_node: usize) {
+        assert!(self.head.is_none());
+        self.pages_per_node = pages_per_node;
+    }
+
+    pub(super) fn iter_mut<'a>(&'a mut self) -> IterMut<'a> {
         IterMut {
             current: self.head,
-            phantom: PhantomData,
+            list: self,
         }
+    }
+
+    pub(self) fn remove_node(&mut self, node: &mut Node) {
+        node.remove(&mut self.head)
     }
 
     pub(super) fn free(&mut self, address: usize) -> FreeResult {
@@ -72,7 +81,7 @@ impl FreeList {
             }
 
             if down && current.equal(buddy) {
-                current.remove();
+                current.remove(&mut self.head);
                 return FreeResult::BuddyMerge {
                     address: buddy,
                     num_pages: self.pages_per_node * 2,
@@ -83,7 +92,7 @@ impl FreeList {
                 Some(mut next_ptr) => {
                     let next = unsafe { next_ptr.as_mut() };
                     if !down && next.equal(buddy) {
-                        next.remove();
+                        next.remove(&mut self.head);
                         return FreeResult::BuddyMerge {
                             address,
                             num_pages: self.pages_per_node * 2,
@@ -133,15 +142,6 @@ impl<'a> IntoIterator for &'a mut FreeList {
     }
 }
 
-impl Clone for FreeList {
-    fn clone(&self) -> Self {
-        FreeList {
-            head: self.head,
-            pages_per_node: self.pages_per_node * 2,
-        }
-    }
-}
-
 impl<'a> Iterator for Iter<'a> {
     type Item = &'a Node;
 
@@ -154,6 +154,12 @@ impl<'a> Iterator for Iter<'a> {
             }
             None => None,
         }
+    }
+}
+
+impl<'a> IterMut<'a> {
+    pub(super) fn remove_node(&mut self, node: &mut Node) {
+        self.list.remove_node(node);
     }
 }
 

@@ -31,7 +31,7 @@ impl PDPT {
 
             self.set_entry(i, entry);
 
-            unsafe { address.add(IDENTITY_MAP_PAGE_SIZE) }
+            address = unsafe { address.add(IDENTITY_MAP_PAGE_SIZE) };
         }
     }
 
@@ -57,6 +57,7 @@ impl PDPTEntry {
         PDPTEntry(entry)
     }
 
+    #[allow(unused)]
     pub fn new(page_directory: &PageDirectory) -> Self {
         let mut address = unsafe { PhysicalAddress::new(page_directory).into_usize() } & PAGE_MASK;
 
@@ -65,6 +66,7 @@ impl PDPTEntry {
         PDPTEntry(address)
     }
 
+    #[allow(unused)]
     pub fn clear_present(&mut self) {
         clear_bit!(self.0, PRESENT_BIT);
     }
@@ -73,6 +75,7 @@ impl PDPTEntry {
         set_bit!(self.0, PRESENT_BIT);
     }
 
+    #[allow(unused)]
     pub fn set_read(&mut self) {
         clear_bit!(self.0, READ_WRITE_BIT);
     }
@@ -81,6 +84,7 @@ impl PDPTEntry {
         clear_bit!(self.0, USER_SUPERVISOR_BIT);
     }
 
+    #[allow(unused)]
     pub fn set_user(&mut self) {
         set_bit!(self.0, USER_SUPERVISOR_BIT);
     }

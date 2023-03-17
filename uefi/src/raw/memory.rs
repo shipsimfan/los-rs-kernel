@@ -1,3 +1,5 @@
+use base::PhysicalAddress;
+
 #[repr(u32)]
 #[derive(Debug, Clone, Copy)]
 pub enum MemoryClass {
@@ -25,7 +27,7 @@ pub struct MemoryMap {
     key: usize,
     descriptor_size: usize,
     descriptor_version: u32,
-    address: *const MemoryDescriptor,
+    address: PhysicalAddress,
 }
 
 #[repr(C)]
@@ -40,7 +42,7 @@ pub struct MemoryDescriptor {
 pub(crate) const EFI_MEMORY_SP: u64 = 0x0000000000040000;
 
 impl MemoryMap {
-    pub(crate) fn address(&self) -> *const MemoryDescriptor {
+    pub(crate) fn address(&self) -> PhysicalAddress {
         self.address
     }
 

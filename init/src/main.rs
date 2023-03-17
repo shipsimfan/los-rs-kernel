@@ -5,18 +5,17 @@
 #![feature(alloc_error_handler)]
 
 use base::{LocalState, GDT, TSS};
-use core::arch::asm;
+use core::{arch::asm, ptr::NonNull};
 use global_state::GlobalState;
-
-const MODULE_NAME: &str = "Kernel";
 
 mod boot;
 
 #[no_mangle]
+#[allow(unused_variables)]
 pub extern "C" fn kmain(
-    gmode: *const uefi::raw::GraphicsMode,
-    memory_map: *const uefi::raw::MemoryMap,
-    rsdp: *const core::ffi::c_void,
+    gmode: NonNull<uefi::raw::GraphicsMode>,
+    memory_map: NonNull<uefi::raw::MemoryMap>,
+    rsdp: NonNull<core::ffi::c_void>,
 ) -> ! {
     // Create the GDT
     let tss = TSS::new();
@@ -36,10 +35,10 @@ pub extern "C" fn kmain(
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     match info.message() {
-        Some(msg) => {
+        Some(_) => {
             //log_fatal!("{}", msg);
             match info.location() {
-                Some(location) => {} //log_fatal!("\tLocated at {}", location),
+                Some(_) => {} //log_fatal!("\tLocated at {}", location),
                 None => {}
             }
         }

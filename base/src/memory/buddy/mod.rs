@@ -13,9 +13,7 @@ pub(super) struct BuddyAllocator {
 const MAX_ORDER: usize = (IDENTITY_MAP_SIZE / PAGE_SIZE).checked_ilog2().unwrap() as usize;
 
 fn order(num_pages: usize) -> usize {
-    (num_pages.next_power_of_two() / 2)
-        .checked_ilog2()
-        .unwrap_or(0) as usize
+    num_pages.next_power_of_two().checked_ilog2().unwrap() as usize
 }
 
 impl BuddyAllocator {
@@ -25,7 +23,18 @@ impl BuddyAllocator {
         }
     }
 
-    pub(super) fn allocate(&mut self, num_pages: usize) -> usize {
+    pub(super) unsafe fn initialize_orders(&mut self) {
+        let mut pages_per_node = 1;
+        for free_list in &mut self.free_lists {
+            free_list.set_pages_per_node(pages_per_node);
+            pages_per_node *= 2;
+        }
+    }
+
+    #[allow(unused)]
+    pub(super) fn allocate(&mut self, num_pages: usize, alignment: usize) -> usize {
+        assert!(num_pages >= alignment / PAGE_SIZE);
+
         // Find the list which is the best fit for num pages
 
         // Remove and return the first free chunk of the list
@@ -39,7 +48,7 @@ impl BuddyAllocator {
     }
 
     pub(super) unsafe fn free_at(&mut self, address: usize, num_pages: usize) {
-        assert!((address / PAGE_SIZE) % num_pages == 0);
+        assert!(address % (num_pages * PAGE_SIZE) == 0);
         // Find the list which is the best fit for num pages
         let order = order(num_pages);
 
@@ -62,10 +71,11 @@ impl BuddyAllocator {
 
         // Search for any smaller chunks which this allocation contains
         for order in (0..order).rev() {
-            for node in &mut self.free_lists[order] {
+            let mut iter = self.free_lists[order].iter_mut();
+            while let Some(node) = iter.next() {
                 if new_node.contains_node(node) {
                     // If found, remove them to be merged with this allocation
-                    node.remove();
+                    iter.remove_node(node);
                 } else if node.is_above(address) {
                     break;
                 }
@@ -74,7 +84,7 @@ impl BuddyAllocator {
     }
 
     pub(super) fn free(&mut self, address: usize, num_pages: usize) -> Option<NonNull<Node>> {
-        assert!((address / PAGE_SIZE) % num_pages == 0);
+        assert!(address % (num_pages * PAGE_SIZE) == 0);
 
         // Find the list which is the best fit for num pages
         let order = order(num_pages);

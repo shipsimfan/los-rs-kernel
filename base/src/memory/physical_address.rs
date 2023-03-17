@@ -1,6 +1,6 @@
 use super::{IDENTITY_MAP_BOTTOM, IDENTITY_MAP_TOP, KERNEL_VMA};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysicalAddress {
     address: usize,
 }
@@ -22,8 +22,14 @@ impl PhysicalAddress {
         }
     }
 
-    pub unsafe fn add(&mut self, bytes: usize) {
-        self.address += bytes;
+    pub unsafe fn add(self, bytes: usize) -> Self {
+        PhysicalAddress {
+            address: self.address + bytes,
+        }
+    }
+
+    pub fn into_virtual<T>(self) -> *mut T {
+        (self.address + KERNEL_VMA) as *mut _
     }
 
     pub(in crate::memory) unsafe fn into_usize(self) -> usize {

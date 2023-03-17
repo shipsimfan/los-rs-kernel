@@ -1,20 +1,22 @@
 use super::MemoryDescriptor;
 use crate::raw;
+use core::ptr::NonNull;
 
 pub struct MemoryMap {
-    current: *const raw::MemoryDescriptor,
+    current: NonNull<raw::MemoryDescriptor>,
     descriptor_size: usize,
 
     remaining_descriptors: usize,
 }
 
-impl From<*const raw::MemoryMap> for MemoryMap {
-    fn from(raw: *const raw::MemoryMap) -> Self {
+impl From<NonNull<raw::MemoryMap>> for MemoryMap {
+    fn from(raw: NonNull<raw::MemoryMap>) -> Self {
         unsafe {
+            let raw = raw.as_ref();
             MemoryMap {
-                current: (*raw).address(),
-                descriptor_size: (*raw).descriptor_size(),
-                remaining_descriptors: (*raw).size() / (*raw).descriptor_size(),
+                current: NonNull::new(raw.address().into_virtual()).unwrap(),
+                descriptor_size: raw.descriptor_size(),
+                remaining_descriptors: raw.size() / raw.descriptor_size(),
             }
         }
     }
@@ -32,8 +34,12 @@ impl Iterator for MemoryMap {
             return None;
         }
 
+        self.remaining_descriptors -= 1;
+
         let ptr = self.current;
-        self.current = unsafe { self.current.byte_add(self.descriptor_size) };
+        self.current =
+            NonNull::new((self.current.as_ptr() as usize + self.descriptor_size) as *mut _)
+                .unwrap();
         Some(ptr.into())
     }
 }

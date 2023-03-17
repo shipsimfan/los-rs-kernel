@@ -1,6 +1,7 @@
 use buddy::BuddyAllocator;
 use core::{
     arch::global_asm,
+    ffi::c_void,
     sync::atomic::{AtomicBool, Ordering},
 };
 use page_tables::*;
@@ -35,6 +36,8 @@ static mut IDENTITY_MAP: [PDPT; IDENTITY_MAP_NUM_PDPTS] = [PDPT::null(); IDENTIT
 global_asm!(include_str!("memory.asm"));
 
 extern "C" {
+    static __KERNEL_TOP: c_void;
+
     fn set_cr3(cr3: usize);
 }
 
@@ -60,6 +63,27 @@ impl MemoryManager {
             set_cr3(PhysicalAddress::new(&KERNEL_PML4).into_usize());
         }
 
-        // TODO: Free memory from the memory map
+        // Free memory from the memory map
+        let kernel_top = PhysicalAddress::new(unsafe { &__KERNEL_TOP });
+        let mut buddy_allocator = self.buddy_allocator.lock();
+        unsafe { buddy_allocator.initialize_orders() };
+        for descriptor in memory_map {
+            if !descriptor.is_usable() {
+                continue;
+            }
+
+            let mut address = descriptor.address();
+            if unsafe { address.add(descriptor.num_pages() * PAGE_SIZE) } <= kernel_top {
+                continue;
+            }
+
+            for _ in 0..descriptor.num_pages() {
+                if address >= kernel_top {
+                    unsafe { buddy_allocator.free_at(address.into_virtual::<()>() as usize, 1) };
+                }
+
+                address = unsafe { address.add(PAGE_SIZE) };
+            }
+        }
     }
 }

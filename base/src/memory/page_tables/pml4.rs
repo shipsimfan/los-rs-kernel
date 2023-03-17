@@ -1,4 +1,4 @@
-use super::{check_bit, clear_bit, set_bit, PDPT};
+use super::{clear_bit, set_bit, PDPT};
 use crate::{
     memory::{IDENTITY_MAP_PAGE_SIZE, PAGE_MASK, TABLE_ENTRIES},
     PhysicalAddress,
@@ -32,7 +32,7 @@ impl PML4 {
 
             self.set_entry(i + TABLE_ENTRIES / 2, entry);
 
-            unsafe { address.add(IDENTITY_MAP_PAGE_SIZE * TABLE_ENTRIES) };
+            address = unsafe { address.add(IDENTITY_MAP_PAGE_SIZE * TABLE_ENTRIES) };
         }
     }
 
@@ -52,6 +52,7 @@ impl PML4Entry {
         PML4Entry(unsafe { address.into_usize() } & PAGE_MASK)
     }
 
+    #[allow(unused)]
     pub fn clear_present(&mut self) {
         clear_bit!(self.0, PRESENT_BIT);
     }
@@ -60,6 +61,7 @@ impl PML4Entry {
         set_bit!(self.0, PRESENT_BIT);
     }
 
+    #[allow(unused)]
     pub fn set_read(&mut self) {
         clear_bit!(self.0, READ_WRITE_BIT);
     }
@@ -68,6 +70,7 @@ impl PML4Entry {
         clear_bit!(self.0, USER_SUPERVISOR_BIT);
     }
 
+    #[allow(unused)]
     pub fn set_user(&mut self) {
         set_bit!(self.0, USER_SUPERVISOR_BIT);
     }

@@ -18,7 +18,7 @@ impl Node {
     ) -> NonNull<Node> {
         assert!((address / PAGE_SIZE) % num_pages == 0);
 
-        let mut ptr = address as *mut Node;
+        let ptr = address as *mut Node;
         unsafe {
             *ptr = Node {
                 next,
@@ -57,11 +57,13 @@ impl Node {
         self.next
     }
 
-    pub(super) fn remove(&mut self) {
+    pub(super) fn remove(&mut self, head: &mut Option<NonNull<Node>>) {
         self.next
             .map(|mut next| unsafe { next.as_mut().set_prev(self.prev) });
-        self.prev
-            .map(|mut prev| unsafe { prev.as_mut().set_next(self.next) });
+        match self.prev {
+            Some(mut prev) => unsafe { prev.as_mut().set_next(self.next) },
+            None => *head = self.next,
+        }
     }
 
     pub(super) fn set_next(&mut self, next: Option<NonNull<Node>>) {
