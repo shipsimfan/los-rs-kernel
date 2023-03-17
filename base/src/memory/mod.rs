@@ -1,3 +1,4 @@
+use buddy::BuddyAllocator;
 use core::{
     arch::global_asm,
     sync::atomic::{AtomicBool, Ordering},
@@ -8,6 +9,7 @@ use page_tables::*;
 // TODO: Find correct physical address width and check for PML5.
 //  Also increase range from default safe 64 TB to map the whole upper address space
 
+mod buddy;
 mod constants;
 mod map;
 mod page_tables;
@@ -17,8 +19,12 @@ pub use constants::*;
 pub use map::*;
 pub use physical_address::*;
 
+use crate::CriticalLock;
+
 pub struct MemoryManager {
     initialized: AtomicBool,
+
+    buddy_allocator: CriticalLock<BuddyAllocator>,
 }
 
 static MEMORY_MANAGER: MemoryManager = MemoryManager::null();
@@ -36,6 +42,8 @@ impl MemoryManager {
     pub(self) const fn null() -> Self {
         MemoryManager {
             initialized: AtomicBool::new(false),
+
+            buddy_allocator: CriticalLock::new(BuddyAllocator::new()),
         }
     }
 
@@ -52,6 +60,6 @@ impl MemoryManager {
             set_cr3(PhysicalAddress::new(&KERNEL_PML4).into_usize());
         }
 
-        // TODO: Setup the buddy allocator and free memory from the memory map
+        // TODO: Free memory from the memory map
     }
 }
