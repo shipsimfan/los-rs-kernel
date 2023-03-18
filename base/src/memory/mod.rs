@@ -2,6 +2,7 @@ use buddy::BuddyAllocator;
 use core::{
     arch::global_asm,
     ffi::c_void,
+    ptr::NonNull,
     sync::atomic::{AtomicBool, Ordering},
 };
 use page_tables::*;
@@ -15,10 +16,12 @@ mod constants;
 mod map;
 mod page_tables;
 mod physical_address;
+mod slab;
 
 pub use constants::*;
 pub use map::*;
 pub use physical_address::*;
+pub use slab::SlabAllocator;
 
 use crate::CriticalLock;
 
@@ -85,5 +88,17 @@ impl MemoryManager {
                 address = unsafe { address.add(PAGE_SIZE) };
             }
         }
+
+        // Initialize the slab allocators
+    }
+
+    pub fn allocate_pages(&self, num_pages: usize) -> NonNull<u8> {
+        unsafe { NonNull::new_unchecked(self.buddy_allocator.lock().allocate(num_pages) as *mut _) }
+    }
+
+    pub fn free_pages(&self, ptr: NonNull<u8>, num_pages: usize) {
+        self.buddy_allocator
+            .lock()
+            .free(ptr.as_ptr() as usize, num_pages);
     }
 }

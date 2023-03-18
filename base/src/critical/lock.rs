@@ -6,6 +6,7 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+// TODO: Upgrade to a ticket lock
 pub struct CriticalLock<T: Sized + 'static> {
     lock: AtomicBool,
     data: UnsafeCell<T>,

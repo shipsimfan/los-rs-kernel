@@ -6,6 +6,7 @@ use node::Node;
 mod free_list;
 mod node;
 
+// TODO: Lower the MAX_ORDER and prevent buddy merges beyond
 pub(super) struct BuddyAllocator {
     free_lists: [FreeList; MAX_ORDER],
 }
@@ -31,11 +32,7 @@ impl BuddyAllocator {
         }
     }
 
-    #[allow(unused)]
-    pub(super) fn allocate(&mut self, num_pages: usize, alignment: usize) -> usize {
-        // TODO: Allow alignments larger than the size requested
-        assert!(num_pages >= alignment / PAGE_SIZE);
-
+    pub(super) fn allocate(&mut self, num_pages: usize) -> usize {
         // Find the list which is the best fit for num pages
         let order = order(num_pages);
 
