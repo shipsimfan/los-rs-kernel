@@ -3,17 +3,17 @@ use crate::local::LocalState;
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
-// TODO: Upgrade to a ticket lock
 pub struct CriticalLock<T: Sized + 'static> {
-    lock: AtomicBool,
+    ticket: AtomicUsize,
+    now_serving: AtomicUsize,
     data: UnsafeCell<T>,
 }
 
 pub struct CriticalLockGuard<'a, T: Sized + 'static> {
-    lock: &'a AtomicBool,
+    now_serving: &'a AtomicUsize,
     data: &'a mut T,
     key: Option<CriticalKey>,
 }
@@ -22,7 +22,8 @@ impl<T: Sized + 'static> CriticalLock<T> {
     #[inline(always)]
     pub const fn new(data: T) -> Self {
         CriticalLock {
-            lock: AtomicBool::new(false),
+            ticket: AtomicUsize::new(0),
+            now_serving: AtomicUsize::new(0),
             data: UnsafeCell::new(data),
         }
     }
@@ -33,27 +34,19 @@ impl<T: Sized + 'static> CriticalLock<T> {
         let key = LocalState::try_get()
             .map(|local_state| unsafe { local_state.critical_state().enter() });
 
+        // Get a ticket number
+        let ticket = self.ticket.fetch_add(1, Ordering::AcqRel);
+
         // Lock globally
-        while self
-            .lock
-            .compare_exchange_weak(false, true, Ordering::SeqCst, Ordering::Relaxed)
-            .is_err()
-        {
-            while self.is_locked() {
-                core::hint::spin_loop();
-            }
+        while self.now_serving.load(Ordering::Acquire) != ticket {
+            core::hint::spin_loop();
         }
 
         CriticalLockGuard {
-            lock: &self.lock,
+            now_serving: &self.now_serving,
             data: unsafe { &mut *self.data.get() },
             key,
         }
-    }
-
-    #[inline(always)]
-    pub fn is_locked(&self) -> bool {
-        self.lock.load(Ordering::Relaxed)
     }
 }
 
@@ -78,7 +71,7 @@ impl<'a, T: Sized + 'static> Drop for CriticalLockGuard<'a, T> {
     fn drop(&mut self) {
         unsafe {
             // Unlock globally
-            self.lock.store(false, Ordering::SeqCst);
+            self.now_serving.fetch_add(1, Ordering::Release);
 
             // Leave local critical
             self.key
