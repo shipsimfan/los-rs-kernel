@@ -49,16 +49,20 @@ _start:
 .section .text
 
 higherHalf:
-    mov rbx, 0xFFFF800000000000
 
-    lea rax, qword ptr [stackTop]
-    add rax, rbx
-    mov rsp, rax
+adjust_argument_ptrs:
+    mov rbx, 0xFFFF800000000000
 
     add rdi, rbx
     add rsi, rbx
     add rdx, rbx
+
+setup_stack:
+    lea rax, qword ptr [stackTop]
+    add rax, rbx
+    mov rsp, rax
     
+setup_cr0_and_cr2:
     mov rax, cr0
     and ax, 0xFFFB
     or ax, 0x2
@@ -66,6 +70,24 @@ higherHalf:
     mov rax, cr4
     or ax, 3 << 9
     mov cr4, rax
+
+setup_null_gs:
+    xor rax, rax
+    push rax
+    mov rbx, rsp
     
+    push rbx
+    push rdx
+        
+    mov eax, ebx
+    shr rbx, 32
+    mov edx, ebx
+    mov ecx, 0xC0000101
+    wrmsr
+
+    pop rdx
+    pop rcx
+
+goto_kmain:
     mov rax, qword ptr [kmainLocation]
     call rax

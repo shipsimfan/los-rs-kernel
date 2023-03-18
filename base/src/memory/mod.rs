@@ -95,8 +95,6 @@ impl MemoryManager {
                 address = unsafe { address.add(PAGE_SIZE) };
             }
         }
-
-        // Initialize the slab allocators
     }
 
     pub fn allocate_pages(&self, num_pages: usize) -> NonNull<u8> {

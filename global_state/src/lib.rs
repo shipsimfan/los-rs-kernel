@@ -20,7 +20,6 @@ impl GlobalState {
         memory_manager.initialize(memory_map);
 
         // Create global state
-        loop {}
 
         /*
         *unsafe { &mut GLOBAL_STATE } = Some(Arc::new(GlobalState {

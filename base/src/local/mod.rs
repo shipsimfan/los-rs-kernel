@@ -1,12 +1,12 @@
 use crate::{critical::CriticalState, gdt::GDT, memory::KERNEL_VMA};
-use core::arch::global_asm;
+use core::{arch::global_asm, cell::RefCell};
 
 mod container;
 
 pub use container::LocalStateContainer;
 
 pub struct LocalState<'local> {
-    critical_state: CriticalState,
+    critical_state: RefCell<CriticalState>,
 
     gdt: &'local GDT<'local>,
 }
@@ -15,13 +15,13 @@ global_asm!(include_str!("./gs.asm"));
 
 extern "C" {
     fn get_gs() -> usize;
-    fn set_gs(local_state: usize);
+    pub(crate) fn set_gs(local_state: usize);
 }
 
 impl<'local> LocalState<'local> {
     pub fn new(gdt: &'local GDT<'local>) -> LocalStateContainer<'local> {
         LocalStateContainer::new(LocalState {
-            critical_state: CriticalState::new(),
+            critical_state: RefCell::new(CriticalState::new()),
 
             gdt,
         })
@@ -32,7 +32,7 @@ impl<'local> LocalState<'local> {
         if gs <= KERNEL_VMA {
             None
         } else {
-            Some(unsafe { &*(gs as *const LocalState) })
+            Some(unsafe { &*(gs as *const _) })
         }
     }
 
@@ -40,7 +40,7 @@ impl<'local> LocalState<'local> {
         LocalState::try_get().unwrap()
     }
 
-    pub fn critical_state(&self) -> &CriticalState {
+    pub fn critical_state(&self) -> &RefCell<CriticalState> {
         &self.critical_state
     }
 

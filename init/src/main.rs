@@ -5,7 +5,7 @@
 #![feature(alloc_error_handler)]
 
 use base::{LocalState, GDT, TSS};
-use core::{arch::asm, ptr::NonNull};
+use core::{arch::asm, ffi::c_void, ptr::NonNull};
 use global_state::GlobalState;
 
 mod boot;
@@ -16,18 +16,19 @@ pub extern "C" fn kmain(
     gmode: NonNull<uefi::raw::GraphicsMode>,
     memory_map: NonNull<uefi::raw::MemoryMap>,
     rsdp: NonNull<core::ffi::c_void>,
+    null_gs_ptr: NonNull<c_void>,
 ) -> ! {
     // Create the GDT
     let tss = TSS::new();
     let gdt = GDT::new(&tss);
-    gdt.set_active();
-
-    // Create the local state
-    let local_state_container = LocalState::new(&gdt);
-    let local_state = local_state_container.set_active();
+    gdt.set_active(null_gs_ptr.as_ptr() as usize);
 
     // Create the global state
     GlobalState::initialize::<uefi::MemoryMap>(memory_map.into());
+
+    // Create the local state
+    let mut local_state_container = LocalState::new(&gdt);
+    let local_state = local_state_container.set_active();
 
     loop {}
 }

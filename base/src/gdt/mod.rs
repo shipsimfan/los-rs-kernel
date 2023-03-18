@@ -1,3 +1,4 @@
+use crate::local::set_gs;
 use core::{arch::global_asm, cell::RefCell};
 
 mod constants;
@@ -47,7 +48,7 @@ impl<'a> GDT<'a> {
         self.tss.borrow_mut().set_interrupt_stack(stack);
     }
 
-    pub fn set_active(&self) {
+    pub fn set_active(&self, null_gs_ptr: usize) {
         unsafe {
             set_active_gdt(
                 &GDTR {
@@ -56,7 +57,8 @@ impl<'a> GDT<'a> {
                 },
                 KERNEL_CODE_SEGMENT_OFFSET as u16,
                 KERNEL_DATA_SEGMENT_OFFSET as u16,
-            )
+            );
+            set_gs(null_gs_ptr);
         }
     }
 }
