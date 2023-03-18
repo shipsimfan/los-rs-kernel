@@ -33,18 +33,47 @@ impl BuddyAllocator {
 
     #[allow(unused)]
     pub(super) fn allocate(&mut self, num_pages: usize, alignment: usize) -> usize {
+        // TODO: Allow alignments larger than the size requested
         assert!(num_pages >= alignment / PAGE_SIZE);
 
         // Find the list which is the best fit for num pages
+        let order = order(num_pages);
 
         // Remove and return the first free chunk of the list
+        match self.free_lists[order].pop_head() {
+            Some(head) => return head.as_ptr() as usize,
+            None => {}
+        }
 
         // If there is none, search larger lists until a free chunk is found
+        let mut alloc_order = order + 1;
+        let mut chunk = None;
+        while alloc_order < MAX_ORDER && chunk.is_none() {
+            chunk = self.free_lists[alloc_order].pop_head();
+            alloc_order += 1;
+        }
+
         //  If none can be found, we ran out of memory, panic!
+        let mut chunk = match chunk {
+            Some(chunk) => chunk,
+            None => panic!("Cannot find chunk to allocate!"),
+        };
 
         // Split the chunk found in the larger list as many times as needed
+        let address = chunk.as_ptr() as usize;
+        let node = unsafe { chunk.as_mut() };
+        while alloc_order > order {
+            alloc_order -= 1;
 
-        todo!()
+            let num_pages = node.num_pages() / 2;
+            let address = address + (num_pages * PAGE_SIZE);
+
+            unsafe { node.set_num_pages(num_pages) };
+
+            self.free(address, num_pages);
+        }
+
+        address
     }
 
     pub(super) unsafe fn free_at(&mut self, address: usize, num_pages: usize) {

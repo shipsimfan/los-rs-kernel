@@ -59,6 +59,16 @@ impl FreeList {
         }
     }
 
+    pub(super) fn pop_head(&mut self) -> Option<NonNull<Node>> {
+        match self.head {
+            Some(mut head) => {
+                self.remove_node(unsafe { head.as_mut() });
+                Some(head)
+            }
+            None => None,
+        }
+    }
+
     pub(self) fn remove_node(&mut self, node: &mut Node) {
         node.remove(&mut self.head)
     }

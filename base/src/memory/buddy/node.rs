@@ -1,6 +1,5 @@
-use core::ptr::NonNull;
-
 use crate::memory::PAGE_SIZE;
+use core::ptr::NonNull;
 
 #[repr(align(4096))]
 pub(in crate::memory) struct Node {
@@ -57,6 +56,10 @@ impl Node {
         self.next
     }
 
+    pub(super) fn num_pages(&self) -> usize {
+        self.num_pages
+    }
+
     pub(super) fn remove(&mut self, head: &mut Option<NonNull<Node>>) {
         self.next
             .map(|mut next| unsafe { next.as_mut().set_prev(self.prev) });
@@ -72,5 +75,9 @@ impl Node {
 
     pub(super) fn set_prev(&mut self, prev: Option<NonNull<Node>>) {
         self.prev = prev;
+    }
+
+    pub(super) unsafe fn set_num_pages(&mut self, num_pages: usize) {
+        self.num_pages = num_pages;
     }
 }
