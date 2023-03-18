@@ -1,3 +1,4 @@
+use crate::CriticalLock;
 use buddy::BuddyAllocator;
 use core::{
     arch::global_asm,
@@ -18,12 +19,18 @@ mod page_tables;
 mod physical_address;
 mod slab;
 
+macro_rules! mask {
+    ($size: expr) => {
+        !($size - 1)
+    };
+}
+
+pub(self) use mask;
+
 pub use constants::*;
 pub use map::*;
 pub use physical_address::*;
 pub use slab::SlabAllocator;
-
-use crate::CriticalLock;
 
 pub struct MemoryManager {
     initialized: AtomicBool,

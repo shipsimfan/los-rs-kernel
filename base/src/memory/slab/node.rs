@@ -12,4 +12,8 @@ impl Node {
     pub(super) fn take_next(&mut self) -> Option<NonNull<Node>> {
         self.next.take()
     }
+
+    pub(super) fn set_next(&mut self, next: Option<NonNull<Node>>) {
+        self.next = next;
+    }
 }

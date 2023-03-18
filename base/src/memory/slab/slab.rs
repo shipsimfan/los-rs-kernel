@@ -60,8 +60,17 @@ impl SlabNode {
         ret
     }
 
-    pub(super) fn allocate<T>(&self) -> (NonNull<T>, usize) {
+    pub(super) fn set_next(&mut self, next: Option<NonNull<SlabNode>>) {
+        self.next = next;
+        next.map(|mut next| unsafe { next.as_mut().prev = Some(NonNull::from(self)) });
+    }
+
+    pub(super) fn allocate(&self) -> (NonNull<u8>, usize) {
         self.slab.lock().allocate()
+    }
+
+    pub(super) fn free(&self, ptr: NonNull<u8>) -> usize {
+        self.slab.lock().free(ptr.cast())
     }
 }
 
@@ -73,10 +82,20 @@ impl Slab {
         }
     }
 
-    pub(self) fn allocate<T>(&mut self) -> (NonNull<T>, usize) {
+    pub(self) fn allocate(&mut self) -> (NonNull<u8>, usize) {
         let mut ret = self.free_list.unwrap();
         self.free_list = unsafe { ret.as_mut().take_next() };
         self.allocated_objects += 1;
         (ret.cast(), self.allocated_objects)
+    }
+
+    pub(self) fn free(&mut self, mut ptr: NonNull<Node>) -> usize {
+        let ret = self.allocated_objects;
+        self.allocated_objects -= 1;
+
+        unsafe { ptr.as_mut() }.set_next(self.free_list);
+        self.free_list = Some(ptr);
+
+        ret
     }
 }
