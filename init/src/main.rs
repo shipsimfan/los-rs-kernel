@@ -20,8 +20,8 @@ static BOOT_VIDEO: CriticalLock<UEFIBootVideo> = CriticalLock::new(UEFIBootVideo
 pub extern "C" fn kmain(
     graphics_mode: NonNull<uefi::raw::GraphicsMode>,
     memory_map: NonNull<uefi::raw::MemoryMap>,
-    rsdp: NonNull<core::ffi::c_void>,
-    null_gs_ptr: NonNull<c_void>,
+    rsdp: NonNull<acpi::RSDP>,
+    null_gs_ptr: NonNull<*mut c_void>,
 ) -> ! {
     // Setup boot video
     BOOT_VIDEO.lock().initialize(graphics_mode);
@@ -34,6 +34,9 @@ pub extern "C" fn kmain(
 
     // Create the global state
     GlobalState::initialize::<uefi::MemoryMap, _>(memory_map.into(), &BOOT_VIDEO);
+
+    // Initialize ACPI
+    acpi::initialize(rsdp);
 
     // Create the local state
     let mut local_state_container = LocalState::new(&gdt);

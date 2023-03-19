@@ -1,18 +1,16 @@
 [package]
 authors = ["Lance Hart <shipsimfan@hotmail.com>"]
 edition = "2021"
-name = "init"
+name = "acpi"
 version = "0.1.0"
 
-[[bin]]
+[lib]
 bench = false
+crate-type = ["lib"]
 doc = false
 doctest = false
-name = "init"
+name = "acpi"
 test = false
 
 [dependencies]
 base = { workspace = true }
-global_state = { workspace = true }
-uefi = { workspace = true }
-acpi = { workspace = true }
