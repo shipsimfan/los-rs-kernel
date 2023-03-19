@@ -4,6 +4,9 @@
 #![feature(associated_type_bounds)]
 #![feature(alloc_error_handler)]
 
+extern crate alloc;
+
+use alloc::boxed::Box;
 use base::{CriticalLock, LocalState, LogController, GDT, TSS};
 use core::{arch::asm, ffi::c_void, fmt::Write, ptr::NonNull};
 use global_state::GlobalState;
@@ -46,7 +49,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 
     match info.message() {
         Some(msg) => {
-            writeln!(boot_video, "{}", msg).ok();
+            writeln!(boot_video, "PANIC: {}", msg).ok();
             match info.location() {
                 Some(location) => {
                     writeln!(boot_video, "\tLocated at {}", location).ok();

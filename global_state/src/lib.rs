@@ -1,4 +1,8 @@
 #![no_std]
+
+extern crate alloc;
+
+use alloc::sync::Arc;
 use base::{BootVideo, CriticalLock, InterruptController, Level, Logger, MemoryManager, MemoryMap};
 
 pub struct GlobalState {
@@ -6,7 +10,7 @@ pub struct GlobalState {
     memory_manager: &'static MemoryManager,
 }
 
-//static mut GLOBAL_STATE: Option<Arc<GlobalState>> = None;
+static mut GLOBAL_STATE: Option<Arc<GlobalState>> = None;
 
 impl GlobalState {
     pub fn initialize<M: MemoryMap, B: BootVideo>(memory_map: M, boot_video: &CriticalLock<B>) {
@@ -24,20 +28,18 @@ impl GlobalState {
         memory_manager.initialize(memory_map, framebuffer_memory);
 
         // Create global state
-
-        /*
-        *unsafe { &mut GLOBAL_STATE } = Some(Arc::new(GlobalState {
+        let global_state = Arc::new(GlobalState {
             interrupt_controller,
             memory_manager,
-        }));
-        */
+        });
+        *unsafe { &mut GLOBAL_STATE } = Some(global_state.clone());
 
         logger.log(Level::Info, "Global state initialized");
     }
 
-    /*pub fn get() -> &'static Arc<GlobalState> {
+    pub fn get() -> &'static Arc<GlobalState> {
         unsafe { GLOBAL_STATE.as_ref().unwrap() }
-    }*/
+    }
 
     pub fn interrupt_controller(&self) -> &CriticalLock<InterruptController> {
         self.interrupt_controller

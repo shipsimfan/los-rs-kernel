@@ -50,6 +50,8 @@ impl BuddyAllocator {
             alloc_order += 1;
         }
 
+        alloc_order -= 1;
+
         //  If none can be found, we ran out of memory, panic!
         let mut chunk = match chunk {
             Some(chunk) => chunk,

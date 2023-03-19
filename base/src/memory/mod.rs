@@ -14,6 +14,7 @@ use page_tables::*;
 
 mod buddy;
 mod constants;
+mod global_alloc;
 mod map;
 mod page_tables;
 mod physical_address;
