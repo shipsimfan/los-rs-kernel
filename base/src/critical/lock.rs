@@ -1,5 +1,5 @@
 use super::CriticalKey;
-use crate::local::LocalState;
+use crate::{local::LocalState, BootVideo, LogOutput};
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
@@ -52,6 +52,16 @@ impl<T: Sized + 'static> CriticalLock<T> {
 
 unsafe impl<T: Sized> Sync for CriticalLock<T> {}
 unsafe impl<T: Sized> Send for CriticalLock<T> {}
+
+impl<T: BootVideo> LogOutput for CriticalLock<T> {
+    fn write_str(&self, s: &str) {
+        self.lock().write_str(s).ok();
+    }
+
+    fn write_fmt(&self, args: core::fmt::Arguments<'_>) {
+        self.lock().write_fmt(args).ok();
+    }
+}
 
 impl<'a, T: Sized + 'static> Deref for CriticalLockGuard<'a, T> {
     type Target = T;

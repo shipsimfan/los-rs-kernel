@@ -1,4 +1,4 @@
-use crate::CriticalLock;
+use crate::{CriticalLock, Logger};
 use buddy::BuddyAllocator;
 use core::{
     arch::global_asm,
@@ -34,6 +34,7 @@ pub use slab::SlabAllocator;
 
 pub struct MemoryManager {
     initialized: AtomicBool,
+    logger: Logger,
 
     buddy_allocator: CriticalLock<BuddyAllocator>,
 }
@@ -55,6 +56,7 @@ impl MemoryManager {
     pub(self) const fn null() -> Self {
         MemoryManager {
             initialized: AtomicBool::new(false),
+            logger: Logger::new("Memory Manager"),
 
             buddy_allocator: CriticalLock::new(BuddyAllocator::new()),
         }
@@ -64,8 +66,10 @@ impl MemoryManager {
         &MEMORY_MANAGER
     }
 
-    pub fn initialize<M: MemoryMap>(&self, memory_map: M) {
+    pub fn initialize<M: MemoryMap>(&self, memory_map: M, framebuffer_memory: (usize, usize)) {
         assert!(!self.initialized.swap(true, Ordering::AcqRel));
+
+        self.logger.log(crate::Level::Info, "Initializing");
 
         // Setup the PML 4
         unsafe {
@@ -87,11 +91,23 @@ impl MemoryManager {
                 continue;
             }
 
+            let mut virt = address.into_virtual::<u32>() as usize;
+            if virt >= framebuffer_memory.0
+                && virt + (descriptor.num_pages() * PAGE_SIZE)
+                    <= framebuffer_memory.0 + framebuffer_memory.1
+            {
+                continue;
+            }
+
             for _ in 0..descriptor.num_pages() {
-                if address >= kernel_top {
+                if address >= kernel_top
+                    && (virt < framebuffer_memory.0
+                        || virt >= framebuffer_memory.0 + framebuffer_memory.1)
+                {
                     unsafe { buddy_allocator.free_at(address.into_virtual::<()>() as usize, 1) };
                 }
 
+                virt += PAGE_SIZE;
                 address = unsafe { address.add(PAGE_SIZE) };
             }
         }

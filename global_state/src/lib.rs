@@ -1,5 +1,5 @@
 #![no_std]
-use base::{CriticalLock, InterruptController, MemoryManager, MemoryMap};
+use base::{BootVideo, CriticalLock, InterruptController, Level, Logger, MemoryManager, MemoryMap};
 
 pub struct GlobalState {
     interrupt_controller: &'static CriticalLock<InterruptController>,
@@ -9,15 +9,19 @@ pub struct GlobalState {
 //static mut GLOBAL_STATE: Option<Arc<GlobalState>> = None;
 
 impl GlobalState {
-    pub fn initialize<M: MemoryMap>(memory_map: M) {
+    pub fn initialize<M: MemoryMap, B: BootVideo>(memory_map: M, boot_video: &CriticalLock<B>) {
         //assert!(unsafe { GLOBAL_STATE.is_none() });
+
+        let logger = Logger::new("Global State");
+        logger.log(Level::Info, "Initializing");
 
         // Initialize static entities (IDT & Memory manager)
         let interrupt_controller = InterruptController::get();
         interrupt_controller.lock().initialize();
 
         let memory_manager = MemoryManager::get();
-        memory_manager.initialize(memory_map);
+        let framebuffer_memory = boot_video.lock().framebuffer_memory();
+        memory_manager.initialize(memory_map, framebuffer_memory);
 
         // Create global state
 
@@ -27,6 +31,8 @@ impl GlobalState {
             memory_manager,
         }));
         */
+
+        logger.log(Level::Info, "Global state initialized");
     }
 
     /*pub fn get() -> &'static Arc<GlobalState> {
