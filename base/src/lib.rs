@@ -14,6 +14,7 @@ mod interrupts;
 mod local;
 mod log;
 mod memory;
+mod sync;
 
 pub use boot_video::BootVideo;
 pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard};
@@ -22,3 +23,4 @@ pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;
 pub use log::{Level, LogController, LogOutput, Logger};
 pub use memory::{MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, SlabAllocator};
+pub use sync::{Mutex, MutexGuard};

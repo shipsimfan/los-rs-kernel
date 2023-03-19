@@ -6,7 +6,6 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
 use base::{CriticalLock, LocalState, LogController, GDT, TSS};
 use core::{arch::asm, ffi::c_void, fmt::Write, ptr::NonNull};
 use global_state::GlobalState;
