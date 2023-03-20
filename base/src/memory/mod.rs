@@ -80,6 +80,11 @@ impl MemoryManager {
 
         // Free memory from the memory map
         let kernel_top = PhysicalAddress::new(unsafe { &__KERNEL_TOP });
+        let framebuffer_bottom = framebuffer_memory.0 & PAGE_MASK;
+        let framebuffer_top = framebuffer_memory.0 + framebuffer_memory.1;
+        let (memory_map_bottom, memory_map_top) = memory_map.bottom_and_top();
+        let memory_map_bottom = memory_map_bottom & PAGE_MASK;
+
         let mut buddy_allocator = self.buddy_allocator.lock();
         unsafe { buddy_allocator.initialize_orders() };
         for descriptor in memory_map {
@@ -92,23 +97,25 @@ impl MemoryManager {
                 continue;
             }
 
-            let mut virt = address.into_virtual::<u32>() as usize;
-            if virt >= framebuffer_memory.0
-                && virt + (descriptor.num_pages() * PAGE_SIZE)
-                    <= framebuffer_memory.0 + framebuffer_memory.1
+            let mut virt_bottom = address.into_virtual::<u32>() as usize;
+            let virt_top = virt_bottom + (descriptor.num_pages() * PAGE_SIZE);
+            if (virt_bottom >= framebuffer_bottom && virt_top <= framebuffer_top)
+                || (virt_bottom >= memory_map_bottom && virt_top <= memory_map_top)
             {
                 continue;
             }
 
             for _ in 0..descriptor.num_pages() {
                 if address >= kernel_top
-                    && (virt < framebuffer_memory.0
-                        || virt >= framebuffer_memory.0 + framebuffer_memory.1)
+                    && (virt_bottom <= framebuffer_bottom - PAGE_SIZE
+                        || virt_bottom >= framebuffer_top)
+                    && (virt_bottom <= memory_map_bottom - PAGE_SIZE
+                        || virt_bottom >= memory_map_top)
                 {
                     unsafe { buddy_allocator.free_at(address.into_virtual::<()>() as usize, 1) };
                 }
 
-                virt += PAGE_SIZE;
+                virt_bottom += PAGE_SIZE;
                 address = unsafe { address.add(PAGE_SIZE) };
             }
         }

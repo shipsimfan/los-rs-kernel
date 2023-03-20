@@ -24,6 +24,14 @@ impl From<NonNull<raw::MemoryMap>> for MemoryMap {
 
 impl base::MemoryMap for MemoryMap {
     type Descriptor = MemoryDescriptor;
+
+    fn bottom_and_top(&self) -> (usize, usize) {
+        let bottom = self.current.as_ptr() as usize;
+        (
+            bottom,
+            bottom + self.descriptor_size * self.remaining_descriptors,
+        )
+    }
 }
 
 impl Iterator for MemoryMap {
