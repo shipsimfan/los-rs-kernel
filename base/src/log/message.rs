@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 #[derive(Clone, Copy)]
 pub enum Level {
     Fatal,
@@ -7,12 +9,16 @@ pub enum Level {
     Debug,
 }
 
-#[derive(Clone, Copy)]
+enum Message {
+    Static(&'static str),
+    Owned(String),
+}
+
 #[allow(unused)]
 pub(super) struct LogMessage {
     level: Level,
     module: &'static str,
-    message: &'static str,
+    message: Message,
 }
 
 impl LogMessage {
@@ -20,7 +26,14 @@ impl LogMessage {
         LogMessage {
             level,
             module,
-            message,
+            message: Message::Static(message),
+        }
+    }
+    pub(super) fn new_owned(level: Level, module: &'static str, message: String) -> Self {
+        LogMessage {
+            level,
+            module,
+            message: Message::Owned(message),
         }
     }
 }

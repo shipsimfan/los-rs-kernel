@@ -1,5 +1,5 @@
 use super::{xsdt::XSDT, Checksum};
-use base::PhysicalAddress;
+use base::{Logger, PhysicalAddress};
 use core::ptr::NonNull;
 
 #[repr(packed)]
@@ -26,14 +26,30 @@ const SIGNATURE: [u8; 8] = *b"RSD PTR ";
 const REVISION: u8 = 2;
 
 impl RSDP {
-    pub(crate) fn verify(&self) -> bool {
+    pub(crate) fn get<'a>(rsdp: NonNull<Self>, logger: &Logger) -> Option<&'a Self> {
+        let rsdp = unsafe { rsdp.as_ref() };
+        if rsdp.verify() {
+            Some(rsdp)
+        } else {
+            logger.log(base::Level::Error, "Invalid RSDP");
+            None
+        }
+    }
+
+    pub(crate) fn xsdt(&self, logger: &Logger) -> Option<NonNull<XSDT>> {
+        match NonNull::new(self.xsdt_address.into_virtual()) {
+            Some(xsdt) => Some(xsdt),
+            None => {
+                logger.log(base::Level::Error, "No XSDT in RSDP");
+                None
+            }
+        }
+    }
+
+    fn verify(&self) -> bool {
         self.acpi_1_rsdp.verify()
             && self.length as usize >= core::mem::size_of::<Self>()
             && self.verify_checksum()
-    }
-
-    pub(crate) fn xsdt(&self) -> Option<NonNull<XSDT>> {
-        NonNull::new(self.xsdt_address.into_virtual())
     }
 }
 

@@ -13,8 +13,8 @@ pub(crate) struct TableHeader {
 }
 
 impl TableHeader {
-    pub(super) fn verify(&self, signature: [u8; 4], minimum_revision: u8) -> bool {
-        self.signature == signature && self.revision >= minimum_revision
+    pub(super) fn verify(&self, signature: [u8; 4], revision: u8) -> bool {
+        self.signature == signature && self.revision == revision
     }
 
     pub(super) fn length(&self) -> usize {

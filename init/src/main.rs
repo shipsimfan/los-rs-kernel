@@ -36,7 +36,7 @@ pub extern "C" fn kmain(
     GlobalState::initialize::<uefi::MemoryMap, _>(memory_map.into(), &BOOT_VIDEO);
 
     // Initialize ACPI
-    acpi::initialize(rsdp);
+    acpi::initialize(rsdp, &BOOT_VIDEO);
 
     // Create the local state
     let mut local_state_container = LocalState::new(&gdt);

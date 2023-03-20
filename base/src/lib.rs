@@ -7,6 +7,8 @@
 #![feature(pointer_byte_offsets)]
 #![feature(nonnull_slice_from_raw_parts)]
 
+extern crate alloc;
+
 mod boot_video;
 mod critical;
 mod gdt;
