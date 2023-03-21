@@ -1,5 +1,6 @@
 use super::{Table, TableHeader, DSDT};
-use base::{Logger, PhysicalAddress};
+use crate::loader;
+use base::PhysicalAddress;
 use core::ptr::NonNull;
 
 #[repr(packed)]
@@ -12,19 +13,18 @@ pub(crate) struct FADT {
 }
 
 impl FADT {
-    pub(crate) fn get<'a>(fadt: NonNull<Self>, logger: &Logger) -> Option<&'a Self> {
-        let fadt = unsafe { fadt.as_ref() };
-        if fadt.verify() {
-            Some(fadt)
-        } else {
-            logger.log(base::Level::Error, "Invalid FADT");
-            None
-        }
-    }
+    pub(crate) fn dsdt(&self) -> loader::Result<&DSDT> {
+        let dsdt: &DSDT = unsafe {
+            NonNull::new(PhysicalAddress::from_raw(self.dsdt as usize).into_virtual())
+                .ok_or(loader::Error::missing_table(&DSDT::SIGNATURE))?
+                .as_ref()
+        };
 
-    pub(crate) fn dsdt(&self) -> NonNull<DSDT> {
-        NonNull::new(unsafe { PhysicalAddress::from_raw(self.dsdt as usize) }.into_virtual())
-            .unwrap()
+        if dsdt.verify() {
+            Ok(dsdt)
+        } else {
+            Err(loader::Error::invalid_table(&DSDT::SIGNATURE))
+        }
     }
 }
 

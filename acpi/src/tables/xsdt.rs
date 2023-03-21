@@ -1,5 +1,6 @@
 use super::{Table, TableHeader};
-use base::{Logger, PhysicalAddress};
+use crate::loader;
+use base::PhysicalAddress;
 use core::ptr::NonNull;
 
 #[repr(packed)]
@@ -14,26 +15,26 @@ struct Iter {
 }
 
 impl XSDT {
-    pub(crate) fn get<'a>(xsdt: NonNull<Self>, logger: &Logger) -> Option<&'a Self> {
-        let xsdt = unsafe { xsdt.as_ref() };
-        if xsdt.verify() {
-            Some(xsdt)
-        } else {
-            logger.log(base::Level::Error, "Invalid XSDT");
-            None
-        }
-    }
-
-    pub(crate) fn get_table<T: Table>(&self) -> Option<NonNull<T>> {
+    pub(crate) fn get_table<T: Table>(&self) -> loader::Result<&T> {
         for table in self.iter() {
             let table = table.into_virtual::<[u8; 4]>();
 
             if unsafe { *table } == T::SIGNATURE {
-                return NonNull::new(table as *mut T);
+                let table = unsafe {
+                    NonNull::new(table as *mut T)
+                        .ok_or(loader::Error::invalid_table(&T::SIGNATURE))?
+                        .as_ref()
+                };
+
+                return if table.verify() {
+                    Ok(table)
+                } else {
+                    Err(loader::Error::invalid_table(&T::SIGNATURE))
+                };
             }
         }
 
-        None
+        Err(loader::Error::missing_table(&T::SIGNATURE))
     }
 
     fn iter(&self) -> Iter {

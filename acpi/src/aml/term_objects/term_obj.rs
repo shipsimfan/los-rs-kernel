@@ -1,22 +1,13 @@
-use super::Object;
-use crate::aml::{ASTNode, ByteStream, Result};
+use super::object;
+use crate::{
+    aml::{Context, Result, Stream},
+    namespace::Namespace,
+};
 
-pub(super) enum TermObj {
-    Object(Object),
-}
-
-impl TermObj {
-    pub(super) fn parse(stream: &mut ByteStream) -> Result<Self> {
-        let c = stream.next().unwrap();
-
-        Object::parse(stream, c).map(|object| TermObj::Object(object))
-    }
-}
-
-impl ASTNode for TermObj {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
-        match self {
-            TermObj::Object(object) => object.display(f, depth),
-        }
-    }
+pub(in crate::aml) fn parse(
+    stream: &mut Stream,
+    namespace: &mut Namespace,
+    context: &Context,
+) -> Result<()> {
+    object::parse(stream, namespace, context)
 }

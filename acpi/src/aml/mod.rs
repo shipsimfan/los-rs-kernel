@@ -1,23 +1,27 @@
-mod ast;
-mod byte_stream;
-mod common;
-mod data_objects;
+use crate::namespace::Namespace;
+
+mod context;
 mod error;
 mod macros;
-mod named_objects;
-mod namespace_modifier_objects;
+mod name_objects;
+mod package_length;
+mod stream;
 mod term_objects;
 
-type Result<T> = core::result::Result<T, Error>;
-
-pub(self) use ast::ASTNode;
-pub(self) use byte_stream::ByteStream;
-pub(self) use common::*;
-pub(self) use data_objects::*;
+pub(self) use context::Context;
 pub(self) use macros::*;
-pub(self) use named_objects::*;
-pub(self) use namespace_modifier_objects::*;
-pub(self) use term_objects::*;
+pub(self) use stream::Stream;
 
-pub(super) use ast::AML;
 pub(super) use error::Error;
+
+pub(super) type Result<T> = core::result::Result<T, Error>;
+
+pub(super) fn parse_definition_block(
+    definition_block: &[u8],
+    namespace: &mut Namespace,
+) -> Result<()> {
+    let mut stream = Stream::new(definition_block, 0);
+    let context = Context::new();
+
+    term_objects::term_list::parse(&mut stream, namespace, &context)
+}
