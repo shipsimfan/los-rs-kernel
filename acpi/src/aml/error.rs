@@ -1,65 +1,44 @@
-pub(crate) enum Error {
-    UnexpectedEndOfStream(usize),
-    UnexpectedByte(usize, u8),
-    MissingName(Option<[u8; 4]>),
-    NameCollision([u8; 4]),
-    AddChildNotScope,
-    InvalidArgumentType,
-    FieldNotUnderOpRegion,
+pub(super) type Result<T> = core::result::Result<T, Error>;
+
+enum ErrorKind {
+    UnexpectedEndOfStream,
+    UnexpectedByte(u8),
+}
+
+pub(crate) struct Error {
+    kind: ErrorKind,
+    offset: usize,
 }
 
 impl Error {
     pub(super) fn unexpected_end_of_stream(offset: usize) -> Self {
-        Error::UnexpectedEndOfStream(offset)
+        Self::new(ErrorKind::UnexpectedEndOfStream, offset)
     }
 
-    pub(super) fn unexpected_byte(offset: usize, byte: u8) -> Self {
-        Error::UnexpectedByte(offset, byte)
+    pub(super) fn unexpected_byte(byte: u8, offset: usize) -> Self {
+        Self::new(ErrorKind::UnexpectedByte(byte), offset)
     }
 
-    pub(super) fn missing_name(name: Option<[u8; 4]>) -> Self {
-        Error::MissingName(name)
-    }
-}
-
-impl core::fmt::Debug for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::Display::fmt(self, f)
+    fn new(kind: ErrorKind, offset: usize) -> Self {
+        Error { kind, offset }
     }
 }
 
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Error while parsing AML - ")?;
+        write!(
+            f,
+            "Unable to parse AML - {} at offset {}",
+            self.kind, self.offset
+        )
+    }
+}
 
+impl core::fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Error::UnexpectedEndOfStream(offset) => {
-                write!(f, "Unexpected end of stream at offset {}", offset)
-            }
-            Error::UnexpectedByte(offset, byte) => {
-                write!(f, "Unexpected byte {:#X} at offset {}", byte, offset)
-            }
-            Error::MissingName(name) => {
-                write!(f, "Missing name",)?;
-                match name {
-                    Some(name) => write!(
-                        f,
-                        " \"{}{}{}{}\"",
-                        name[0] as char, name[1] as char, name[2] as char, name[3] as char
-                    ),
-                    None => Ok(()),
-                }
-            }
-            Error::NameCollision(name) => write!(
-                f,
-                "Redefinition of \"{}{}{}{}\"",
-                name[0] as char, name[1] as char, name[2] as char, name[3] as char
-            ),
-            Error::AddChildNotScope => {
-                write!(f, "Attempting to add a child to an object without a scope")
-            }
-            Error::InvalidArgumentType => write!(f, "Invalid argument type"),
-            Error::FieldNotUnderOpRegion => write!(f, "Field not under operation region"),
+            ErrorKind::UnexpectedEndOfStream => write!(f, "Unexpected end of stream"),
+            ErrorKind::UnexpectedByte(byte) => write!(f, "Unexpected by {:#X}", byte),
         }
     }
 }

@@ -3,7 +3,7 @@ use crate::aml;
 enum ErrorKind {
     InvalidTable,
     MissingTable,
-    AMLError(aml::Error),
+    Parse(aml::Error),
 }
 
 pub(crate) struct Error {
@@ -29,7 +29,7 @@ impl Error {
     pub(super) fn aml_error(table: &'static [u8], error: aml::Error) -> Self {
         Error {
             table,
-            kind: ErrorKind::AMLError(error),
+            kind: ErrorKind::Parse(error),
         }
     }
 }
@@ -49,7 +49,7 @@ impl core::fmt::Display for ErrorKind {
         match self {
             ErrorKind::InvalidTable => write!(f, "Invalid Table"),
             ErrorKind::MissingTable => write!(f, "Missing Table"),
-            ErrorKind::AMLError(error) => error.fmt(f),
+            ErrorKind::Parse(error) => error.fmt(f),
         }
     }
 }

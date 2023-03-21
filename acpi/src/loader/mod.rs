@@ -1,6 +1,5 @@
 use crate::{
-    aml,
-    namespace::Namespace,
+    aml::AML,
     tables::{Table, DSDT, FADT, XSDT},
     RSDP,
 };
@@ -12,22 +11,21 @@ pub(super) use error::Error;
 
 pub(super) type Result<T> = core::result::Result<T, Error>;
 
-pub(super) fn load(rsdp: NonNull<RSDP>, namespace: &mut Namespace) -> Result<()> {
+pub(super) fn load(rsdp: NonNull<RSDP>) -> Result<AML> {
     let rsdp = RSDP::get(rsdp)?;
     let xsdt = rsdp.xsdt()?;
 
-    load_fadt(xsdt, namespace)
+    load_fadt(xsdt)
 }
 
-fn load_fadt(xsdt: &XSDT, namespace: &mut Namespace) -> Result<()> {
+fn load_fadt(xsdt: &XSDT) -> Result<AML> {
     let fadt = xsdt.get_table::<FADT>()?;
 
-    load_dsdt(fadt, namespace)
+    load_dsdt(fadt)
 }
 
-fn load_dsdt(fadt: &FADT, namespace: &mut Namespace) -> Result<()> {
+fn load_dsdt(fadt: &FADT) -> Result<AML> {
     let dsdt = fadt.dsdt()?;
 
-    aml::parse_definition_block(dsdt.definition_block(), namespace)
-        .map_err(|error| Error::aml_error(&DSDT::SIGNATURE, error))
+    AML::parse(dsdt.definition_block()).map_err(|error| Error::aml_error(&DSDT::SIGNATURE, error))
 }

@@ -1,3 +1,6 @@
+mod namespace_modifier_object;
 mod scope;
 
-pub(super) mod namespace_modifier_object;
+pub(self) use scope::Scope;
+
+pub(super) use namespace_modifier_object::NamespaceModifierObject;

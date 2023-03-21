@@ -1,13 +1,22 @@
-use super::object;
-use crate::{
-    aml::{Context, Result, Stream},
-    namespace::Namespace,
-};
+use super::Object;
+use crate::aml::{impl_core_display, Display, Result, Stream};
 
-pub(in crate::aml) fn parse(
-    stream: &mut Stream,
-    namespace: &mut Namespace,
-    context: &Context,
-) -> Result<()> {
-    object::parse(stream, namespace, context)
+pub(super) enum TermObj {
+    Object(Object),
 }
+
+impl TermObj {
+    pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
+        Object::parse(stream).map(|object| TermObj::Object(object))
+    }
+}
+
+impl Display for TermObj {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+        match self {
+            TermObj::Object(object) => object.display(f, depth),
+        }
+    }
+}
+
+impl_core_display!(TermObj);

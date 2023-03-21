@@ -1,3 +1,13 @@
+macro_rules! impl_core_display {
+    ($typename: ident) => {
+        impl core::fmt::Display for $typename {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                self.display(f, 0)
+            }
+        }
+    };
+}
+
 macro_rules! next {
     ($stream: expr) => {{
         let offset = $stream.offset();
@@ -13,7 +23,7 @@ macro_rules! match_next {
         let c = $crate::aml::next!($stream);
         match c {
             $($pattern => $result,)*
-            _ => return Err($crate::aml::Error::unexpected_byte(offset, c)),
+            _ => return Err($crate::aml::Error::unexpected_byte(c, offset)),
         }}
     };
 }
@@ -47,4 +57,4 @@ macro_rules! unwrap_data_type {
     };
 }
 
-pub(super) use {match_next, match_peek, next, peek, unwrap_data_type};
+pub(super) use {impl_core_display, match_next, match_peek, next, peek, unwrap_data_type};
