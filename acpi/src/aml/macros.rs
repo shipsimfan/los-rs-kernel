@@ -38,4 +38,13 @@ macro_rules! match_peek {
     };
 }
 
-pub(super) use {match_next, match_peek, next, peek};
+macro_rules! unwrap_data_type {
+    ($data_type: expr, $expected: ident) => {
+        match $data_type {
+            $crate::namespace::DataType::$expected(value) => Ok(value),
+            _ => Err($crate::aml::Error::InvalidArgumentType),
+        }
+    };
+}
+
+pub(super) use {match_next, match_peek, next, peek, unwrap_data_type};

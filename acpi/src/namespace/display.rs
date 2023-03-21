@@ -8,12 +8,20 @@ pub(super) trait Display {
         Ok(())
     }
 
-    fn display_name(&self, f: &mut core::fmt::Formatter, name: [u8; 4]) -> core::fmt::Result {
-        write!(
-            f,
-            "\"{}{}{}{}\"",
-            name[0] as char, name[1] as char, name[2] as char, name[3] as char
-        )
+    fn display_name(
+        &self,
+        f: &mut core::fmt::Formatter,
+        name: Option<[u8; 4]>,
+    ) -> core::fmt::Result {
+        if let Some(name) = name {
+            write!(
+                f,
+                " \"{}{}{}{}\"",
+                name[0] as char, name[1] as char, name[2] as char, name[3] as char
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 

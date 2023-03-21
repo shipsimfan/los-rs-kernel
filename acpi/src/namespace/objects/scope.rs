@@ -67,11 +67,9 @@ impl Scope {
 impl Display for Scope {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        write!(f, "Scope ")?;
-        if let Some(name) = self.name {
-            self.display_name(f, name)?;
-        }
-        writeln!(f)?;
+        write!(f, "Scope")?;
+        self.display_name(f, self.name)?;
+        writeln!(f, ":")?;
 
         for object in &self.objects {
             object.display(f, depth + 1)?;

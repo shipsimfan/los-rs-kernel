@@ -3,6 +3,8 @@ pub(crate) enum Error {
     UnexpectedByte(usize, u8),
     MissingName(Option<[u8; 4]>),
     NameCollision([u8; 4]),
+    AddChildNotScope,
+    InvalidArgumentType,
 }
 
 impl Error {
@@ -52,6 +54,10 @@ impl core::fmt::Display for Error {
                 "Redefinition of \"{}{}{}{}\"",
                 name[0] as char, name[1] as char, name[2] as char, name[3] as char
             ),
+            Error::AddChildNotScope => {
+                write!(f, "Attempting to add a child to an object without a scope")
+            }
+            Error::InvalidArgumentType => write!(f, "Invalid argument type"),
         }
     }
 }

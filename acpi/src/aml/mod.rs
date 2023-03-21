@@ -1,6 +1,7 @@
 use crate::namespace::Namespace;
 
 mod context;
+mod data_objects;
 mod error;
 mod macros;
 mod name_objects;
