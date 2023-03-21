@@ -1,5 +1,3 @@
-use crate::namespace::{impl_core_display, Display};
-
 pub(crate) enum RegionSpace {
     SystemMemory,
     SystemIO,
@@ -14,50 +12,6 @@ pub(crate) enum RegionSpace {
     PCC,
     Other(u8),
 }
-
-pub(crate) struct OperationRegion {
-    name: Option<[u8; 4]>,
-    offset: usize,
-    length: usize,
-    region_space: RegionSpace,
-}
-
-impl OperationRegion {
-    pub(crate) fn new(
-        name: Option<[u8; 4]>,
-        offset: usize,
-        length: usize,
-        region_space: RegionSpace,
-    ) -> Self {
-        OperationRegion {
-            name,
-            offset,
-            length,
-            region_space,
-        }
-    }
-
-    pub(super) fn name(&self) -> Option<[u8; 4]> {
-        self.name
-    }
-}
-
-impl Display for OperationRegion {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
-        self.display_prefix(f, depth)?;
-        write!(f, "Operation Region")?;
-        self.display_name(f, self.name)?;
-        writeln!(
-            f,
-            " at {}:{:#X}-{:#X}",
-            self.region_space,
-            self.offset,
-            self.offset + self.length
-        )
-    }
-}
-
-impl_core_display!(OperationRegion);
 
 impl RegionSpace {
     pub(crate) fn from_u8(region_space: u8) -> Self {

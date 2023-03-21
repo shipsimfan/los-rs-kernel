@@ -5,6 +5,7 @@ pub(crate) enum Error {
     NameCollision([u8; 4]),
     AddChildNotScope,
     InvalidArgumentType,
+    FieldNotUnderOpRegion,
 }
 
 impl Error {
@@ -58,6 +59,7 @@ impl core::fmt::Display for Error {
                 write!(f, "Attempting to add a child to an object without a scope")
             }
             Error::InvalidArgumentType => write!(f, "Invalid argument type"),
+            Error::FieldNotUnderOpRegion => write!(f, "Field not under operation region"),
         }
     }
 }

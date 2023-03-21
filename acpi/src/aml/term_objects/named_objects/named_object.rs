@@ -1,4 +1,4 @@
-use super::op_region;
+use super::{field, op_region};
 use crate::{
     aml::{match_next, peek, Context, Result, Stream},
     namespace::Namespace,
@@ -7,6 +7,7 @@ use crate::{
 const EXT_OP_PREFIX: u8 = 0x5B;
 
 const OP_REGION_OP: u8 = 0x80;
+const FIELD_OP: u8 = 0x81;
 
 pub(in crate::aml) fn parse(
     stream: &mut Stream,
@@ -18,6 +19,7 @@ pub(in crate::aml) fn parse(
             stream.next();
             match_next!(stream,
                 OP_REGION_OP => op_region::parse(stream, namespace, context)
+                FIELD_OP => field::parse(stream, namespace, context)
             )?;
             Ok(true)
         }
