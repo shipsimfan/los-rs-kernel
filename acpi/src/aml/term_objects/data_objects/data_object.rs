@@ -1,22 +1,31 @@
-use super::{ComputationalData, Package};
+use super::{ComputationalData, Package, VarPackage};
 use crate::aml::{impl_core_display, peek, Display, Result, Stream};
 
 pub(in crate::aml::term_objects) enum DataObject {
     ComputationalData(ComputationalData),
     Package(Package),
+    VarPackage(VarPackage),
 }
 
 const PACKAGE_OP: u8 = 0x12;
+const VAR_PACKAGE_OP: u8 = 0x13;
 
 impl DataObject {
-    pub(in crate::aml::term_objects) fn parse(stream: &mut Stream) -> Result<Self> {
+    pub(in crate::aml::term_objects) fn parse(stream: &mut Stream) -> Result<Option<Self>> {
         match peek!(stream) {
             PACKAGE_OP => {
                 stream.next();
-                Package::parse(stream).map(|package| DataObject::Package(package))
+                Package::parse(stream).map(|package| Some(DataObject::Package(package)))
             }
-            _ => ComputationalData::parse(stream)
-                .map(|computational_data| DataObject::ComputationalData(computational_data)),
+            VAR_PACKAGE_OP => {
+                stream.next();
+                VarPackage::parse(stream)
+                    .map(|var_package| Some(DataObject::VarPackage(var_package)))
+            }
+            _ => ComputationalData::parse(stream).map(|computational_data| {
+                computational_data
+                    .map(|computational_data| DataObject::ComputationalData(computational_data))
+            }),
         }
     }
 }
@@ -28,6 +37,7 @@ impl Display for DataObject {
                 computational_data.display(f, depth)
             }
             DataObject::Package(package) => package.display(f, depth),
+            DataObject::VarPackage(var_package) => var_package.display(f, depth),
         }
     }
 }

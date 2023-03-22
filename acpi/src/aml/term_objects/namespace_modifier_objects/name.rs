@@ -1,6 +1,6 @@
 use crate::aml::{
-    impl_core_display, term_objects::data_objects::DataRefObject, Display, NameString, Result,
-    Stream,
+    impl_core_display, term_objects::data_objects::DataRefObject, Display, Error, NameString,
+    Result, Stream,
 };
 
 pub(in crate::aml::term_objects) struct Name {
@@ -10,11 +10,14 @@ pub(in crate::aml::term_objects) struct Name {
 }
 
 impl Name {
-    pub(in crate::aml::term_objects) fn parse(stream: &mut Stream) -> Result<Self> {
+    pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
         let offset = stream.offset() - 1;
 
         let name = NameString::parse(stream)?;
-        let data_ref_object = DataRefObject::parse(stream)?;
+        let data_ref_object = DataRefObject::parse(stream)?.ok_or(Error::unexpected_byte(
+            stream.next().unwrap(),
+            stream.offset() - 1,
+        ))?;
 
         Ok(Name {
             offset,

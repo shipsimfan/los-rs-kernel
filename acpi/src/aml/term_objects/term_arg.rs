@@ -1,5 +1,5 @@
 use super::DataObject;
-use crate::aml::{impl_core_display, Display, Result, Stream};
+use crate::aml::{impl_core_display, Display, Error, Result, Stream};
 
 pub(super) enum TermArg {
     DataObject(DataObject),
@@ -7,7 +7,13 @@ pub(super) enum TermArg {
 
 impl TermArg {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        DataObject::parse(stream).map(|data_object| TermArg::DataObject(data_object))
+        match DataObject::parse(stream)? {
+            Some(data_object) => Ok(TermArg::DataObject(data_object)),
+            None => Err(Error::unexpected_byte(
+                stream.next().unwrap(),
+                stream.offset() - 1,
+            )),
+        }
     }
 }
 

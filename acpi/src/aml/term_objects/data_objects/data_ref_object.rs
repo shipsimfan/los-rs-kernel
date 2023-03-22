@@ -6,8 +6,10 @@ pub(in crate::aml::term_objects) enum DataRefObject {
 }
 
 impl DataRefObject {
-    pub(in crate::aml::term_objects) fn parse(stream: &mut Stream) -> Result<Self> {
-        DataObject::parse(stream).map(|data_object| DataRefObject::DataObject(data_object))
+    pub(in crate::aml::term_objects) fn parse(stream: &mut Stream) -> Result<Option<Self>> {
+        DataObject::parse(stream).map(|data_object| {
+            data_object.map(|data_object| DataRefObject::DataObject(data_object))
+        })
     }
 }
 

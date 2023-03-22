@@ -1,7 +1,9 @@
+mod alias;
 mod name;
 mod namespace_modifier_object;
 mod scope;
 
+pub(self) use alias::Alias;
 pub(self) use name::Name;
 pub(self) use scope::Scope;
 
