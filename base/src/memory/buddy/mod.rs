@@ -76,7 +76,7 @@ impl BuddyAllocator {
     }
 
     pub(super) unsafe fn free_at(&mut self, address: usize, num_pages: usize) {
-        assert!(address % (num_pages * PAGE_SIZE) == 0);
+        assert!(address % (num_pages.next_power_of_two() * PAGE_SIZE) == 0);
         // Find the list which is the best fit for num pages
         let order = order(num_pages);
 
@@ -112,7 +112,7 @@ impl BuddyAllocator {
     }
 
     pub(super) fn free(&mut self, address: usize, num_pages: usize) -> Option<NonNull<Node>> {
-        assert!(address % (num_pages * PAGE_SIZE) == 0);
+        assert!(address % (num_pages.next_power_of_two() * PAGE_SIZE) == 0);
 
         // Find the list which is the best fit for num pages
         let order = order(num_pages);

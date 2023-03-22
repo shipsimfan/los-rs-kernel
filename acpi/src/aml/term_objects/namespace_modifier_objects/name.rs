@@ -14,10 +14,8 @@ impl Name {
         let offset = stream.offset() - 1;
 
         let name = NameString::parse(stream)?;
-        let data_ref_object = DataRefObject::parse(stream)?.ok_or(Error::unexpected_byte(
-            stream.next().unwrap(),
-            stream.offset() - 1,
-        ))?;
+        let data_ref_object = DataRefObject::parse(stream)?
+            .ok_or_else(|| Error::unexpected_byte(stream.next().unwrap(), stream.offset() - 1))?;
 
         Ok(Name {
             offset,
