@@ -1,29 +1,29 @@
 use crate::aml::{impl_core_display, pkg_length, Display, NameString, Result, Stream};
 
-pub(in crate::aml::term_objects) struct Method {
+pub(in crate::aml::term_objects) struct Field {
     offset: usize,
     name: NameString,
 }
 
-impl Method {
+impl Field {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 1;
+        let offset = stream.offset() - 2;
 
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let name = NameString::parse(&mut stream)?;
 
-        // TODO: Collect rest of method
+        // TODO: Collect field units
 
-        Ok(Method { offset, name })
+        Ok(Field { offset, name })
     }
 }
 
-impl Display for Method {
+impl Display for Field {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Method {} @ {}", self.name, self.offset)
+        writeln!(f, "Field {} @ {}", self.name, self.offset)
     }
 }
 
-impl_core_display!(Method);
+impl_core_display!(Field);

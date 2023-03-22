@@ -1,4 +1,5 @@
-use super::{impl_core_display, term_objects::TermList, Display, Result, Stream};
+use super::{term_objects::TermList, Display, Result, Stream};
+use alloc::vec::Vec;
 
 pub(crate) struct AML {
     term_list: TermList,
@@ -14,13 +15,9 @@ impl AML {
     }
 }
 
-impl Display for AML {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
-        self.display_prefix(f, depth)?;
+impl core::fmt::Display for AML {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "AML:")?;
-
-        self.term_list.display(f, depth + 1)
+        self.term_list.display(f, 0)
     }
 }
-
-impl_core_display!(AML);

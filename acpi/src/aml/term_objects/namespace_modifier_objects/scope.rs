@@ -1,9 +1,11 @@
-use crate::aml::{impl_core_display, pkg_length, Display, NameString, Result, Stream};
+use crate::aml::{
+    impl_core_display, pkg_length, term_objects::TermList, Display, NameString, Result, Stream,
+};
 
 pub(in crate::aml::term_objects) struct Scope {
     offset: usize,
-
     name: NameString,
+    term_list: TermList,
 }
 
 impl Scope {
@@ -13,15 +15,21 @@ impl Scope {
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let name = NameString::parse(&mut stream)?;
+        let term_list = TermList::parse(&mut stream)?;
 
-        Ok(Scope { offset, name })
+        Ok(Scope {
+            offset,
+            name,
+            term_list,
+        })
     }
 }
 
 impl Display for Scope {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Scope {} @ {}", self.name, self.offset)
+        writeln!(f, "Scope {} @ {}:", self.name, self.offset)?;
+        self.term_list.display(f, depth + 1)
     }
 }
 

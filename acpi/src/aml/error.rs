@@ -24,6 +24,12 @@ impl Error {
     }
 }
 
+impl core::fmt::Debug for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
+
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
@@ -38,7 +44,7 @@ impl core::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ErrorKind::UnexpectedEndOfStream => write!(f, "Unexpected end of stream"),
-            ErrorKind::UnexpectedByte(byte) => write!(f, "Unexpected by {:#X}", byte),
+            ErrorKind::UnexpectedByte(byte) => write!(f, "Unexpected byte {:#X}", byte),
         }
     }
 }

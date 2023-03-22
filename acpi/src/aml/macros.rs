@@ -23,7 +23,7 @@ macro_rules! match_next {
         let c = $crate::aml::next!($stream);
         match c {
             $($pattern => $result,)*
-            _ => return Err($crate::aml::Error::unexpected_byte(c, offset)),
+            _ => return Err($crate::aml::Error::unexpected_byte(c, offset)).unwrap(),
         }}
     };
 }
