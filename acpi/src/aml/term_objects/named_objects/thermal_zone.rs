@@ -2,13 +2,13 @@ use crate::aml::{
     impl_core_display, pkg_length, term_objects::TermList, Display, NameString, Result, Stream,
 };
 
-pub(in crate::aml::term_objects) struct Device {
+pub(in crate::aml::term_objects) struct ThermalZone {
     offset: usize,
     name: NameString,
     term_list: TermList,
 }
 
-impl Device {
+impl ThermalZone {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
         let offset = stream.offset() - 2;
 
@@ -17,7 +17,7 @@ impl Device {
         let name = NameString::parse(&mut stream)?;
         let term_list = TermList::parse(&mut stream)?;
 
-        Ok(Device {
+        Ok(ThermalZone {
             offset,
             name,
             term_list,
@@ -25,13 +25,13 @@ impl Device {
     }
 }
 
-impl Display for Device {
+impl Display for ThermalZone {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Device {} @ {}", self.name, self.offset)?;
+        writeln!(f, "Thermal Zone {} @ {}", self.name, self.offset)?;
 
         self.term_list.display(f, depth + 1)
     }
 }
 
-impl_core_display!(Device);
+impl_core_display!(ThermalZone);

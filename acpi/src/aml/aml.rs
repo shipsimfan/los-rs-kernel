@@ -1,5 +1,4 @@
 use super::{term_objects::TermList, Display, Result, Stream};
-use alloc::vec::Vec;
 
 pub(crate) struct AML {
     term_list: TermList,

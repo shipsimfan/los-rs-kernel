@@ -35,7 +35,7 @@ fn parse_prefix(stream: &mut Stream) -> Result<Prefix> {
     })
 }
 
-fn parse_name_seg(stream: &mut Stream, c: Option<u8>) -> Result<[u8; 4]> {
+pub(super) fn parse_name_seg(stream: &mut Stream, c: Option<u8>) -> Result<[u8; 4]> {
     let (mut name, start) = match c {
         Some(c) => ([c, 0, 0, 0], 1),
         None => ([0; 4], 0),

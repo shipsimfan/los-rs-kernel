@@ -3,39 +3,46 @@ use crate::aml::{
     Stream,
 };
 
-pub(in crate::aml::term_objects) struct Method {
+pub(in crate::aml::term_objects) struct PowerRes {
     offset: usize,
     name: NameString,
-    method_flags: u8,
+    system_level: u8,
+    resource_order: u16,
+    term_list: TermList,
 }
 
-impl Method {
+impl PowerRes {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 1;
+        let offset = stream.offset() - 2;
 
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let name = NameString::parse(&mut stream)?;
-        let method_flags = next!(stream);
+        let system_level = next!(stream);
+        let resource_order = u16::from_le_bytes([next!(stream), next!(stream)]);
         let term_list = TermList::parse(&mut stream)?;
 
-        Ok(Method {
+        Ok(PowerRes {
             offset,
             name,
-            method_flags,
+            system_level,
+            resource_order,
+            term_list,
         })
     }
 }
 
-impl Display for Method {
+impl Display for PowerRes {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
         writeln!(
             f,
-            "Method {} ({:#02X}) @ {}",
-            self.name, self.method_flags, self.offset
-        )
+            "PowerRes {} ({} - {}) @ {}",
+            self.name, self.system_level, self.resource_order, self.offset
+        )?;
+
+        self.term_list.display(f, depth + 1)
     }
 }
 
-impl_core_display!(Method);
+impl_core_display!(PowerRes);

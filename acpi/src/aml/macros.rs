@@ -13,7 +13,8 @@ macro_rules! next {
         let offset = $stream.offset();
         $stream
             .next()
-            .ok_or($crate::aml::Error::unexpected_end_of_stream(offset))?
+            .ok_or($crate::aml::Error::unexpected_end_of_stream(offset))
+            .unwrap()
     }};
 }
 
@@ -34,7 +35,8 @@ macro_rules! peek {
             .peek()
             .ok_or($crate::aml::Error::unexpected_end_of_stream(
                 $stream.offset(),
-            ))?
+            ))
+            .unwrap()
     }};
 }
 
