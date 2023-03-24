@@ -2,7 +2,7 @@ macro_rules! impl_core_display {
     ($typename: ident) => {
         impl core::fmt::Display for $typename {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                self.display(f, 0)
+                self.display(f, 0, true)
             }
         }
     };

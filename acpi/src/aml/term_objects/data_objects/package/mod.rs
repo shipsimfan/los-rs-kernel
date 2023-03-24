@@ -6,16 +6,12 @@ mod package_element;
 pub(super) use package_element::PackageElement;
 
 pub(in crate::aml::term_objects) struct Package {
-    offset: usize,
-
     num_elements: u8,
     elements: Vec<PackageElement>,
 }
 
 impl Package {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 1;
-
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let num_elements = next!(stream);
@@ -26,7 +22,6 @@ impl Package {
         }
 
         Ok(Package {
-            offset,
             num_elements,
             elements,
         })
@@ -34,15 +29,24 @@ impl Package {
 }
 
 impl Display for Package {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Package ({}) @ {}:", self.num_elements, self.offset)?;
+        write!(f, "Package ({}) {{", self.num_elements)?;
 
-        for element in &self.elements {
-            element.display(f, depth + 1)?;
+        if self.elements.len() == 0 {
+            return writeln!(f, "}}");
         }
 
-        Ok(())
+        for i in 0..self.elements.len() {
+            self.elements[i].display(f, depth + 1, last)?;
+
+            if i < self.elements.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+
+        self.display_prefix(f, depth)?;
+        write!(f, " }}")
     }
 }
 

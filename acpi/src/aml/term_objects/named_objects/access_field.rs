@@ -35,7 +35,7 @@ impl AccessField {
 }
 
 impl Display for AccessField {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
         writeln!(
             f,

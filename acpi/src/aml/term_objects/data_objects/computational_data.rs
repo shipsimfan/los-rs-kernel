@@ -66,16 +66,16 @@ impl ComputationalData {
 }
 
 impl Display for ComputationalData {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
-            ComputationalData::Buffer(buffer) => buffer.display(f, depth),
-            ComputationalData::ByteConst(byte_const) => byte_const.display(f, depth),
-            ComputationalData::ConstObj(const_obj) => const_obj.display(f, depth),
-            ComputationalData::DWordConst(d_word_const) => d_word_const.display(f, depth),
-            ComputationalData::QWordConst(q_word_const) => q_word_const.display(f, depth),
-            ComputationalData::Revision(revision) => revision.display(f, depth),
-            ComputationalData::String(string) => string.display(f, depth),
-            ComputationalData::WordConst(word_const) => word_const.display(f, depth),
+            ComputationalData::Buffer(buffer) => buffer.display(f, depth, last),
+            ComputationalData::ByteConst(byte_const) => byte_const.display(f, depth, last),
+            ComputationalData::ConstObj(const_obj) => const_obj.display(f, depth, last),
+            ComputationalData::DWordConst(d_word_const) => d_word_const.display(f, depth, last),
+            ComputationalData::QWordConst(q_word_const) => q_word_const.display(f, depth, last),
+            ComputationalData::Revision(revision) => revision.display(f, depth, last),
+            ComputationalData::String(string) => string.display(f, depth, last),
+            ComputationalData::WordConst(word_const) => word_const.display(f, depth, last),
         }
     }
 }

@@ -1,7 +1,7 @@
 use super::{
     CreateBitField, CreateByteField, CreateDWordField, CreateField, CreateQWordField,
     CreateWordField, DataRegion, Device, Event, External, Field, IndexField, Method, Mutex,
-    OpRegion, PowerRes, Processor,
+    OpRegion, PowerRes, Processor, ThermalZone,
 };
 use crate::aml::{
     impl_core_display, match_next, term_objects::named_objects::BankField, Display, Result, Stream,
@@ -26,6 +26,7 @@ pub(in crate::aml::term_objects) enum NamedObject {
     OpRegion(OpRegion),
     PowerRes(PowerRes),
     Processor(Processor),
+    ThermalZone(ThermalZone),
 }
 
 const METHOD_OP: u8 = 0x14;
@@ -46,6 +47,7 @@ const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
 const PROCESSOR_OP: u8 = 0x83;
 const POWER_RES_OP: u8 = 0x84;
+const THERMAL_ZONE_OP: u8 = 0x85;
 const INDEX_FIELD_OP: u8 = 0x86;
 const BANK_FIELD_OP: u8 = 0x87;
 const DATA_REGION_OP: u8 = 0x88;
@@ -70,6 +72,7 @@ impl NamedObject {
                 DEVICE_OP => Device::parse(stream).map(|device| NamedObject::Device(device))
                 PROCESSOR_OP => Processor::parse(stream).map(|processor| NamedObject::Processor(processor))
                 POWER_RES_OP => PowerRes::parse(stream).map(|power_res| NamedObject::PowerRes(power_res))
+                THERMAL_ZONE_OP => ThermalZone::parse(stream).map(|thermal_zone| NamedObject::ThermalZone(thermal_zone))
                 INDEX_FIELD_OP => IndexField::parse(stream).map(|index_field| NamedObject::IndexField(index_field))
                 BANK_FIELD_OP => BankField::parse(stream).map(|bank_field| NamedObject::BankField(bank_field))
                 DATA_REGION_OP => DataRegion::parse(stream).map(|data_region| NamedObject::DataRegion(data_region))
@@ -79,30 +82,37 @@ impl NamedObject {
 }
 
 impl Display for NamedObject {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
-            NamedObject::BankField(bank_field) => bank_field.display(f, depth),
-            NamedObject::CreateBitField(create_bit_field) => create_bit_field.display(f, depth),
-            NamedObject::CreateByteField(create_byte_field) => create_byte_field.display(f, depth),
+            NamedObject::BankField(bank_field) => bank_field.display(f, depth, last),
+            NamedObject::CreateBitField(create_bit_field) => {
+                create_bit_field.display(f, depth, last)
+            }
+            NamedObject::CreateByteField(create_byte_field) => {
+                create_byte_field.display(f, depth, last)
+            }
             NamedObject::CreateDWordField(create_dword_field) => {
-                create_dword_field.display(f, depth)
+                create_dword_field.display(f, depth, last)
             }
-            NamedObject::CreateField(create_field) => create_field.display(f, depth),
+            NamedObject::CreateField(create_field) => create_field.display(f, depth, last),
             NamedObject::CreateQWordField(create_qword_field) => {
-                create_qword_field.display(f, depth)
+                create_qword_field.display(f, depth, last)
             }
-            NamedObject::CreateWordField(create_word_field) => create_word_field.display(f, depth),
-            NamedObject::Device(device) => device.display(f, depth),
-            NamedObject::DataRegion(data_region) => data_region.display(f, depth),
-            NamedObject::Event(event) => event.display(f, depth),
-            NamedObject::External(external) => external.display(f, depth),
-            NamedObject::Field(field) => field.display(f, depth),
-            NamedObject::IndexField(index_field) => index_field.display(f, depth),
-            NamedObject::Method(method) => method.display(f, depth),
-            NamedObject::Mutex(mutex) => mutex.display(f, depth),
-            NamedObject::OpRegion(op_region) => op_region.display(f, depth),
-            NamedObject::PowerRes(power_res) => power_res.display(f, depth),
-            NamedObject::Processor(processor) => processor.display(f, depth),
+            NamedObject::CreateWordField(create_word_field) => {
+                create_word_field.display(f, depth, last)
+            }
+            NamedObject::Device(device) => device.display(f, depth, last),
+            NamedObject::DataRegion(data_region) => data_region.display(f, depth, last),
+            NamedObject::Event(event) => event.display(f, depth, last),
+            NamedObject::External(external) => external.display(f, depth, last),
+            NamedObject::Field(field) => field.display(f, depth, last),
+            NamedObject::IndexField(index_field) => index_field.display(f, depth, last),
+            NamedObject::Method(method) => method.display(f, depth, last),
+            NamedObject::Mutex(mutex) => mutex.display(f, depth, last),
+            NamedObject::OpRegion(op_region) => op_region.display(f, depth, last),
+            NamedObject::PowerRes(power_res) => power_res.display(f, depth, last),
+            NamedObject::Processor(processor) => processor.display(f, depth, last),
+            NamedObject::ThermalZone(thermal_zone) => thermal_zone.display(f, depth, last),
         }
     }
 }

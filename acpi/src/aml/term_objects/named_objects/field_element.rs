@@ -43,14 +43,14 @@ impl FieldElement {
 }
 
 impl Display for FieldElement {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
-            FieldElement::AccessField(access_field) => access_field.display(f, depth),
+            FieldElement::AccessField(access_field) => access_field.display(f, depth, last),
             FieldElement::ExtendedAccessField(extended_access_field) => {
-                extended_access_field.display(f, depth)
+                extended_access_field.display(f, depth, last)
             }
-            FieldElement::NamedField(named_field) => named_field.display(f, depth),
-            FieldElement::ReservedField(reserved_field) => reserved_field.display(f, depth),
+            FieldElement::NamedField(named_field) => named_field.display(f, depth, last),
+            FieldElement::ReservedField(reserved_field) => reserved_field.display(f, depth, last),
         }
     }
 }

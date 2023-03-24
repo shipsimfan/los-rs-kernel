@@ -12,9 +12,9 @@ impl TermObj {
 }
 
 impl Display for TermObj {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
-            TermObj::Object(object) => object.display(f, depth),
+            TermObj::Object(object) => object.display(f, depth, last),
         }
     }
 }

@@ -4,7 +4,6 @@ use crate::aml::{
 };
 
 pub(in crate::aml::term_objects) struct Processor {
-    offset: usize,
     name: NameString,
     proc_id: u8,
     pblk_addr: u32,
@@ -14,8 +13,6 @@ pub(in crate::aml::term_objects) struct Processor {
 
 impl Processor {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 2;
-
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let name = NameString::parse(&mut stream)?;
@@ -26,7 +23,6 @@ impl Processor {
         let term_list = TermList::parse(&mut stream)?;
 
         Ok(Processor {
-            offset,
             name,
             proc_id,
             pblk_addr,
@@ -37,15 +33,15 @@ impl Processor {
 }
 
 impl Display for Processor {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(
+        write!(
             f,
-            "Processor {} ({:#02X} - {:#08X} - {:#02X}) @ {}",
-            self.name, self.proc_id, self.pblk_addr, self.pblk_len, self.offset
+            "Processor ({}, {:#02X}, {:#08X}, {:#02X}) ",
+            self.name, self.proc_id, self.pblk_addr, self.pblk_len
         )?;
 
-        self.term_list.display(f, depth + 1)
+        self.term_list.display(f, depth, last)
     }
 }
 

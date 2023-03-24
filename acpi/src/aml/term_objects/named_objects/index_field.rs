@@ -2,28 +2,24 @@ use super::{FieldFlags, FieldList};
 use crate::aml::{impl_core_display, pkg_length, Display, NameString, Result, Stream};
 
 pub(in crate::aml::term_objects) struct IndexField {
-    offset: usize,
-    name1: NameString,
-    name2: NameString,
+    index_name: NameString,
+    data_name: NameString,
     flags: FieldFlags,
     field_list: FieldList,
 }
 
 impl IndexField {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 2;
-
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
-        let name1 = NameString::parse(&mut stream)?;
-        let name2 = NameString::parse(&mut stream)?;
+        let index_name = NameString::parse(&mut stream)?;
+        let data_name = NameString::parse(&mut stream)?;
         let flags = FieldFlags::parse(&mut stream)?;
         let field_list = FieldList::parse(&mut stream)?;
 
         Ok(IndexField {
-            offset,
-            name1,
-            name2,
+            index_name,
+            data_name,
             flags,
             field_list,
         })
@@ -31,15 +27,15 @@ impl IndexField {
 }
 
 impl Display for IndexField {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(
+        write!(
             f,
-            "Index Field {} -> {} ({}) @ {}",
-            self.name1, self.name2, self.flags, self.offset
+            "Index Field ({}, {}, {}) ",
+            self.index_name, self.data_name, self.flags
         )?;
 
-        self.field_list.display(f, depth + 1)
+        self.field_list.display(f, depth, last)
     }
 }
 

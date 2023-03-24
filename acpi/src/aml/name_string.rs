@@ -87,7 +87,7 @@ impl NameString {
 
 impl core::fmt::Display for NameString {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "\"{}", self.prefix)?;
+        write!(f, "{}", self.prefix)?;
 
         for part in &self.path {
             write!(
@@ -100,10 +100,10 @@ impl core::fmt::Display for NameString {
         match self.name {
             Some(name) => write!(
                 f,
-                "{}{}{}{}\"",
+                "{}{}{}{}",
                 name[0] as char, name[1] as char, name[2] as char, name[3] as char
             ),
-            None => write!(f, "\""),
+            None => Ok(()),
         }
     }
 }

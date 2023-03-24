@@ -3,34 +3,27 @@ use crate::aml::{
 };
 
 pub(in crate::aml::term_objects) struct Device {
-    offset: usize,
     name: NameString,
     term_list: TermList,
 }
 
 impl Device {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 2;
-
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let name = NameString::parse(&mut stream)?;
         let term_list = TermList::parse(&mut stream)?;
 
-        Ok(Device {
-            offset,
-            name,
-            term_list,
-        })
+        Ok(Device { name, term_list })
     }
 }
 
 impl Display for Device {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Device {} @ {}", self.name, self.offset)?;
+        write!(f, "Device ({}) ", self.name)?;
 
-        self.term_list.display(f, depth + 1)
+        self.term_list.display(f, depth, last)
     }
 }
 

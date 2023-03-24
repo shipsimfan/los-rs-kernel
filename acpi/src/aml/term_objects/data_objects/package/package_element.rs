@@ -17,9 +17,11 @@ impl PackageElement {
 }
 
 impl Display for PackageElement {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
-            PackageElement::DataRefObject(data_ref_object) => data_ref_object.display(f, depth),
+            PackageElement::DataRefObject(data_ref_object) => {
+                data_ref_object.display(f, depth, last)
+            }
             PackageElement::NameString(name_string) => {
                 self.display_prefix(f, depth)?;
                 writeln!(f, "{}", name_string)

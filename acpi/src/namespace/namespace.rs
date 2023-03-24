@@ -30,7 +30,7 @@ impl Namespace {
 }
 
 impl Display for Namespace {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.root.display(f, depth)
     }
 }

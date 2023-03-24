@@ -2,7 +2,6 @@ use super::{FieldFlags, FieldList};
 use crate::aml::{impl_core_display, pkg_length, Display, NameString, Result, Stream};
 
 pub(in crate::aml::term_objects) struct Field {
-    offset: usize,
     name: NameString,
     flags: FieldFlags,
     field_list: FieldList,
@@ -10,8 +9,6 @@ pub(in crate::aml::term_objects) struct Field {
 
 impl Field {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 2;
-
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let name = NameString::parse(&mut stream)?;
@@ -19,7 +16,6 @@ impl Field {
         let field_list = FieldList::parse(&mut stream)?;
 
         Ok(Field {
-            offset,
             name,
             flags,
             field_list,
@@ -28,11 +24,11 @@ impl Field {
 }
 
 impl Display for Field {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Field {} ({}) @ {}", self.name, self.flags, self.offset)?;
+        write!(f, "Field ({}, {}) ", self.name, self.flags)?;
 
-        self.field_list.display(f, depth + 1)
+        self.field_list.display(f, depth, last)
     }
 }
 

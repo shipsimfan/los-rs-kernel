@@ -48,7 +48,7 @@ impl Object {
 }
 
 impl Display for Object {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
             Object::Scope(scope) => scope.display(f, depth),
             Object::OperationRegion(operation_region) => operation_region.display(f, depth),

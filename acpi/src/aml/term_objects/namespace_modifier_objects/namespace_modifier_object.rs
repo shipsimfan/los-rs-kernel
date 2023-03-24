@@ -32,11 +32,11 @@ impl NamespaceModifierObject {
 }
 
 impl Display for NamespaceModifierObject {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
-            NamespaceModifierObject::Alias(alias) => alias.display(f, depth),
-            NamespaceModifierObject::Name(name) => name.display(f, depth),
-            NamespaceModifierObject::Scope(scope) => scope.display(f, depth),
+            NamespaceModifierObject::Alias(alias) => alias.display(f, depth, last),
+            NamespaceModifierObject::Name(name) => name.display(f, depth, last),
+            NamespaceModifierObject::Scope(scope) => scope.display(f, depth, last),
         }
     }
 }

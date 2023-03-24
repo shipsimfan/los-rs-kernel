@@ -14,9 +14,9 @@ impl DataRefObject {
 }
 
 impl Display for DataRefObject {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
-            DataRefObject::DataObject(data_object) => data_object.display(f, depth),
+            DataRefObject::DataObject(data_object) => data_object.display(f, depth, last),
         }
     }
 }

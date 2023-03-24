@@ -1,20 +1,17 @@
 use crate::aml::{impl_core_display, Display, Result, Stream};
 
-pub(in crate::aml::term_objects) struct Revision {
-    offset: usize,
-}
+pub(in crate::aml::term_objects) struct Revision {}
 
 impl Revision {
-    pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 2;
-        Ok(Revision { offset })
+    pub(super) fn parse(_stream: &mut Stream) -> Result<Self> {
+        Ok(Revision {})
     }
 }
 
 impl Display for Revision {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Revision @ {}", self.offset)
+        writeln!(f, "Revision")
     }
 }
 

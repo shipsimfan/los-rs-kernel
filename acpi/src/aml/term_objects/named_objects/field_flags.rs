@@ -78,7 +78,7 @@ impl core::fmt::Display for FieldFlags {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "{} - {} - {}",
+            "{}, {}, {}",
             self.access_type, self.lock_rule, self.update_rule
         )
     }

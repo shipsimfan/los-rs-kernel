@@ -20,12 +20,12 @@ impl Object {
 }
 
 impl Display for Object {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
             Object::NamespaceModifierObject(namespace_modifier_object) => {
-                namespace_modifier_object.display(f, depth)
+                namespace_modifier_object.display(f, depth, last)
             }
-            Object::NamedObject(named_object) => named_object.display(f, depth),
+            Object::NamedObject(named_object) => named_object.display(f, depth, last),
         }
     }
 }

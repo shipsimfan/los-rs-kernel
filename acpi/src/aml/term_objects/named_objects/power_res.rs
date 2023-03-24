@@ -4,7 +4,6 @@ use crate::aml::{
 };
 
 pub(in crate::aml::term_objects) struct PowerRes {
-    offset: usize,
     name: NameString,
     system_level: u8,
     resource_order: u16,
@@ -13,8 +12,6 @@ pub(in crate::aml::term_objects) struct PowerRes {
 
 impl PowerRes {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let offset = stream.offset() - 2;
-
         let mut stream = pkg_length::parse_to_stream(stream)?;
 
         let name = NameString::parse(&mut stream)?;
@@ -23,7 +20,6 @@ impl PowerRes {
         let term_list = TermList::parse(&mut stream)?;
 
         Ok(PowerRes {
-            offset,
             name,
             system_level,
             resource_order,
@@ -33,15 +29,15 @@ impl PowerRes {
 }
 
 impl Display for PowerRes {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(
+        write!(
             f,
-            "PowerRes {} ({} - {}) @ {}",
-            self.name, self.system_level, self.resource_order, self.offset
+            "Power Resource ({}, {}, {}) ",
+            self.name, self.system_level, self.resource_order
         )?;
 
-        self.term_list.display(f, depth + 1)
+        self.term_list.display(f, depth, last)
     }
 }
 

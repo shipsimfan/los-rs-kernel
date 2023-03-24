@@ -31,13 +31,13 @@ impl DataObject {
 }
 
 impl Display for DataObject {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         match self {
             DataObject::ComputationalData(computational_data) => {
-                computational_data.display(f, depth)
+                computational_data.display(f, depth, last)
             }
-            DataObject::Package(package) => package.display(f, depth),
-            DataObject::VarPackage(var_package) => var_package.display(f, depth),
+            DataObject::Package(package) => package.display(f, depth, last),
+            DataObject::VarPackage(var_package) => var_package.display(f, depth, last),
         }
     }
 }

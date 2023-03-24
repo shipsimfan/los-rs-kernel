@@ -16,7 +16,7 @@ impl AML {
 
 impl core::fmt::Display for AML {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        writeln!(f, "AML:")?;
-        self.term_list.display(f, 0)
+        write!(f, "AML ")?;
+        self.term_list.display(f, 0, true)
     }
 }

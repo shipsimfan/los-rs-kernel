@@ -65,7 +65,7 @@ impl Scope {
 }
 
 impl Display for Scope {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
         write!(f, "Scope")?;
         self.display_name(f, self.name)?;
