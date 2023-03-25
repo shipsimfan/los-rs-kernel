@@ -6,6 +6,7 @@ use crate::aml::{
 pub(in crate::aml::term_objects) struct Method {
     name: NameString,
     method_flags: u8,
+    term_list: TermList,
 }
 
 impl Method {
@@ -14,16 +15,22 @@ impl Method {
 
         let name = NameString::parse(&mut stream)?;
         let method_flags = next!(stream);
-        //let term_list = TermList::parse(&mut stream)?;
+        let term_list = TermList::parse(&mut stream)?;
 
-        Ok(Method { name, method_flags })
+        Ok(Method {
+            name,
+            method_flags,
+            term_list,
+        })
     }
 }
 
 impl Display for Method {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         self.display_prefix(f, depth)?;
-        writeln!(f, "Method ({}, {})", self.name, self.method_flags)
+        write!(f, "Method ({}, {}) ", self.name, self.method_flags)?;
+
+        self.term_list.display(f, depth, last)
     }
 }
 

@@ -40,16 +40,18 @@ macro_rules! peek {
     }};
 }
 
-macro_rules! match_peek {
-    ($stream: expr, $($pattern: pat => $result: expr)*) => {{
-        let c = $crate::aml::peek!($stream);
-        match c {
-            $($pattern => $result,)*
-            _ => return Err($crate::aml::Error::unexpected_byte($stream.offset(), c)),
-        }}
-    };
+macro_rules! peek_ahead {
+    ($stream: expr) => {{
+        $stream
+            .peek_ahead()
+            .ok_or($crate::aml::Error::unexpected_end_of_stream(
+                $stream.offset(),
+            ))
+            .unwrap()
+    }};
 }
 
+#[allow(unused_macros)]
 macro_rules! unwrap_data_type {
     ($data_type: expr, $expected: ident) => {
         match $data_type {
@@ -59,4 +61,5 @@ macro_rules! unwrap_data_type {
     };
 }
 
-pub(super) use {impl_core_display, match_next, match_peek, next, peek, unwrap_data_type};
+#[allow(unused_imports)]
+pub(super) use {impl_core_display, match_next, next, peek, peek_ahead, unwrap_data_type};

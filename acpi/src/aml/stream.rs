@@ -19,6 +19,10 @@ impl<'a> Stream<'a> {
         self.bytes.get(self.offset).map(|byte| *byte)
     }
 
+    pub(super) fn peek_ahead(&self) -> Option<u8> {
+        self.bytes.get(self.offset + 1).map(|byte| *byte)
+    }
+
     pub(super) fn offset(&self) -> usize {
         self.offset + self.base_offset
     }
