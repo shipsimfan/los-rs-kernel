@@ -9,6 +9,7 @@ mod term_list;
 mod term_obj;
 
 pub(self) use data_objects::DataObject;
+pub(self) use expression_opcodes::ExpressionOpcode;
 pub(self) use named_objects::NamedObject;
 pub(self) use namespace_modifier_objects::NamespaceModifierObject;
 pub(self) use object::Object;

@@ -4,7 +4,8 @@ use super::{
     OpRegion, PowerRes, Processor, ThermalZone,
 };
 use crate::aml::{
-    impl_core_display, match_next, term_objects::named_objects::BankField, Display, Result, Stream,
+    impl_core_display, peek, peek_ahead, term_objects::named_objects::BankField, Display, Result,
+    Stream,
 };
 
 pub(in crate::aml::term_objects) enum NamedObject {
@@ -53,31 +54,116 @@ const BANK_FIELD_OP: u8 = 0x87;
 const DATA_REGION_OP: u8 = 0x88;
 
 impl NamedObject {
-    pub(in crate::aml::term_objects) fn parse(stream: &mut Stream) -> Result<Self> {
-        match_next!(stream,
-            METHOD_OP => Method::parse(stream).map(|method| NamedObject::Method(method))
-            EXTERNAL_OP => External::parse(stream).map(|external| NamedObject::External(external))
-            CREATE_DWORD_FIELD_OP => CreateDWordField::parse(stream).map(|create_dword_field| NamedObject::CreateDWordField(create_dword_field))
-            CREATE_WORD_FIELD => CreateWordField::parse(stream).map(|create_word_field| NamedObject::CreateWordField(create_word_field))
-            CREATE_BYTE_FIELD_OP => CreateByteField::parse(stream).map(|create_byte_field| NamedObject::CreateByteField(create_byte_field))
-            CREATE_BIT_FIELD_OP => CreateBitField::parse(stream).map(|create_bit_field| NamedObject::CreateBitField(create_bit_field))
-            CREATE_QWORD_FIELD_OP => CreateQWordField::parse(stream).map(|create_qword_field| NamedObject::CreateQWordField(create_qword_field))
+    pub(in crate::aml::term_objects) fn parse(stream: &mut Stream) -> Result<Option<Self>> {
+        match peek!(stream) {
+            METHOD_OP => {
+                stream.next();
+                Method::parse(stream).map(|method| Some(NamedObject::Method(method)))
+            }
+            EXTERNAL_OP => {
+                stream.next();
+                External::parse(stream).map(|external| Some(NamedObject::External(external)))
+            }
+            CREATE_DWORD_FIELD_OP => {
+                stream.next();
+                CreateDWordField::parse(stream).map(|create_dword_field| {
+                    Some(NamedObject::CreateDWordField(create_dword_field))
+                })
+            }
+            CREATE_WORD_FIELD => {
+                stream.next();
+                CreateWordField::parse(stream)
+                    .map(|create_word_field| Some(NamedObject::CreateWordField(create_word_field)))
+            }
+            CREATE_BYTE_FIELD_OP => {
+                stream.next();
+                CreateByteField::parse(stream)
+                    .map(|create_byte_field| Some(NamedObject::CreateByteField(create_byte_field)))
+            }
+            CREATE_BIT_FIELD_OP => {
+                stream.next();
+                CreateBitField::parse(stream)
+                    .map(|create_bit_field| Some(NamedObject::CreateBitField(create_bit_field)))
+            }
+            CREATE_QWORD_FIELD_OP => {
+                stream.next();
+                CreateQWordField::parse(stream).map(|create_qword_field| {
+                    Some(NamedObject::CreateQWordField(create_qword_field))
+                })
+            }
 
-            EXT_OP_PREFIX => match_next!(stream,
-                MUTEX_OP => Mutex::parse(stream).map(|mutex| NamedObject::Mutex(mutex))
-                EVENT_OP => Event::parse(stream).map(|event| NamedObject::Event(event))
-                CREATE_FIELD_OP => CreateField::parse(stream).map(|create_field| NamedObject::CreateField(create_field))
-                OP_REGION_OP => OpRegion::parse(stream).map(|op_region| NamedObject::OpRegion(op_region))
-                FIELD_OP => Field::parse(stream).map(|field| NamedObject::Field(field))
-                DEVICE_OP => Device::parse(stream).map(|device| NamedObject::Device(device))
-                PROCESSOR_OP => Processor::parse(stream).map(|processor| NamedObject::Processor(processor))
-                POWER_RES_OP => PowerRes::parse(stream).map(|power_res| NamedObject::PowerRes(power_res))
-                THERMAL_ZONE_OP => ThermalZone::parse(stream).map(|thermal_zone| NamedObject::ThermalZone(thermal_zone))
-                INDEX_FIELD_OP => IndexField::parse(stream).map(|index_field| NamedObject::IndexField(index_field))
-                BANK_FIELD_OP => BankField::parse(stream).map(|bank_field| NamedObject::BankField(bank_field))
-                DATA_REGION_OP => DataRegion::parse(stream).map(|data_region| NamedObject::DataRegion(data_region))
-            )
-        )
+            EXT_OP_PREFIX => match peek_ahead!(stream) {
+                MUTEX_OP => {
+                    stream.next();
+                    stream.next();
+                    Mutex::parse(stream).map(|mutex| Some(NamedObject::Mutex(mutex)))
+                }
+                EVENT_OP => {
+                    stream.next();
+                    stream.next();
+                    Event::parse(stream).map(|event| Some(NamedObject::Event(event)))
+                }
+                CREATE_FIELD_OP => {
+                    stream.next();
+                    stream.next();
+                    CreateField::parse(stream)
+                        .map(|create_field| Some(NamedObject::CreateField(create_field)))
+                }
+                OP_REGION_OP => {
+                    stream.next();
+                    stream.next();
+                    OpRegion::parse(stream).map(|op_region| Some(NamedObject::OpRegion(op_region)))
+                }
+                FIELD_OP => {
+                    stream.next();
+                    stream.next();
+                    Field::parse(stream).map(|field| Some(NamedObject::Field(field)))
+                }
+                DEVICE_OP => {
+                    stream.next();
+                    stream.next();
+                    Device::parse(stream).map(|device| Some(NamedObject::Device(device)))
+                }
+                PROCESSOR_OP => {
+                    stream.next();
+                    stream.next();
+                    Processor::parse(stream)
+                        .map(|processor| Some(NamedObject::Processor(processor)))
+                }
+                POWER_RES_OP => {
+                    stream.next();
+                    stream.next();
+                    PowerRes::parse(stream).map(|power_res| Some(NamedObject::PowerRes(power_res)))
+                }
+                THERMAL_ZONE_OP => {
+                    stream.next();
+                    stream.next();
+                    ThermalZone::parse(stream)
+                        .map(|thermal_zone| Some(NamedObject::ThermalZone(thermal_zone)))
+                }
+                INDEX_FIELD_OP => {
+                    stream.next();
+                    stream.next();
+                    IndexField::parse(stream)
+                        .map(|index_field| Some(NamedObject::IndexField(index_field)))
+                }
+                BANK_FIELD_OP => {
+                    stream.next();
+                    stream.next();
+                    BankField::parse(stream)
+                        .map(|bank_field| Some(NamedObject::BankField(bank_field)))
+                }
+                DATA_REGION_OP => {
+                    stream.next();
+                    stream.next();
+                    DataRegion::parse(stream)
+                        .map(|data_region| Some(NamedObject::DataRegion(data_region)))
+                }
+                _ => Ok(None),
+            },
+
+            _ => Ok(None),
+        }
     }
 }
 

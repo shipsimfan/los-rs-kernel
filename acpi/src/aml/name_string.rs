@@ -67,7 +67,7 @@ impl NameString {
                 name: None,
             });
         } else {
-            return Err(Error::unexpected_byte(c, offset));
+            return Err(Error::unexpected_byte(c, offset)).unwrap();
         };
 
         let mut path = Vec::with_capacity(count - 1);

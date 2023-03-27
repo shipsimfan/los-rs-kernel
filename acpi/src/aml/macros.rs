@@ -51,15 +51,5 @@ macro_rules! peek_ahead {
     }};
 }
 
-#[allow(unused_macros)]
-macro_rules! unwrap_data_type {
-    ($data_type: expr, $expected: ident) => {
-        match $data_type {
-            $crate::namespace::DataType::$expected(value) => Ok(value),
-            _ => Err($crate::aml::Error::InvalidArgumentType),
-        }
-    };
-}
-
 #[allow(unused_imports)]
-pub(super) use {impl_core_display, match_next, next, peek, peek_ahead, unwrap_data_type};
+pub(super) use {impl_core_display, match_next, next, peek, peek_ahead};

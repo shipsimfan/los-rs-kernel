@@ -4,15 +4,15 @@ use crate::aml::{
 use alloc::boxed::Box;
 
 pub(in crate::aml) struct Index {
-    buff_pkg_str_obj: TermArg,
-    index_value: TermArg,
+    buff_pkg_str_obj: Box<TermArg>,
+    index_value: Box<TermArg>,
     target: Box<Target>,
 }
 
 impl Index {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let buff_pkg_str_obj = TermArg::parse(stream)?;
-        let index_value = TermArg::parse(stream)?;
+        let buff_pkg_str_obj = Box::new(TermArg::parse(stream)?);
+        let index_value = Box::new(TermArg::parse(stream)?);
         let target = Box::new(Target::parse(stream)?);
 
         Ok(Index {

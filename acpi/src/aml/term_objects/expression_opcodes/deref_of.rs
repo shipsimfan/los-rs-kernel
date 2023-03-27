@@ -1,12 +1,13 @@
 use crate::aml::{impl_core_display, term_objects::TermArg, Display, Result, Stream};
+use alloc::boxed::Box;
 
 pub(in crate::aml) struct DerefOf {
-    object: TermArg,
+    object: Box<TermArg>,
 }
 
 impl DerefOf {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let object = TermArg::parse(stream)?;
+        let object = Box::new(TermArg::parse(stream)?);
 
         Ok(DerefOf { object })
     }

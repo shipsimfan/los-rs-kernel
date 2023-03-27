@@ -12,7 +12,8 @@ impl Name {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
         let name = NameString::parse(stream)?;
         let data_ref_object = DataRefObject::parse(stream)?
-            .ok_or_else(|| Error::unexpected_byte(stream.next().unwrap(), stream.offset() - 1))?;
+            .ok_or_else(|| Error::unexpected_byte(stream.next().unwrap(), stream.offset() - 1))
+            .unwrap();
 
         Ok(Name {
             name,

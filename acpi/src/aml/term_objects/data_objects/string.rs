@@ -14,7 +14,7 @@ impl String {
             if c == 0x00 {
                 break;
             } else if c > 0x7F {
-                return Err(Error::unexpected_byte(c, stream.offset() - 1));
+                return Err(Error::unexpected_byte(c, stream.offset() - 1)).unwrap();
             }
 
             string.push(c);

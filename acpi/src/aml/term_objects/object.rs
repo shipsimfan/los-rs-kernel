@@ -7,14 +7,14 @@ pub(super) enum Object {
 }
 
 impl Object {
-    pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
+    pub(super) fn parse(stream: &mut Stream) -> Result<Option<Self>> {
         match NamespaceModifierObject::parse(stream)? {
-            Some(namespace_modifier_object) => {
-                Ok(Object::NamespaceModifierObject(namespace_modifier_object))
-            }
-            None => {
-                NamedObject::parse(stream).map(|named_object| Object::NamedObject(named_object))
-            }
+            Some(namespace_modifier_object) => Ok(Some(Object::NamespaceModifierObject(
+                namespace_modifier_object,
+            ))),
+            None => NamedObject::parse(stream).map(|named_object| {
+                named_object.map(|named_object| Object::NamedObject(named_object))
+            }),
         }
     }
 }
