@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::borrow::Cow;
 
 #[derive(Clone, Copy)]
 pub enum Level {
@@ -9,31 +9,19 @@ pub enum Level {
     Debug,
 }
 
-enum Message {
-    Static(&'static str),
-    Owned(String),
-}
-
 #[allow(unused)]
 pub(super) struct LogMessage {
     level: Level,
-    module: &'static str,
-    message: Message,
+    module: Cow<'static, str>,
+    message: Cow<'static, str>,
 }
 
 impl LogMessage {
-    pub(super) fn new(level: Level, module: &'static str, message: &'static str) -> Self {
+    pub(super) fn new(level: Level, module: Cow<'static, str>, message: Cow<'static, str>) -> Self {
         LogMessage {
             level,
             module,
-            message: Message::Static(message),
-        }
-    }
-    pub(super) fn new_owned(level: Level, module: &'static str, message: String) -> Self {
-        LogMessage {
-            level,
-            module,
-            message: Message::Owned(message),
+            message,
         }
     }
 }

@@ -1,7 +1,6 @@
 use super::{Result, Table, FADT, RSDP, XSDT};
 use crate::namespace::Namespace;
-use alloc::format;
-use base::Logger;
+use base::{log_warn, Logger};
 use core::ptr::NonNull;
 
 pub(crate) fn load(rsdp: NonNull<RSDP>, logger: &Logger) -> Result<Namespace> {
@@ -15,15 +14,13 @@ pub(crate) fn load(rsdp: NonNull<RSDP>, logger: &Logger) -> Result<Namespace> {
         match signature {
             &FADT::SIGNATURE => FADT::load(table.cast(), &mut namespace)?,
 
-            _ => logger.log_owned(
-                base::Level::Warning,
-                format!(
-                    "Found unknown table (Signature: \"{}{}{}{}\")",
-                    signature[0] as char,
-                    signature[1] as char,
-                    signature[2] as char,
-                    signature[3] as char
-                ),
+            _ => log_warn!(
+                logger,
+                "Found unknown table (Signature: \"{}{}{}{}\")",
+                signature[0] as char,
+                signature[1] as char,
+                signature[2] as char,
+                signature[3] as char
             ),
         }
     }

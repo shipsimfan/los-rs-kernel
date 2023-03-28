@@ -22,9 +22,3 @@ impl<'a> Iterator for TermList<'a> {
         }
     }
 }
-
-impl<'a> core::fmt::Display for TermList<'a> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{{ {} bytes . . . }}", self.stream.remaining())
-    }
-}

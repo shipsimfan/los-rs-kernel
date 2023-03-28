@@ -7,7 +7,7 @@ enum Prefix {
     Root,
 }
 
-pub(in crate::parser) struct NameString {
+pub(crate) struct NameString {
     prefix: Prefix,
     path: Vec<[u8; 4]>,
     name: Option<[u8; 4]>,

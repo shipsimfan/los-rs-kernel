@@ -16,4 +16,4 @@ pub(self) use name_objects::NameString;
 pub(crate) use error::Error;
 pub(crate) use stream::Stream;
 
-pub(crate) use term_objects::TermList;
+pub(crate) use term_objects::{Term, TermList};

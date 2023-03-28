@@ -3,7 +3,7 @@ use super::{
     idt::IDT,
     irqs::{IRQs, IRQ},
 };
-use crate::{CriticalLock, ExceptionType, Logger};
+use crate::{log_info, CriticalLock, ExceptionType, Logger};
 
 pub struct InterruptController {
     idt: IDT,
@@ -31,7 +31,7 @@ impl InterruptController {
 
             initialized: false,
 
-            logger: Logger::new("Interrupt Controller"),
+            logger: Logger::from("Interrupt Controller"),
         }
     }
 
@@ -43,7 +43,7 @@ impl InterruptController {
         assert!(!self.initialized);
         self.initialized = true;
 
-        self.logger.log(crate::Level::Info, "Initializing");
+        log_info!(self.logger, "Initializing");
 
         self.idt.initialize();
         self.exceptions.initialize(&mut self.idt);

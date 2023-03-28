@@ -2,7 +2,7 @@ use super::{
     memory_log_container::MemoryLogContainer, message::LogMessage, output::LogOutput, Level,
 };
 use crate::CriticalLock;
-use alloc::string::String;
+use alloc::borrow::Cow;
 
 enum Output {
     Static(&'static dyn LogOutput),
@@ -33,7 +33,7 @@ impl LogController {
         *self.output.lock() = Some(Output::Static(output));
     }
 
-    pub(super) fn log(&self, level: Level, module: &'static str, message: &'static str) {
+    pub(super) fn log(&self, level: Level, module: Cow<'static, str>, message: Cow<'static, str>) {
         match self.output.lock().as_ref().map(|output| match output {
             Output::Static(output) => output,
         }) {
@@ -42,18 +42,6 @@ impl LogController {
         }
 
         let message = LogMessage::new(level, module, message);
-        self.memory_log_container.lock().log(message);
-    }
-
-    pub(super) fn log_owned(&self, level: Level, module: &'static str, message: String) {
-        match self.output.lock().as_ref().map(|output| match output {
-            Output::Static(output) => output,
-        }) {
-            Some(output) => writeln!(output, "[{}][{}] {}", level, module, message),
-            None => {}
-        }
-
-        let message = LogMessage::new_owned(level, module, message);
         self.memory_log_container.lock().log(message);
     }
 }

@@ -12,11 +12,3 @@ impl<'a> Term<'a> {
         )
     }
 }
-
-impl<'a> core::fmt::Display for Term<'a> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Term::Scope(scope) => scope.fmt(f),
-        }
-    }
-}

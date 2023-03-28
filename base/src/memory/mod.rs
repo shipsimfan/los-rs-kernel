@@ -1,4 +1,4 @@
-use crate::{CriticalLock, Logger};
+use crate::{log_info, CriticalLock, Logger};
 use buddy::BuddyAllocator;
 use core::{
     arch::global_asm,
@@ -57,7 +57,7 @@ impl MemoryManager {
     pub(self) const fn null() -> Self {
         MemoryManager {
             initialized: AtomicBool::new(false),
-            logger: Logger::new("Memory Manager"),
+            logger: Logger::from("Memory Manager"),
 
             buddy_allocator: CriticalLock::new(BuddyAllocator::new()),
         }
@@ -70,7 +70,7 @@ impl MemoryManager {
     pub fn initialize<M: MemoryMap>(&self, memory_map: M, framebuffer_memory: (usize, usize)) {
         assert!(!self.initialized.swap(true, Ordering::AcqRel));
 
-        self.logger.log(crate::Level::Info, "Initializing");
+        log_info!(self.logger, "Initializing");
 
         // Setup the PML 4
         unsafe {

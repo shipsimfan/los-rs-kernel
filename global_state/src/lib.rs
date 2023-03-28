@@ -3,7 +3,9 @@
 extern crate alloc;
 
 use alloc::sync::Arc;
-use base::{BootVideo, CriticalLock, InterruptController, Level, Logger, MemoryManager, MemoryMap};
+use base::{
+    log_info, BootVideo, CriticalLock, InterruptController, Logger, MemoryManager, MemoryMap,
+};
 
 pub struct GlobalState {
     interrupt_controller: &'static CriticalLock<InterruptController>,
@@ -16,8 +18,8 @@ impl GlobalState {
     pub fn initialize<M: MemoryMap, B: BootVideo>(memory_map: M, boot_video: &CriticalLock<B>) {
         //assert!(unsafe { GLOBAL_STATE.is_none() });
 
-        let logger = Logger::new("Global State");
-        logger.log(Level::Info, "Initializing");
+        let logger = Logger::from("Global State");
+        log_info!(logger, "Initializing");
 
         // Initialize static entities (IDT & Memory manager)
         let interrupt_controller = InterruptController::get();
@@ -34,7 +36,7 @@ impl GlobalState {
         });
         *unsafe { &mut GLOBAL_STATE } = Some(global_state.clone());
 
-        logger.log(Level::Info, "Global state initialized");
+        log_info!(logger, "Global state initialized");
     }
 
     pub fn get() -> &'static Arc<GlobalState> {

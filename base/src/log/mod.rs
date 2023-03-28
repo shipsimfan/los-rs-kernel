@@ -1,5 +1,6 @@
 mod controller;
 mod logger;
+mod macros;
 mod memory_log_container;
 mod message;
 mod output;

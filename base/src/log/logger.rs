@@ -1,20 +1,28 @@
 use crate::{Level, LogController};
-use alloc::string::String;
+use alloc::{borrow::Cow, string::String};
 
 pub struct Logger {
-    name: &'static str,
+    name: Cow<'static, str>,
 }
 
 impl Logger {
-    pub const fn new(name: &'static str) -> Self {
+    pub const fn new(name: Cow<'static, str>) -> Self {
         Logger { name }
     }
 
-    pub fn log(&self, level: Level, message: &'static str) {
-        LogController::get().log(level, self.name, message);
+    pub fn log(&self, level: Level, message: Cow<'static, str>) {
+        LogController::get().log(level, self.name.clone(), message);
     }
+}
 
-    pub fn log_owned(&self, level: Level, message: String) {
-        LogController::get().log_owned(level, self.name, message);
+impl From<String> for Logger {
+    fn from(value: String) -> Self {
+        Self::new(value.into())
+    }
+}
+
+impl const From<&'static str> for Logger {
+    fn from(value: &'static str) -> Self {
+        Self::new(Cow::Borrowed(value))
     }
 }

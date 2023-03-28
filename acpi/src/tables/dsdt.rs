@@ -12,7 +12,7 @@ impl Table for DSDT {
     const REVISION: u8 = 1;
 
     fn do_load(&self, namespace: &mut crate::namespace::Namespace) -> super::Result<()> {
-        Interpreter::new(namespace)
+        Interpreter::new(namespace, "DSDT Interpreter".into())
             .load_definition_block(unsafe {
                 core::slice::from_raw_parts(
                     &self.definition_block,

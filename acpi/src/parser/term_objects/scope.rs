@@ -15,10 +15,8 @@ impl<'a> Scope<'a> {
 
         Ok(Scope { name, term_list })
     }
-}
 
-impl<'a> core::fmt::Display for Scope<'a> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Scope ({}) {}", self.name, self.term_list)
+    pub(crate) fn name(&self) -> &NameString {
+        &self.name
     }
 }
