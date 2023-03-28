@@ -1,6 +1,6 @@
 use super::{Error, Result};
 
-pub(super) struct Stream<'a> {
+pub(crate) struct Stream<'a> {
     bytes: &'a [u8],
     offset: usize,
     base_offset: usize,
@@ -15,16 +15,16 @@ impl<'a> Stream<'a> {
         }
     }
 
-    pub(super) fn peek(&self) -> Option<u8> {
-        self.bytes.get(self.offset).map(|byte| *byte)
-    }
-
-    pub(super) fn peek_ahead(&self) -> Option<u8> {
-        self.bytes.get(self.offset + 1).map(|byte| *byte)
-    }
-
     pub(super) fn offset(&self) -> usize {
         self.offset + self.base_offset
+    }
+
+    pub(super) fn remaining(&self) -> usize {
+        self.bytes.len() - self.offset
+    }
+
+    pub(super) fn prev(&mut self) {
+        self.offset -= 1;
     }
 
     pub(super) fn collect(&mut self, amount: usize) -> Result<&'a [u8]> {
@@ -38,10 +38,20 @@ impl<'a> Stream<'a> {
         Ok(ret)
     }
 
+    pub(super) fn collect_remaining(&mut self) -> &'a [u8] {
+        let ret = &self.bytes[self.offset..];
+        self.offset = self.bytes.len();
+        ret
+    }
+
     pub(super) fn collect_to_stream(&mut self, amount: usize) -> Result<Stream<'a>> {
         let base_offset = self.offset();
         self.collect(amount)
             .map(|bytes| Stream::new(bytes, base_offset))
+    }
+
+    fn peek(&self) -> Option<u8> {
+        self.bytes.get(self.offset).map(|byte| *byte)
     }
 }
 
@@ -52,5 +62,11 @@ impl<'a> Iterator for Stream<'a> {
         let ret = self.peek();
         self.offset += 1;
         ret
+    }
+}
+
+impl<'a> From<&'a [u8]> for Stream<'a> {
+    fn from(value: &'a [u8]) -> Self {
+        Self::new(value, 0)
     }
 }

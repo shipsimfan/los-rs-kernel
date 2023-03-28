@@ -1,5 +1,4 @@
-use super::{xsdt::XSDT, Checksum, Table};
-use crate::loader;
+use super::{xsdt, Checksum, Error, Result, XSDT};
 use base::PhysicalAddress;
 use core::ptr::NonNull;
 
@@ -27,26 +26,17 @@ const SIGNATURE: [u8; 8] = *b"RSD PTR ";
 const REVISION: u8 = 2;
 
 impl RSDP {
-    pub(crate) fn get<'a>(rsdp: NonNull<Self>) -> loader::Result<&'a Self> {
+    pub(super) fn load<'a>(rsdp: NonNull<Self>) -> Result<&'a Self> {
         let rsdp = unsafe { rsdp.as_ref() };
         if rsdp.verify() {
             Ok(rsdp)
         } else {
-            Err(loader::Error::invalid_table(&SIGNATURE))
+            Err(Error::invalid_table(&SIGNATURE))
         }
     }
 
-    pub(crate) fn xsdt(&self) -> loader::Result<&XSDT> {
-        let xsdt: &XSDT = unsafe {
-            NonNull::new(self.xsdt_address.into_virtual())
-                .ok_or(loader::Error::missing_table(&XSDT::SIGNATURE))?
-                .as_ref()
-        };
-        if xsdt.verify() {
-            Ok(xsdt)
-        } else {
-            Err(loader::Error::invalid_table(&XSDT::SIGNATURE))
-        }
+    pub(super) fn xsdt(&self) -> Result<NonNull<XSDT>> {
+        NonNull::new(self.xsdt_address.into_virtual()).ok_or(Error::missing_table(&xsdt::SIGNATURE))
     }
 
     fn verify(&self) -> bool {

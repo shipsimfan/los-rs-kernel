@@ -1,8 +1,21 @@
-use super::{Checksum, TableHeader};
+use super::{Checksum, Error, Result, TableHeader};
+use crate::namespace::Namespace;
+use core::ptr::NonNull;
 
-pub(crate) trait Table: Sized {
+pub(super) trait Table: Sized {
     const REVISION: u8;
     const SIGNATURE: [u8; 4];
+
+    fn load(ptr: NonNull<Self>, namespace: &mut Namespace) -> Result<()> {
+        let this = unsafe { ptr.as_ref() };
+        if this.verify() {
+            this.do_load(namespace)
+        } else {
+            Err(Error::invalid_table(&Self::SIGNATURE))
+        }
+    }
+
+    fn do_load(&self, namespace: &mut Namespace) -> Result<()>;
 
     fn header(&self) -> &TableHeader;
 

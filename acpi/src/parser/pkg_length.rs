@@ -1,4 +1,4 @@
-use crate::aml::{next, Result, Stream};
+use super::{next, Result, Stream};
 
 pub(super) fn parse(stream: &mut Stream) -> Result<usize> {
     let first = next!(stream);

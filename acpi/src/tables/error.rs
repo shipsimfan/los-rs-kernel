@@ -1,9 +1,11 @@
-use crate::aml;
+use crate::interpreter;
+
+pub(super) type Result<T> = core::result::Result<T, Error>;
 
 enum ErrorKind {
     InvalidTable,
     MissingTable,
-    Parse(aml::Error),
+    Interpreter(interpreter::Error),
 }
 
 pub(crate) struct Error {
@@ -12,24 +14,24 @@ pub(crate) struct Error {
 }
 
 impl Error {
-    pub(crate) fn invalid_table(table: &'static [u8]) -> Self {
+    pub(super) fn invalid_table(table: &'static [u8]) -> Self {
         Error {
             table,
             kind: ErrorKind::InvalidTable,
         }
     }
 
-    pub(crate) fn missing_table(table: &'static [u8]) -> Self {
+    pub(super) fn missing_table(table: &'static [u8]) -> Self {
         Error {
             table,
             kind: ErrorKind::MissingTable,
         }
     }
 
-    pub(super) fn aml_error(table: &'static [u8], error: aml::Error) -> Self {
+    pub(super) fn interpreter_error(table: &'static [u8], error: interpreter::Error) -> Self {
         Error {
             table,
-            kind: ErrorKind::Parse(error),
+            kind: ErrorKind::Interpreter(error),
         }
     }
 }
@@ -49,7 +51,7 @@ impl core::fmt::Display for ErrorKind {
         match self {
             ErrorKind::InvalidTable => write!(f, "Invalid Table"),
             ErrorKind::MissingTable => write!(f, "Missing Table"),
-            ErrorKind::Parse(error) => error.fmt(f),
+            ErrorKind::Interpreter(error) => error.fmt(f),
         }
     }
 }

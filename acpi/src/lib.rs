@@ -6,9 +6,9 @@ use alloc::string::ToString;
 use base::{BootVideo, CriticalLock, LogOutput, Logger};
 use core::ptr::NonNull;
 
-mod aml;
-mod loader;
-//mod namespace;
+mod interpreter;
+mod namespace;
+mod parser;
 mod tables;
 
 pub use tables::RSDP;
@@ -17,8 +17,8 @@ pub fn initialize<B: BootVideo>(rsdp: NonNull<RSDP>, boot_video: &CriticalLock<B
     let logger = Logger::new("ACPI");
     logger.log(base::Level::Info, "Loading tables");
 
-    match loader::load(rsdp) {
-        Ok(aml) => write!(boot_video, "{}", aml),
+    match tables::load(rsdp, &logger) {
+        Ok(namespace) => write!(boot_video, "{}", namespace),
         Err(error) => logger.log_owned(base::Level::Error, error.to_string()),
     }
 }

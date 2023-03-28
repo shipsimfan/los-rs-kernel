@@ -1,4 +1,4 @@
-pub(crate) trait Checksum: Sized {
+pub(super) trait Checksum: Sized {
     fn length(&self) -> usize;
 
     fn verify_checksum(&self) -> bool {

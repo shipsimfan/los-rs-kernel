@@ -1,4 +1,4 @@
-use crate::aml::{next, peek, Error, Result, Stream};
+use crate::parser::{next, Error, Result, Stream};
 use alloc::vec::Vec;
 
 enum Prefix {
@@ -7,31 +7,32 @@ enum Prefix {
     Root,
 }
 
-pub(super) struct NameString {
+pub(in crate::parser) struct NameString {
     prefix: Prefix,
     path: Vec<[u8; 4]>,
     name: Option<[u8; 4]>,
 }
 
 fn parse_prefix(stream: &mut Stream) -> Result<Prefix> {
-    Ok(match peek!(stream) {
+    Ok(match next!(stream) {
         b'^' => {
-            let mut count = 0;
-            while let Some(c) = stream.peek() {
+            let mut count = 1;
+            while let Some(c) = stream.next() {
                 if c == b'^' {
                     stream.next();
                     count += 1;
                 } else {
+                    stream.prev();
                     break;
                 }
             }
             Prefix::Super(count)
         }
-        b'\\' => {
-            stream.next();
-            Prefix::Root
+        b'\\' => Prefix::Root,
+        _ => {
+            stream.prev();
+            Prefix::None
         }
-        _ => Prefix::None,
     })
 }
 
@@ -49,7 +50,7 @@ pub(super) fn parse_name_seg(stream: &mut Stream, c: Option<u8>) -> Result<[u8; 
 }
 
 impl NameString {
-    pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
+    pub(crate) fn parse(stream: &mut Stream) -> Result<Self> {
         let prefix = parse_prefix(stream)?;
 
         let offset = stream.offset();

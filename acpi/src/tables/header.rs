@@ -1,6 +1,6 @@
 #[repr(packed)]
 #[allow(unused)]
-pub(crate) struct TableHeader {
+pub(super) struct TableHeader {
     signature: [u8; 4],
     length: u32,
     revision: u8,
@@ -19,5 +19,9 @@ impl TableHeader {
 
     pub(super) fn length(&self) -> usize {
         self.length as usize
+    }
+
+    pub(super) fn signature(&self) -> &[u8; 4] {
+        &self.signature
     }
 }
