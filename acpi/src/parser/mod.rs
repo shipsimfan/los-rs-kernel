@@ -11,9 +11,8 @@ pub(self) use error::Result;
 pub(self) use macros::*;
 pub(self) use opcodes::*;
 
-pub(self) use name_objects::NameString;
-
 pub(crate) use error::Error;
 pub(crate) use stream::Stream;
 
+pub(crate) use name_objects::{NameString, Prefix};
 pub(crate) use term_objects::{Term, TermList};

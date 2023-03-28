@@ -1,12 +1,14 @@
 use crate::parser::{next, Error, Result, Stream};
 use alloc::vec::Vec;
 
-enum Prefix {
+#[derive(Clone, Copy)]
+pub(crate) enum Prefix {
     None,
     Super(usize),
     Root,
 }
 
+#[derive(Clone)]
 pub(crate) struct NameString {
     prefix: Prefix,
     path: Vec<[u8; 4]>,
@@ -83,6 +85,18 @@ impl NameString {
             path,
             name: Some(name),
         })
+    }
+
+    pub(crate) fn prefix(&self) -> Prefix {
+        self.prefix
+    }
+
+    pub(crate) fn path(&self) -> &[[u8; 4]] {
+        &self.path
+    }
+
+    pub(crate) fn name(&self) -> Option<[u8; 4]> {
+        self.name
     }
 }
 

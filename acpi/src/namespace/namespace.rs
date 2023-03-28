@@ -23,6 +23,10 @@ impl Namespace {
 
         Namespace { root }
     }
+
+    pub(crate) fn root(&self) -> &Rc<RefCell<dyn Node>> {
+        &self.root
+    }
 }
 
 impl core::fmt::Display for Namespace {

@@ -38,12 +38,6 @@ impl<'a> Stream<'a> {
         Ok(ret)
     }
 
-    pub(super) fn collect_remaining(&mut self) -> &'a [u8] {
-        let ret = &self.bytes[self.offset..];
-        self.offset = self.bytes.len();
-        ret
-    }
-
     pub(super) fn collect_to_stream(&mut self, amount: usize) -> Result<Stream<'a>> {
         let base_offset = self.offset();
         self.collect(amount)

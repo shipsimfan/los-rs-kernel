@@ -33,6 +33,10 @@ impl Node for Scope {
     fn name(&self) -> Option<[u8; 4]> {
         self.name
     }
+
+    fn as_children(&self) -> Option<&dyn Children> {
+        Some(self)
+    }
 }
 
 impl Children for Scope {
