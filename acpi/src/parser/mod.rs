@@ -13,11 +13,10 @@ pub(self) use error::Result;
 pub(self) use macros::*;
 pub(self) use opcodes::*;
 
-pub(self) use arguments::Argument;
-pub(self) use data_objects::DataObject;
-
 pub(crate) use error::Error;
 pub(crate) use stream::Stream;
 
+pub(crate) use arguments::Argument;
+pub(crate) use data_objects::DataObject;
 pub(crate) use name_objects::{NameString, Prefix};
-pub(crate) use term_objects::{Method, OpRegion, Scope, Term, TermList};
+pub(crate) use term_objects::{Method, OpRegion, RegionSpace, Scope, Term, TermList};

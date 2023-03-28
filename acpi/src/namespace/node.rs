@@ -6,7 +6,13 @@ pub(crate) trait Node: 'static + AsAny + Display {
     fn parent(&self) -> Option<Rc<RefCell<dyn Node>>>;
     fn name(&self) -> Option<[u8; 4]>;
 
-    fn as_children(&self) -> Option<&dyn Children>;
+    fn as_children(&self) -> Option<&dyn Children> {
+        None
+    }
+
+    fn as_children_mut(&mut self) -> Option<&mut dyn Children> {
+        None
+    }
 }
 
 pub(crate) trait AsAny: Any {

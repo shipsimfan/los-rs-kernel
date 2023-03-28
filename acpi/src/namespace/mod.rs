@@ -5,6 +5,8 @@ mod namespace;
 mod node;
 mod scope;
 
+pub(crate) mod objects;
+
 pub(self) use display::{impl_core_display, Display};
 pub(self) use macros::{display_name, display_prefix};
 

@@ -11,12 +11,11 @@ pub(crate) enum RegionSpace {
     GeneralPurposeIO,
     GenericSerialBus,
     PCC,
-    Other(u8),
 }
 
 impl RegionSpace {
-    pub(crate) fn from_u8(region_space: u8) -> Self {
-        match region_space {
+    pub(crate) fn from_u8(region_space: u8) -> Option<Self> {
+        Some(match region_space {
             0x00 => RegionSpace::SystemMemory,
             0x01 => RegionSpace::SystemIO,
             0x02 => RegionSpace::PCIConfig,
@@ -28,8 +27,8 @@ impl RegionSpace {
             0x08 => RegionSpace::GeneralPurposeIO,
             0x09 => RegionSpace::GenericSerialBus,
             0x0A => RegionSpace::PCC,
-            _ => RegionSpace::Other(region_space),
-        }
+            _ => return None,
+        })
     }
 }
 
@@ -47,7 +46,6 @@ impl core::fmt::Display for RegionSpace {
             RegionSpace::GeneralPurposeIO => write!(f, "General Purpose I/O"),
             RegionSpace::GenericSerialBus => write!(f, "Generic Serial Bus"),
             RegionSpace::PCC => write!(f, "PCC"),
-            RegionSpace::Other(value) => write!(f, "Other ({:#X})", value),
         }
     }
 }

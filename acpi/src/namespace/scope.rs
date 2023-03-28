@@ -37,6 +37,10 @@ impl Node for Scope {
     fn as_children(&self) -> Option<&dyn Children> {
         Some(self)
     }
+
+    fn as_children_mut(&mut self) -> Option<&mut dyn Children> {
+        Some(self)
+    }
 }
 
 impl Children for Scope {

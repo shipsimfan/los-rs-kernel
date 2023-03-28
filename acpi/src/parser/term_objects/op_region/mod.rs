@@ -1,7 +1,8 @@
-use crate::parser::{next, Argument, NameString, Result, Stream};
-use region_space::RegionSpace;
+use crate::parser::{next, Argument, Error, NameString, Result, Stream};
 
 mod region_space;
+
+pub(crate) use region_space::RegionSpace;
 
 pub(crate) struct OpRegion {
     name: NameString,
@@ -13,7 +14,9 @@ pub(crate) struct OpRegion {
 impl OpRegion {
     pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
         let name = NameString::parse(stream)?;
-        let region_space = RegionSpace::from_u8(next!(stream));
+        let region_space = next!(stream);
+        let region_space = RegionSpace::from_u8(region_space)
+            .ok_or(Error::unexpected_byte(region_space, stream.offset() - 1))?;
         let offset = Argument::parse(stream)?;
         let length = Argument::parse(stream)?;
 

@@ -1,3 +1,3 @@
 mod data_object;
 
-pub(super) use data_object::DataObject;
+pub(crate) use data_object::DataObject;

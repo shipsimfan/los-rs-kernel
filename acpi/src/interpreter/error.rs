@@ -3,6 +3,9 @@ use crate::parser::{self, NameString};
 pub(crate) enum Error {
     Parse(parser::Error),
     UnknownName(NameString),
+    InvalidParent(NameString),
+    InvalidName(NameString),
+    InvalidType(NameString),
 }
 
 pub(super) type Result<T> = core::result::Result<T, Error>;
@@ -19,6 +22,9 @@ impl core::fmt::Display for Error {
         match self {
             Error::Parse(error) => error.fmt(f),
             Error::UnknownName(name) => write!(f, "Unknown name \"{}\"", name),
+            Error::InvalidParent(name) => write!(f, "Invalid parent \"{}\"", name),
+            Error::InvalidName(name) => write!(f, "Invalid name \"{}\"", name),
+            Error::InvalidType(name) => write!(f, "Invalid type around \"{}\"", name),
         }
     }
 }

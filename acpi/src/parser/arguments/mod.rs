@@ -1,3 +1,3 @@
 mod argument;
 
-pub(super) use argument::Argument;
+pub(crate) use argument::Argument;

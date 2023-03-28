@@ -7,7 +7,7 @@ pub(super) fn execute(interpreter: &mut Interpreter, mut scope: Scope) -> Result
 
     // Change the context
     let new_node = interpreter
-        .get_node(scope.name())
+        .get_node(scope.name(), true)
         .ok_or_else(|| Error::UnknownName(scope.name().clone()))?;
     interpreter.push_current_node(new_node);
 

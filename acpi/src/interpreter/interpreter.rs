@@ -4,7 +4,7 @@ use crate::{
     parser::{NameString, Prefix, Stream, TermList},
 };
 use alloc::{rc::Rc, vec::Vec};
-use base::Logger;
+use base::{log_info, Logger};
 use core::cell::RefCell;
 
 pub(crate) struct Interpreter<'namespace> {
@@ -15,42 +15,41 @@ pub(crate) struct Interpreter<'namespace> {
 
     logger: Logger,
 }
-
-fn search_node(node: &Rc<RefCell<dyn Node>>, name: [u8; 4]) -> Option<Rc<RefCell<dyn Node>>> {
-    let node = node.borrow();
-    let children = match node.as_children() {
-        Some(children) => children,
-        None => return None,
-    };
-
-    let mut result = None;
-    for child in children.children() {
-        if let Some(child_name) = child.borrow().name() {
-            if child_name == name {
-                result = Some(child.clone());
-                break;
-            }
-        }
-    }
-
-    result
-}
-
 fn perform_search(
     start_node: &Rc<RefCell<dyn Node>>,
     name: &NameString,
+    include_final: bool,
 ) -> Option<Rc<RefCell<dyn Node>>> {
     let mut node = start_node.clone();
 
     for part in name.path() {
-        node = match search_node(&node, *part) {
-            Some(node) => node,
+        let current_node_ref = node.borrow();
+        let current_node = match current_node_ref.as_children() {
+            Some(children) => children,
+            None => return None,
+        };
+
+        match current_node.get_child(*part) {
+            Some(new_node) => {
+                drop(current_node_ref);
+                node = new_node
+            }
             None => return None,
         };
     }
 
+    if !include_final {
+        return Some(node);
+    }
+
     match name.name() {
-        Some(name) => search_node(&node, name),
+        Some(name) => {
+            let node = node.borrow();
+            match node.as_children() {
+                Some(children) => children.get_child(name),
+                None => None,
+            }
+        }
         None => Some(node),
     }
 }
@@ -71,12 +70,20 @@ impl<'namespace, 'name> Interpreter<'namespace> {
         &self.logger
     }
 
-    pub(super) fn get_node(&self, name: &NameString) -> Option<Rc<RefCell<dyn Node>>> {
+    pub(super) fn display_namespace(&self) {
+        log_info!(self.logger, "{}", self.namespace)
+    }
+
+    pub(super) fn get_node(
+        &self,
+        name: &NameString,
+        include_final: bool,
+    ) -> Option<Rc<RefCell<dyn Node>>> {
         match name.prefix() {
             Prefix::None => {
                 let mut node = self.current_node.clone();
                 loop {
-                    let parent = match perform_search(&node, name) {
+                    let parent = match perform_search(&node, name, include_final) {
                         Some(node) => return Some(node),
                         None => match node.borrow().parent() {
                             Some(parent) => parent,
@@ -87,7 +94,7 @@ impl<'namespace, 'name> Interpreter<'namespace> {
                     node = parent;
                 }
             }
-            Prefix::Root => perform_search(self.namespace.root(), name),
+            Prefix::Root => perform_search(self.namespace.root(), name, include_final),
             Prefix::Super(count) => {
                 let mut node = self.current_node.clone();
                 for _ in 0..count {
@@ -97,7 +104,7 @@ impl<'namespace, 'name> Interpreter<'namespace> {
                     };
                     node = parent;
                 }
-                perform_search(&node, name)
+                perform_search(&node, name, include_final)
             }
         }
     }
