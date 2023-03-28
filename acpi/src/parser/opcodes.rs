@@ -1,4 +1,5 @@
 pub(super) const SCOPE_OP: u8 = 0x10;
+pub(super) const METHOD_OP: u8 = 0x14;
 
 pub(super) const EXT_OP_PREFIX: u8 = 0x5B;
 
