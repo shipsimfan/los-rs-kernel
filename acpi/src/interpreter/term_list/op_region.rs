@@ -46,9 +46,5 @@ pub(super) fn execute(interpreter: &mut Interpreter, op_region: OpRegion) -> Res
         length,
     ));
 
-    drop(parent_ref);
-
-    interpreter.display_namespace();
-
     Ok(())
 }

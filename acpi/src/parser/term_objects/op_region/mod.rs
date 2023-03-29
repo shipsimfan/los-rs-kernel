@@ -1,8 +1,8 @@
 use crate::parser::{next, Argument, Error, NameString, Result, Stream};
 
-mod region_space;
+mod space;
 
-pub(crate) use region_space::RegionSpace;
+pub(crate) use space::RegionSpace;
 
 pub(crate) struct OpRegion {
     name: NameString,

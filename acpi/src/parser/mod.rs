@@ -19,4 +19,7 @@ pub(crate) use stream::Stream;
 pub(crate) use arguments::Argument;
 pub(crate) use data_objects::DataObject;
 pub(crate) use name_objects::{NameString, Prefix};
-pub(crate) use term_objects::{Method, OpRegion, RegionSpace, Scope, Term, TermList};
+pub(crate) use term_objects::{
+    AccessType, Field, FieldFlags, LockRule, Method, OpRegion, RegionSpace, Scope, Term, TermList,
+    UpdateRule,
+};

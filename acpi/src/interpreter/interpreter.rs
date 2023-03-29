@@ -71,7 +71,7 @@ impl<'namespace, 'name> Interpreter<'namespace> {
     }
 
     pub(super) fn display_namespace(&self) {
-        log_info!(self.logger, "{}", self.namespace)
+        log_info!(self.logger, "\n{}", self.namespace)
     }
 
     pub(super) fn get_node(

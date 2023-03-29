@@ -1,6 +1,7 @@
-use crate::aml::{next, Result, Stream};
+use crate::parser::{next, Result, Stream};
 
-pub(super) enum AccessType {
+#[derive(Clone, Copy)]
+pub(crate) enum AccessType {
     Any,
     Byte,
     Word,
@@ -9,18 +10,21 @@ pub(super) enum AccessType {
     Buffer,
 }
 
-pub(super) enum LockRule {
+#[derive(Clone, Copy)]
+pub(crate) enum LockRule {
     NoLock,
     Lock,
 }
 
-pub(super) enum UpdateRule {
+#[derive(Clone, Copy)]
+pub(crate) enum UpdateRule {
     Preserve,
     WriteAsOnes,
     WriteAsZeros,
 }
 
-pub(super) struct FieldFlags {
+#[derive(Clone, Copy)]
+pub(crate) struct FieldFlags {
     access_type: AccessType,
     lock_rule: LockRule,
     update_rule: UpdateRule,

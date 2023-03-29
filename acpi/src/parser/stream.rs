@@ -27,7 +27,7 @@ impl<'a> Stream<'a> {
         self.offset -= 1;
     }
 
-    pub(super) fn collect(&mut self, amount: usize) -> Result<&'a [u8]> {
+    pub(super) fn collect_bytes(&mut self, amount: usize) -> Result<&'a [u8]> {
         let end = self.offset + amount;
         if end > self.bytes.len() {
             return Err(Error::unexpected_end_of_stream(self.bytes.len()));
@@ -40,7 +40,7 @@ impl<'a> Stream<'a> {
 
     pub(super) fn collect_to_stream(&mut self, amount: usize) -> Result<Stream<'a>> {
         let base_offset = self.offset();
-        self.collect(amount)
+        self.collect_bytes(amount)
             .map(|bytes| Stream::new(bytes, base_offset))
     }
 
