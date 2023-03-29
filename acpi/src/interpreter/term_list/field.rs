@@ -28,8 +28,5 @@ pub(super) fn execute(interpreter: &mut Interpreter, field: parser::Field) -> Re
 
     node.add_field(Field::new(field.flags(), field.field_units().to_owned()));
 
-    drop(node_ref);
-    interpreter.display_namespace();
-
     Ok(())
 }
