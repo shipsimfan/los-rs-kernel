@@ -1,3 +1,3 @@
 mod operation_region;
 
-pub(crate) use operation_region::OperationRegion;
+pub(crate) use operation_region::{Field, OperationRegion};

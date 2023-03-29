@@ -1,8 +1,11 @@
 use crate::{
     namespace::{display_name, display_prefix, impl_core_display, Display, Node},
-    parser::RegionSpace,
+    parser::{FieldFlags, RegionSpace},
 };
-use alloc::rc::{Rc, Weak};
+use alloc::{
+    rc::{Rc, Weak},
+    vec::Vec,
+};
 use core::cell::RefCell;
 
 pub(crate) struct OperationRegion {
@@ -11,6 +14,12 @@ pub(crate) struct OperationRegion {
     space: RegionSpace,
     offset: u64,
     length: u64,
+    fields: Vec<Field>,
+}
+
+pub(crate) struct Field {
+    flags: FieldFlags,
+    units: Vec<u8>,
 }
 
 impl OperationRegion {
@@ -27,7 +36,12 @@ impl OperationRegion {
             space,
             offset,
             length,
+            fields: Vec::new(),
         }))
+    }
+
+    pub(crate) fn add_field(&mut self, field: Field) {
+        self.fields.push(field);
     }
 }
 
@@ -42,12 +56,50 @@ impl Node for OperationRegion {
 }
 
 impl Display for OperationRegion {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Operation Region (")?;
         display_name!(f, self.name);
-        writeln!(f, ", {}, {}, {})", self.space, self.offset, self.length)
+        write!(f, ", {}, {}, {}) {{", self.space, self.offset, self.length)?;
+
+        if self.fields.len() == 0 {
+            return writeln!(f, "}}");
+        } else {
+            writeln!(f)?;
+        }
+
+        for field in &self.fields {
+            field.display(f, depth + 1, false)?;
+        }
+
+        display_prefix!(f, depth);
+        writeln!(f, "}}")?;
+
+        if !last {
+            writeln!(f)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Field {
+    pub(crate) fn new(flags: FieldFlags, units: Vec<u8>) -> Self {
+        Field { flags, units }
+    }
+}
+
+impl Display for Field {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
+        display_prefix!(f, depth);
+        writeln!(
+            f,
+            "Field ({}) {{ {} bytes... }}",
+            self.flags,
+            self.units.len()
+        )
     }
 }
 
 impl_core_display!(OperationRegion);
+impl_core_display!(Field);
