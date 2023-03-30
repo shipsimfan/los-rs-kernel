@@ -13,15 +13,19 @@ pub(super) struct Scope {
 }
 
 impl Scope {
+    pub(super) fn new_raw(parent: Option<&Rc<RefCell<dyn Node>>>, name: Option<[u8; 4]>) -> Self {
+        Scope {
+            parent: parent.map(|parent| Rc::downgrade(parent)),
+            name,
+            children: Vec::new(),
+        }
+    }
+
     pub(super) fn new(
         parent: Option<&Rc<RefCell<dyn Node>>>,
         name: Option<[u8; 4]>,
     ) -> Rc<RefCell<dyn Node>> {
-        Rc::new(RefCell::new(Scope {
-            parent: parent.map(|parent| Rc::downgrade(parent)),
-            name,
-            children: Vec::new(),
-        }))
+        Rc::new(RefCell::new(Self::new_raw(parent, name)))
     }
 }
 

@@ -1,0 +1,32 @@
+use super::TermList;
+use crate::parser::{pkg_length, NameString, Result, Stream};
+
+pub(crate) struct Device<'a> {
+    name: NameString,
+    device_size: usize,
+    term_list: TermList<'a>,
+}
+
+impl<'a> Device<'a> {
+    pub(super) fn parse(stream: &mut Stream<'a>) -> Result<Self> {
+        let mut stream = pkg_length::parse_to_stream(stream)?;
+
+        let name = NameString::parse(&mut stream)?;
+        let device_size = stream.remaining();
+        let term_list = TermList::parse(stream);
+
+        Ok(Device {
+            name,
+            device_size,
+            term_list,
+        })
+    }
+
+    pub(crate) fn name(&self) -> &NameString {
+        &self.name
+    }
+
+    pub(crate) fn device_size(&self) -> usize {
+        self.device_size
+    }
+}

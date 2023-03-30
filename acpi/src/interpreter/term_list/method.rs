@@ -33,8 +33,5 @@ pub(super) fn execute(interpreter: &mut Interpreter, method: parser::Method) -> 
         method.method_size(),
     ));
 
-    drop(parent_ref);
-    interpreter.display_namespace();
-
     Ok(())
 }

@@ -10,10 +10,9 @@ use base::log_debug;
 pub(super) fn execute(interpreter: &mut Interpreter, field: parser::Field) -> Result<()> {
     log_debug!(
         interpreter.logger(),
-        "Field ({}, {}) {{ {} bytes... }}",
+        "Field ({}, {})",
         field.name(),
         field.flags(),
-        field.field_units().len(),
     );
 
     let node = interpreter

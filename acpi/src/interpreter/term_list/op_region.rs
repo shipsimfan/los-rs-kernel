@@ -33,7 +33,8 @@ pub(super) fn execute(interpreter: &mut Interpreter, op_region: OpRegion) -> Res
     let mut parent_ref = parent_rc.borrow_mut();
     let parent = parent_ref
         .as_children_mut()
-        .ok_or_else(|| Error::InvalidParent(op_region.name().clone()))?;
+        .ok_or_else(|| Error::InvalidParent(op_region.name().clone()))
+        .unwrap();
 
     parent.add_child(OperationRegion::new(
         Some(&parent_rc),
