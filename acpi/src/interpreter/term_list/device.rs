@@ -22,8 +22,5 @@ pub(super) fn execute(interpreter: &mut Interpreter, device: parser::Device) -> 
             .ok_or_else(|| Error::InvalidName(device.name().clone()))?,
     ));
 
-    drop(parent_ref);
-    interpreter.display_namespace();
-
     Ok(())
 }

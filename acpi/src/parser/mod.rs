@@ -20,5 +20,5 @@ pub(crate) use arguments::Argument;
 pub(crate) use data_objects::DataObject;
 pub(crate) use name_objects::{NameString, Prefix};
 pub(crate) use term_objects::{
-    Device, Field, FieldFlags, Method, OpRegion, RegionSpace, Scope, Term, TermList,
+    Device, Field, FieldFlags, Method, Mutex, OpRegion, RegionSpace, Scope, Term, TermList,
 };

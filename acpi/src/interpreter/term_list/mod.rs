@@ -4,6 +4,7 @@ use crate::parser::{Term, TermList};
 mod device;
 mod field;
 mod method;
+mod mutex;
 mod op_region;
 mod scope;
 
@@ -15,6 +16,7 @@ pub(super) fn execute(interpreter: &mut Interpreter, term_list: &mut TermList) -
             Term::Device(device) => device::execute(interpreter, device),
             Term::Field(field) => field::execute(interpreter, field),
             Term::Method(method) => method::execute(interpreter, method),
+            Term::Mutex(mutex) => mutex::execute(interpreter, mutex),
             Term::OpRegion(op_region) => op_region::execute(interpreter, op_region),
             Term::Scope(scope) => scope::execute(interpreter, scope),
         }?

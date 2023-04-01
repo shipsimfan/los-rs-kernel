@@ -6,6 +6,7 @@ pub(super) const METHOD_OP: u8 = 0x14;
 
 pub(super) const EXT_OP_PREFIX: u8 = 0x5B;
 
+pub(super) const MUTEX_OP: u8 = 0x01;
 pub(super) const DEBUG_OP: u8 = 0x31;
 pub(super) const OP_REGION_OP: u8 = 0x80;
 pub(super) const FIELD_OP: u8 = 0x81;

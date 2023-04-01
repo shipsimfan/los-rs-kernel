@@ -64,8 +64,11 @@ impl Display for Device {
 
         writeln!(f)?;
 
-        for child in self.scope.children() {
-            child.borrow().display(f, depth + 1, last)?;
+        let children = self.scope.children();
+        for i in 0..children.len() {
+            children[i]
+                .borrow()
+                .display(f, depth + 1, i == children.len() - 1)?;
         }
 
         display_prefix!(f, depth);
