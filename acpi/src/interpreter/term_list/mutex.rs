@@ -31,8 +31,5 @@ pub(super) fn execute(interpreter: &mut Interpreter, mutex: parser::Mutex) -> Re
         mutex.sync_level(),
     ));
 
-    drop(parent_ref);
-    interpreter.display_namespace();
-
     Ok(())
 }

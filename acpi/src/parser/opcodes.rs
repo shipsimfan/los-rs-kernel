@@ -1,4 +1,5 @@
 pub(super) const ONE_OP: u8 = 0x01;
+pub(super) const NAME_OP: u8 = 0x08;
 pub(super) const BYTE_PREFIX: u8 = 0x0A;
 pub(super) const WORD_PREFIX: u8 = 0x0B;
 pub(super) const SCOPE_OP: u8 = 0x10;
