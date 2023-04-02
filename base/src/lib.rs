@@ -5,7 +5,6 @@
 #![feature(allocator_api)]
 #![feature(int_roundings)]
 #![feature(pointer_byte_offsets)]
-#![feature(nonnull_slice_from_raw_parts)]
 #![feature(const_trait_impl)]
 
 extern crate alloc;
