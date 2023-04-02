@@ -17,7 +17,7 @@ pub(crate) use error::Error;
 pub(crate) use stream::Stream;
 
 pub(crate) use arguments::Argument;
-pub(crate) use data_objects::DataObject;
+pub(crate) use data_objects::{DataObject, String};
 pub(crate) use name_objects::{NameString, Prefix};
 pub(crate) use term_objects::{
     Device, Field, FieldFlags, Method, Mutex, Name, OpRegion, RegionSpace, Scope, Term, TermList,

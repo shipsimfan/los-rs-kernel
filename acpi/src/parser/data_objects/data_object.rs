@@ -1,9 +1,13 @@
-use crate::parser::{match_next, next, Result, Stream, BYTE_PREFIX, ONE_OP, WORD_PREFIX};
+use super::String;
+use crate::parser::{
+    match_next, next, Result, Stream, BYTE_PREFIX, ONE_OP, STRING_PREFIX, WORD_PREFIX,
+};
 
 pub(crate) enum DataObject {
     One,
     Byte(u8),
     Word(u16),
+    String(String),
 }
 
 impl DataObject {
@@ -12,6 +16,7 @@ impl DataObject {
             ONE_OP => Ok(DataObject::One)
             BYTE_PREFIX => Ok(DataObject::Byte(next!(stream)))
             WORD_PREFIX => Ok(DataObject::Word(u16::from_le_bytes([next!(stream), next!(stream)])))
+            STRING_PREFIX => String::parse(stream).map(|string| DataObject::String(string))
         )
     }
 }
@@ -22,6 +27,7 @@ impl core::fmt::Display for DataObject {
             DataObject::One => write!(f, "1"),
             DataObject::Byte(byte) => write!(f, "{:#04X}", byte),
             DataObject::Word(word) => write!(f, "{:#06X}", word),
+            DataObject::String(string) => string.fmt(f),
         }
     }
 }

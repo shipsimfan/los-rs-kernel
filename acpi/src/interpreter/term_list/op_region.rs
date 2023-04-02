@@ -16,12 +16,12 @@ pub(super) fn execute(interpreter: &mut Interpreter, op_region: OpRegion) -> Res
         op_region.length(),
     );
 
-    let offset = match argument::execute(interpreter, op_region.offset())? {
+    let offset = match argument::execute(interpreter, op_region.offset()) {
         DataObject::Integer(value) => value,
         _ => return Err(Error::InvalidType(op_region.name().clone())),
     };
 
-    let length = match argument::execute(interpreter, op_region.length())? {
+    let length = match argument::execute(interpreter, op_region.length()) {
         DataObject::Integer(value) => value,
         _ => return Err(Error::InvalidType(op_region.name().clone())),
     };
