@@ -2,7 +2,7 @@ use super::{Interpreter, Result};
 use crate::parser::{self, NameString};
 use alloc::vec::Vec;
 
-pub(super) enum DataObject {
+pub(crate) enum DataObject {
     Buffer(Vec<u8>),
     Integer(u64),
     String(Vec<u8>),
@@ -28,4 +28,28 @@ pub(super) fn execute(
         parser::DataObject::Word(word) => DataObject::Integer(*word as u64),
         parser::DataObject::String(string) => DataObject::String(string.to_vec()),
     })
+}
+
+impl core::fmt::Display for DataObject {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            DataObject::Buffer(buffer) => {
+                write!(f, "[")?;
+                for i in 0..buffer.len() {
+                    write!(f, "{:#04X}", buffer[i])?;
+                    if i < buffer.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "]")
+            }
+            DataObject::Integer(value) => value.fmt(f),
+            DataObject::String(string) => {
+                for byte in string {
+                    write!(f, "{}", *byte as char)?;
+                }
+                Ok(())
+            }
+        }
+    }
 }
