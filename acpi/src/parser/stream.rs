@@ -1,4 +1,4 @@
-use super::{Error, Result};
+use super::{next, Error, Result};
 
 pub(crate) struct Stream<'a> {
     bytes: &'a [u8],
@@ -38,10 +38,25 @@ impl<'a> Stream<'a> {
         Ok(ret)
     }
 
+    pub(super) fn collect_until(&mut self, value: u8) -> Result<&'a [u8]> {
+        let start = self.offset;
+
+        let mut c = next!(self);
+        while c != value {
+            c = next!(self);
+        }
+
+        Ok(&self.bytes[start..self.offset])
+    }
+
     pub(super) fn collect_to_stream(&mut self, amount: usize) -> Result<Stream<'a>> {
         let base_offset = self.offset();
         self.collect_bytes(amount)
             .map(|bytes| Stream::new(bytes, base_offset))
+    }
+
+    pub(super) fn collect_remaining(&mut self) -> Result<&'a [u8]> {
+        self.collect_bytes(self.remaining())
     }
 
     fn peek(&self) -> Option<u8> {

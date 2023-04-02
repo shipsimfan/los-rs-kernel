@@ -4,15 +4,15 @@ mod space;
 
 pub(crate) use space::RegionSpace;
 
-pub(crate) struct OpRegion {
+pub(crate) struct OpRegion<'a> {
     name: NameString,
     region_space: RegionSpace,
-    offset: Argument,
-    length: Argument,
+    offset: Argument<'a>,
+    length: Argument<'a>,
 }
 
-impl OpRegion {
-    pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
+impl<'a> OpRegion<'a> {
+    pub(super) fn parse(stream: &mut Stream<'a>) -> Result<Self> {
         let name = NameString::parse(stream)?;
         let region_space = next!(stream);
         let region_space = RegionSpace::from_u8(region_space)

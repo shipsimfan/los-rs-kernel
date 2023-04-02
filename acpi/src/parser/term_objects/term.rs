@@ -9,8 +9,8 @@ pub(crate) enum Term<'a> {
     Field(Field<'a>),
     Method(Method<'a>),
     Mutex(Mutex),
-    Name(Name),
-    OpRegion(OpRegion),
+    Name(Name<'a>),
+    OpRegion(OpRegion<'a>),
     Scope(Scope<'a>),
 }
 

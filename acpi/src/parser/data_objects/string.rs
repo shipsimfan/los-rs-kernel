@@ -1,29 +1,26 @@
-use crate::parser::{next, Result, Stream};
-use alloc::vec::Vec;
+use crate::parser::{Result, Stream};
+use alloc::{borrow::ToOwned, vec::Vec};
 
 #[derive(Clone)]
-pub(crate) struct String {
-    inner: Vec<u8>,
+pub(crate) struct String<'a> {
+    inner: &'a [u8],
 }
 
-impl String {
-    pub(super) fn parse(stream: &mut Stream) -> Result<Self> {
-        let mut inner = Vec::new();
-        loop {
-            let c = next!(stream);
+impl<'a> String<'a> {
+    pub(super) fn parse(stream: &mut Stream<'a>) -> Result<Self> {
+        let inner = stream.collect_until(0x00)?;
 
-            if c == 0x00 {
-                return Ok(String { inner });
-            }
+        Ok(String { inner })
+    }
 
-            inner.push(c);
-        }
+    pub(crate) fn to_vec(&self) -> Vec<u8> {
+        self.inner.to_owned()
     }
 }
 
-impl core::fmt::Display for String {
+impl<'a> core::fmt::Display for String<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        for byte in &self.inner {
+        for byte in self.inner {
             write!(f, "{}", *byte as char)?;
         }
 
