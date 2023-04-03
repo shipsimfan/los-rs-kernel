@@ -30,8 +30,5 @@ pub(super) fn execute(interpreter: &mut Interpreter, name: parser::Name) -> Resu
         data_object,
     ));
 
-    drop(parent_ref);
-    interpreter.display_namespace();
-
     Ok(())
 }
