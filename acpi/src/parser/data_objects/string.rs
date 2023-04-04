@@ -20,10 +20,10 @@ impl<'a> String<'a> {
 
 impl<'a> core::fmt::Display for String<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "\"")?;
         for byte in self.inner {
             write!(f, "{}", *byte as char)?;
         }
-
-        Ok(())
+        write!(f, "\"")
     }
 }

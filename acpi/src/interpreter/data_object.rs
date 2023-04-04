@@ -20,9 +20,13 @@ pub(super) fn execute(
     name: &NameString,
 ) -> Result<DataObject> {
     Ok(match data_object {
+        parser::DataObject::Zero => DataObject::Integer(0),
         parser::DataObject::One => DataObject::Integer(1),
+        parser::DataObject::Ones => DataObject::Integer(0xFF),
         parser::DataObject::Byte(byte) => DataObject::Integer(*byte as u64),
         parser::DataObject::Word(word) => DataObject::Integer(*word as u64),
+        parser::DataObject::DWord(d_word) => DataObject::Integer(*d_word as u64),
+        parser::DataObject::QWord(q_word) => DataObject::Integer(*q_word),
 
         parser::DataObject::String(string) => DataObject::String(string.to_vec()),
         parser::DataObject::Buffer(buffer) => {
@@ -39,7 +43,9 @@ pub(super) fn execute(
             let mut elements = Vec::with_capacity(package.elements().len());
             for element in package.elements() {
                 elements.push(match element {
-                    parser::PackageElement::DataObject(data_object) => PackageElement::DataObject(execute(interpreter, data_object, name)?),
+                    parser::PackageElement::DataObject(data_object) => {
+                        PackageElement::DataObject(execute(interpreter, data_object, name)?)
+                    }
                     parser::PackageElement::NameString(name_string) => {
                         PackageElement::NameString(name_string.clone())
                     }
