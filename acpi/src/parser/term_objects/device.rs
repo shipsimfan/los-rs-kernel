@@ -19,4 +19,8 @@ impl<'a> Device<'a> {
     pub(crate) fn name(&self) -> &NameString {
         &self.name
     }
+
+    pub(crate) fn term_list(&mut self) -> &mut TermList<'a> {
+        &mut self.term_list
+    }
 }
