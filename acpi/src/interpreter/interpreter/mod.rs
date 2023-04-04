@@ -1,4 +1,4 @@
-use super::{term_list, Result};
+use super::{term_list, Integer, Result};
 use crate::{
     namespace::{Namespace, Node},
     parser::{NameString, Stream, TermList},
@@ -16,10 +16,16 @@ pub(crate) struct Interpreter<'namespace> {
     node_context: Vec<Rc<RefCell<dyn Node>>>,
 
     logger: Logger,
+
+    wide_integers: bool,
 }
 
 impl<'namespace, 'name> Interpreter<'namespace> {
-    pub(crate) fn new(namespace: &'namespace Namespace, logger: Logger) -> Self {
+    pub(crate) fn new(
+        namespace: &'namespace Namespace,
+        logger: Logger,
+        wide_integers: bool,
+    ) -> Self {
         Interpreter {
             namespace,
 
@@ -27,6 +33,8 @@ impl<'namespace, 'name> Interpreter<'namespace> {
             node_context: Vec::new(),
 
             logger,
+
+            wide_integers,
         }
     }
 
@@ -49,6 +57,14 @@ impl<'namespace, 'name> Interpreter<'namespace> {
             name,
             include_final,
         )
+    }
+
+    pub(super) fn create_integer(&self, value: u64) -> Integer {
+        if self.wide_integers {
+            Integer::ACPI2(value)
+        } else {
+            Integer::ACPI1(value as u32)
+        }
     }
 
     pub(crate) fn load_definition_block(&mut self, definition_block: &[u8]) -> Result<()> {

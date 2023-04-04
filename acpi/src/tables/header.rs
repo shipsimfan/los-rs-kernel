@@ -24,4 +24,8 @@ impl TableHeader {
     pub(super) fn signature(&self) -> &[u8; 4] {
         &self.signature
     }
+
+    pub(super) fn revision(&self) -> u8 {
+        self.revision
+    }
 }

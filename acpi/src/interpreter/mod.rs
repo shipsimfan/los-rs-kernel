@@ -1,6 +1,7 @@
 mod argument;
 mod data_object;
 mod error;
+mod integer;
 mod interpreter;
 mod macros;
 mod term_list;
@@ -12,4 +13,5 @@ pub(self) use macros::{
 
 pub(crate) use data_object::DataObject;
 pub(crate) use error::Error;
+pub(crate) use integer::Integer;
 pub(crate) use interpreter::Interpreter;

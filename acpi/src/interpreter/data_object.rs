@@ -1,4 +1,4 @@
-use super::{Interpreter, Result};
+use super::{Integer, Interpreter, Result};
 use crate::parser::{self, NameString};
 use alloc::vec::Vec;
 
@@ -9,7 +9,7 @@ pub(crate) enum PackageElement {
 
 pub(crate) enum DataObject {
     Buffer(Vec<u8>),
-    Integer(u64),
+    Integer(Integer),
     Package(Vec<PackageElement>),
     String(Vec<u8>),
 }
@@ -20,13 +20,21 @@ pub(super) fn execute(
     name: &NameString,
 ) -> Result<DataObject> {
     Ok(match data_object {
-        parser::DataObject::Zero => DataObject::Integer(0),
-        parser::DataObject::One => DataObject::Integer(1),
-        parser::DataObject::Ones => DataObject::Integer(0xFF),
-        parser::DataObject::Byte(byte) => DataObject::Integer(*byte as u64),
-        parser::DataObject::Word(word) => DataObject::Integer(*word as u64),
-        parser::DataObject::DWord(d_word) => DataObject::Integer(*d_word as u64),
-        parser::DataObject::QWord(q_word) => DataObject::Integer(*q_word),
+        parser::DataObject::Zero => DataObject::Integer(interpreter.create_integer(0)),
+        parser::DataObject::One => DataObject::Integer(interpreter.create_integer(1)),
+        parser::DataObject::Ones => DataObject::Integer(interpreter.create_integer(0xFF)),
+        parser::DataObject::Byte(byte) => {
+            DataObject::Integer(interpreter.create_integer(*byte as u64))
+        }
+        parser::DataObject::Word(word) => {
+            DataObject::Integer(interpreter.create_integer(*word as u64))
+        }
+        parser::DataObject::DWord(d_word) => {
+            DataObject::Integer(interpreter.create_integer(*d_word as u64))
+        }
+        parser::DataObject::QWord(q_word) => {
+            DataObject::Integer(interpreter.create_integer(*q_word))
+        }
 
         parser::DataObject::String(string) => DataObject::String(string.to_vec()),
         parser::DataObject::Buffer(buffer) => {

@@ -1,4 +1,7 @@
-use crate::parser::{pkg_length, Argument, Result, Stream};
+use crate::{
+    interpreter::Integer,
+    parser::{pkg_length, Argument, Result, Stream},
+};
 use alloc::{borrow::ToOwned, boxed::Box, vec::Vec};
 
 pub(crate) struct Buffer<'a> {
@@ -23,8 +26,8 @@ impl<'a> Buffer<'a> {
         &self.buffer_size
     }
 
-    pub(crate) fn to_vec(&self, buffer_size: u64) -> Vec<u8> {
-        self.buffer[..buffer_size as usize].to_owned()
+    pub(crate) fn to_vec(&self, buffer_size: Integer) -> Vec<u8> {
+        self.buffer[..buffer_size.into()].to_owned()
     }
 }
 

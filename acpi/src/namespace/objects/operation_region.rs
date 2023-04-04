@@ -1,4 +1,5 @@
 use crate::{
+    interpreter::Integer,
     namespace::{display_name, display_prefix, impl_core_display, Display, Node},
     parser::{FieldFlags, RegionSpace},
 };
@@ -12,8 +13,8 @@ pub(crate) struct OperationRegion {
     parent: Option<Weak<RefCell<dyn Node>>>,
     name: [u8; 4],
     space: RegionSpace,
-    offset: u64,
-    length: u64,
+    offset: Integer,
+    length: Integer,
     fields: Vec<Field>,
 }
 
@@ -27,8 +28,8 @@ impl OperationRegion {
         parent: Option<&Rc<RefCell<dyn Node>>>,
         name: [u8; 4],
         space: RegionSpace,
-        offset: u64,
-        length: u64,
+        offset: Integer,
+        length: Integer,
     ) -> Rc<RefCell<dyn Node>> {
         Rc::new(RefCell::new(OperationRegion {
             parent: parent.map(|parent| Rc::downgrade(parent)),
