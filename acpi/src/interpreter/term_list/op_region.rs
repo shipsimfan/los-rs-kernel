@@ -1,6 +1,6 @@
 use super::{Interpreter, Result};
 use crate::{
-    interpreter::{argument, DataObject, Error},
+    interpreter::{add_child, argument, get_parent, unwrap_object_name, unwrap_type, Error},
     namespace::objects::OperationRegion,
     parser::OpRegion,
 };
@@ -16,36 +16,27 @@ pub(super) fn execute(interpreter: &mut Interpreter, op_region: OpRegion) -> Res
         op_region.length(),
     );
 
-    let offset = match argument::execute(interpreter, op_region.offset(), op_region.name())? {
-        DataObject::Integer(value) => value,
-        _ => return Err(Error::InvalidType(op_region.name().clone())),
-    };
+    let offset = unwrap_type!(
+        argument::execute(interpreter, op_region.offset(), op_region.name())?,
+        Integer,
+        op_region.name()
+    )?;
 
-    let length = match argument::execute(interpreter, op_region.length(), op_region.name())? {
-        DataObject::Integer(value) => value,
-        _ => return Err(Error::InvalidType(op_region.name().clone())),
-    };
+    let length = unwrap_type!(
+        argument::execute(interpreter, op_region.length(), op_region.name())?,
+        Integer,
+        op_region.name()
+    )?;
 
-    let parent_rc = interpreter
-        .get_node(op_region.name(), false)
-        .ok_or_else(|| Error::UnknownName(op_region.name().clone()))?;
+    let parent = get_parent!(interpreter, op_region.name())?;
 
-    let mut parent_ref = parent_rc.borrow_mut();
-    let parent = parent_ref
-        .as_children_mut()
-        .ok_or_else(|| Error::InvalidParent(op_region.name().clone()))
-        .unwrap();
-
-    parent.add_child(OperationRegion::new(
-        Some(&parent_rc),
-        op_region
-            .name()
-            .name()
-            .ok_or_else(|| Error::InvalidName(op_region.name().clone()))?,
+    let op_region_object = OperationRegion::new(
+        Some(&parent),
+        unwrap_object_name!(op_region.name())?,
         op_region.region_space(),
         offset,
         length,
-    ));
+    );
 
-    Ok(())
+    add_child!(parent, op_region_object, op_region.name())
 }

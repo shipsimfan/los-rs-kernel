@@ -1,6 +1,6 @@
 use super::{Interpreter, Result};
 use crate::{
-    interpreter::Error,
+    interpreter::{downcast_node, get_node, Error},
     namespace::objects::{Field, OperationRegion},
     parser,
 };
@@ -15,15 +15,10 @@ pub(super) fn execute(interpreter: &mut Interpreter, field: parser::Field) -> Re
         field.flags(),
     );
 
-    let node = interpreter
-        .get_node(field.name(), true)
-        .ok_or_else(|| Error::UnknownName(field.name().clone()))?;
+    let node = get_node!(interpreter, field.name())?;
 
-    let mut node_ref = node.borrow_mut();
-    let node = node_ref
-        .as_any_mut()
-        .downcast_mut::<OperationRegion>()
-        .ok_or_else(|| Error::InvalidParent(field.name().clone()))?;
+    let mut node = node.borrow_mut();
+    let node = downcast_node!(node, OperationRegion, field.name())?;
 
     node.add_field(Field::new(field.flags(), field.field_units().to_owned()));
 

@@ -1,5 +1,5 @@
 use crate::{
-    interpreter::{Error, Interpreter, Result},
+    interpreter::{add_child, get_parent, unwrap_object_name, Error, Interpreter, Result},
     namespace::objects::Mutex,
     parser,
 };
@@ -13,23 +13,13 @@ pub(super) fn execute(interpreter: &mut Interpreter, mutex: parser::Mutex) -> Re
         mutex.sync_level()
     );
 
-    let parent_rc = interpreter
-        .get_node(mutex.name(), false)
-        .ok_or_else(|| Error::UnknownName(mutex.name().clone()))?;
+    let parent = get_parent!(interpreter, mutex.name())?;
 
-    let mut parent_ref = parent_rc.borrow_mut();
-    let parent = parent_ref
-        .as_children_mut()
-        .ok_or_else(|| Error::InvalidParent(mutex.name().clone()))?;
-
-    parent.add_child(Mutex::new(
-        Some(&parent_rc),
-        mutex
-            .name()
-            .name()
-            .ok_or_else(|| Error::InvalidName(mutex.name().clone()))?,
+    let mutex_object = Mutex::new(
+        Some(&parent),
+        unwrap_object_name!(mutex.name())?,
         mutex.sync_level(),
-    ));
+    );
 
-    Ok(())
+    add_child!(parent, mutex_object, mutex.name())
 }

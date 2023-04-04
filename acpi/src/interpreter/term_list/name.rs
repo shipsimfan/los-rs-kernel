@@ -1,5 +1,9 @@
 use super::{Interpreter, Result};
-use crate::{interpreter::Error, namespace::objects::Name, parser};
+use crate::{
+    interpreter::{add_child, data_object, get_parent, unwrap_object_name, Error},
+    namespace::objects::Name,
+    parser,
+};
 use base::log_debug;
 
 pub(super) fn execute(interpreter: &mut Interpreter, name: parser::Name) -> Result<()> {
@@ -10,25 +14,15 @@ pub(super) fn execute(interpreter: &mut Interpreter, name: parser::Name) -> Resu
         name.data_object()
     );
 
-    let parent_rc = interpreter
-        .get_node(name.name(), false)
-        .ok_or_else(|| Error::UnknownName(name.name().clone()))?;
+    let parent = get_parent!(interpreter, name.name())?;
 
-    let mut parent_ref = parent_rc.borrow_mut();
-    let parent = parent_ref
-        .as_children_mut()
-        .ok_or_else(|| Error::InvalidParent(name.name().clone()))?;
+    let data_object = data_object::execute(interpreter, name.data_object(), name.name())?;
 
-    let data_object =
-        super::super::data_object::execute(interpreter, name.data_object(), name.name())?;
-
-    parent.add_child(Name::new(
-        Some(&parent_rc),
-        name.name()
-            .name()
-            .ok_or_else(|| Error::InvalidName(name.name().clone()))?,
+    let name_object = Name::new(
+        Some(&parent),
+        unwrap_object_name!(name.name())?,
         data_object,
-    ));
+    );
 
-    Ok(())
+    add_child!(parent, name_object, name.name())
 }

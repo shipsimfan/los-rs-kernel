@@ -6,6 +6,7 @@ pub(crate) enum Error {
     InvalidParent(NameString),
     InvalidName(NameString),
     InvalidType(NameString),
+    NameCollision(NameString),
 }
 
 pub(super) type Result<T> = core::result::Result<T, Error>;
@@ -25,6 +26,7 @@ impl core::fmt::Display for Error {
             Error::InvalidParent(name) => write!(f, "Invalid parent \"{}\"", name),
             Error::InvalidName(name) => write!(f, "Invalid name \"{}\"", name),
             Error::InvalidType(name) => write!(f, "Invalid type around \"{}\"", name),
+            Error::NameCollision(name) => write!(f, "Name collision \"{}\"", name),
         }
     }
 }
