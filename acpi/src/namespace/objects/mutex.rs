@@ -34,7 +34,7 @@ impl Node for Mutex {
 }
 
 impl Display for Mutex {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Mutex (")?;
         display_name!(f, self.name);
