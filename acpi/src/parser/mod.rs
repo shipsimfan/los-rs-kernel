@@ -21,5 +21,5 @@ pub(crate) use data_objects::{DataObject, PackageElement};
 pub(crate) use name_objects::{NameString, Prefix};
 pub(crate) use term_objects::{
     Device, Field, FieldFlags, Method, Mutex, Name, OpRegion, PowerResource, Processor,
-    RegionSpace, Scope, Term, TermList,
+    RegionSpace, Scope, Term, TermList, ThermalZone,
 };

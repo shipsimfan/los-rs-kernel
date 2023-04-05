@@ -9,6 +9,7 @@ mod processor;
 mod scope;
 mod term;
 mod term_list;
+mod thermal_zone;
 
 pub(crate) use device::Device;
 pub(crate) use field::{Field, FieldFlags};
@@ -21,3 +22,4 @@ pub(crate) use processor::Processor;
 pub(crate) use scope::Scope;
 pub(crate) use term::Term;
 pub(crate) use term_list::TermList;
+pub(crate) use thermal_zone::ThermalZone;

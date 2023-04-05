@@ -10,6 +10,7 @@ mod op_region;
 mod power_resource;
 mod processor;
 mod scope;
+mod thermal_zone;
 
 pub(super) fn execute(interpreter: &mut Interpreter, term_list: &mut TermList) -> Result<()> {
     for term in term_list {
@@ -27,6 +28,7 @@ pub(super) fn execute(interpreter: &mut Interpreter, term_list: &mut TermList) -
             }
             Term::Processor(processor) => processor::execute(interpreter, processor),
             Term::Scope(scope) => scope::execute(interpreter, scope),
+            Term::ThermalZone(thermal_zone) => thermal_zone::execute(interpreter, thermal_zone),
         }?
     }
 

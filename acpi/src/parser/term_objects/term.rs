@@ -1,7 +1,9 @@
-use super::{Device, Field, Method, Mutex, Name, OpRegion, PowerResource, Processor, Scope};
+use super::{
+    Device, Field, Method, Mutex, Name, OpRegion, PowerResource, Processor, Scope, ThermalZone,
+};
 use crate::parser::{
     match_next, Result, Stream, DEVICE_OP, EXT_OP_PREFIX, FIELD_OP, METHOD_OP, MUTEX_OP, NAME_OP,
-    OP_REGION_OP, POWER_RES_OP, PROCESSOR_OP, SCOPE_OP,
+    OP_REGION_OP, POWER_RES_OP, PROCESSOR_OP, SCOPE_OP, THERMAL_ZONE_OP,
 };
 
 pub(crate) enum Term<'a> {
@@ -14,6 +16,7 @@ pub(crate) enum Term<'a> {
     PowerResource(PowerResource<'a>),
     Processor(Processor<'a>),
     Scope(Scope<'a>),
+    ThermalZone(ThermalZone<'a>),
 }
 
 impl<'a> Term<'a> {
@@ -29,6 +32,7 @@ impl<'a> Term<'a> {
                 OP_REGION_OP => OpRegion::parse(stream).map(|op_region| Term::OpRegion(op_region))
                 POWER_RES_OP => PowerResource::parse(stream).map(|power_resource| Term::PowerResource(power_resource))
                 PROCESSOR_OP => Processor::parse(stream).map(|processor| Term::Processor(processor))
+                THERMAL_ZONE_OP => ThermalZone::parse(stream).map(|thermal_zone| Term::ThermalZone(thermal_zone))
             )
         )
     }
