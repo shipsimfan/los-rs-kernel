@@ -44,4 +44,8 @@ impl<'a> Processor<'a> {
     pub(crate) fn length(&self) -> u8 {
         self.length
     }
+
+    pub(crate) fn term_list(&mut self) -> &mut TermList<'a> {
+        &mut self.term_list
+    }
 }

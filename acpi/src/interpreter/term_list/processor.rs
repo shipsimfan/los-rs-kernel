@@ -5,7 +5,10 @@ use crate::{
 };
 use base::log_debug;
 
-pub(super) fn execute(interpreter: &mut Interpreter, processor: parser::Processor) -> Result<()> {
+pub(super) fn execute(
+    interpreter: &mut Interpreter,
+    mut processor: parser::Processor,
+) -> Result<()> {
     log_debug!(
         interpreter.logger(),
         "Processor ({}, {}, {}, {})",
@@ -23,5 +26,11 @@ pub(super) fn execute(interpreter: &mut Interpreter, processor: parser::Processo
         processor.address(),
         processor.length(),
     );
-    add_child!(parent, processor_object, processor.name())
+    add_child!(parent, processor_object.clone(), processor.name())?;
+
+    interpreter.push_current_node(processor_object);
+    super::execute(interpreter, processor.term_list())?;
+    interpreter.pop_current_node();
+
+    Ok(())
 }
