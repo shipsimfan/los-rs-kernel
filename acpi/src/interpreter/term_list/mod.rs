@@ -7,6 +7,7 @@ mod method;
 mod mutex;
 mod name;
 mod op_region;
+mod power_resource;
 mod processor;
 mod scope;
 
@@ -21,6 +22,9 @@ pub(super) fn execute(interpreter: &mut Interpreter, term_list: &mut TermList) -
             Term::Mutex(mutex) => mutex::execute(interpreter, mutex),
             Term::Name(name) => name::execute(interpreter, name),
             Term::OpRegion(op_region) => op_region::execute(interpreter, op_region),
+            Term::PowerResource(power_resource) => {
+                power_resource::execute(interpreter, power_resource)
+            }
             Term::Processor(processor) => processor::execute(interpreter, processor),
             Term::Scope(scope) => scope::execute(interpreter, scope),
         }?

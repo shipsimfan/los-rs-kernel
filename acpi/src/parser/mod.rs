@@ -20,6 +20,6 @@ pub(crate) use arguments::Argument;
 pub(crate) use data_objects::{DataObject, PackageElement};
 pub(crate) use name_objects::{NameString, Prefix};
 pub(crate) use term_objects::{
-    Device, Field, FieldFlags, Method, Mutex, Name, OpRegion, Processor, RegionSpace, Scope, Term,
-    TermList,
+    Device, Field, FieldFlags, Method, Mutex, Name, OpRegion, PowerResource, Processor,
+    RegionSpace, Scope, Term, TermList,
 };

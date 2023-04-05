@@ -20,3 +20,4 @@ pub(super) const OP_REGION_OP: u8 = 0x80;
 pub(super) const FIELD_OP: u8 = 0x81;
 pub(super) const DEVICE_OP: u8 = 0x82;
 pub(super) const PROCESSOR_OP: u8 = 0x83;
+pub(super) const POWER_RES_OP: u8 = 0x84;
