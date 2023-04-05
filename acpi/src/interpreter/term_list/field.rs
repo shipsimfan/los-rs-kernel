@@ -1,6 +1,6 @@
 use super::{Interpreter, Result};
 use crate::{
-    interpreter::{downcast_node, get_node, Error},
+    interpreter::{downcast_node, get_node},
     namespace::objects::{Field, OperationRegion},
     parser,
 };

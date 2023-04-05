@@ -1,6 +1,6 @@
 use super::{Interpreter, Result};
 use crate::{
-    interpreter::{add_child, argument, get_parent, unwrap_object_name, unwrap_type, Error},
+    interpreter::{add_child, argument, get_parent, unwrap_object_name, unwrap_type},
     namespace::objects::OperationRegion,
     parser::OpRegion,
 };

@@ -1,5 +1,5 @@
 use crate::{
-    interpreter::{add_child, get_parent, unwrap_object_name, Error, Interpreter, Result},
+    interpreter::{add_child, get_parent, unwrap_object_name, Interpreter, Result},
     namespace::objects::Mutex,
     parser,
 };

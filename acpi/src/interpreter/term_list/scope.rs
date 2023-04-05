@@ -1,4 +1,4 @@
-use super::{Error, Interpreter, Result};
+use super::{Interpreter, Result};
 use crate::{interpreter::get_node, parser::Scope};
 use base::log_debug;
 

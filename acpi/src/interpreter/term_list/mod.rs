@@ -1,4 +1,4 @@
-use super::{Error, Interpreter, Result};
+use super::{Interpreter, Result};
 use crate::parser::{Term, TermList};
 
 mod device;
