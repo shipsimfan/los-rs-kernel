@@ -1,7 +1,7 @@
-use super::{Device, Field, Method, Mutex, Name, OpRegion, Scope};
+use super::{Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope};
 use crate::parser::{
     match_next, Result, Stream, DEVICE_OP, EXT_OP_PREFIX, FIELD_OP, METHOD_OP, MUTEX_OP, NAME_OP,
-    OP_REGION_OP, SCOPE_OP,
+    OP_REGION_OP, PROCESSOR_OP, SCOPE_OP,
 };
 
 pub(crate) enum Term<'a> {
@@ -11,6 +11,7 @@ pub(crate) enum Term<'a> {
     Mutex(Mutex),
     Name(Name<'a>),
     OpRegion(OpRegion<'a>),
+    Processor(Processor<'a>),
     Scope(Scope<'a>),
 }
 
@@ -25,6 +26,7 @@ impl<'a> Term<'a> {
                 FIELD_OP => Field::parse(stream).map(|field| Term::Field(field))
                 MUTEX_OP => Mutex::parse(stream).map(|mutex| Term::Mutex(mutex))
                 OP_REGION_OP => OpRegion::parse(stream).map(|op_region| Term::OpRegion(op_region))
+                PROCESSOR_OP => Processor::parse(stream).map(|processor| Term::Processor(processor))
             )
         )
     }
