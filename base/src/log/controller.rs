@@ -1,7 +1,7 @@
 use super::{
     memory_log_container::MemoryLogContainer, message::LogMessage, output::LogOutput, Level,
 };
-use crate::CriticalLock;
+use crate::{CriticalLock, Mutex};
 use alloc::borrow::Cow;
 
 enum Output {
@@ -9,8 +9,7 @@ enum Output {
 }
 
 pub struct LogController {
-    // TODO: Change critical lock to mutex
-    output: CriticalLock<Option<Output>>,
+    output: Mutex<Option<Output>>,
 
     memory_log_container: CriticalLock<MemoryLogContainer>,
 }
@@ -20,7 +19,7 @@ static LOG_CONTROLLER: LogController = LogController::new();
 impl LogController {
     pub const fn new() -> Self {
         LogController {
-            output: CriticalLock::new(None),
+            output: Mutex::new(None),
             memory_log_container: CriticalLock::new(MemoryLogContainer::new()),
         }
     }

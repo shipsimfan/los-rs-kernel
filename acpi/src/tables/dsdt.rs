@@ -12,18 +12,19 @@ impl Table for DSDT {
     const REVISION: u8 = 1;
 
     fn do_load(&self, namespace: &mut crate::namespace::Namespace) -> super::Result<()> {
-        Interpreter::new(
-            namespace,
-            "DSDT Interpreter".into(),
-            self.header.revision() >= 2,
-        )
-        .load_definition_block(unsafe {
-            core::slice::from_raw_parts(
-                &self.definition_block,
-                self.header.length() - core::mem::size_of::<TableHeader>(),
-            )
-        })
-        .map_err(|error| Error::interpreter_error(&Self::SIGNATURE, error))
+        let mut logger: base::Logger = "DSDT Interpreter".into();
+
+        #[cfg(not(feature = "dsdt_logging"))]
+        logger.set_minimum_level(base::Level::Info);
+
+        Interpreter::new(namespace, logger, self.header.revision() >= 2)
+            .load_definition_block(unsafe {
+                core::slice::from_raw_parts(
+                    &self.definition_block,
+                    self.header.length() - core::mem::size_of::<TableHeader>(),
+                )
+            })
+            .map_err(|error| Error::interpreter_error(&Self::SIGNATURE, error))
     }
 
     fn header(&self) -> &TableHeader {

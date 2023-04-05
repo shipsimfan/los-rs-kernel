@@ -1,12 +1,12 @@
 use alloc::borrow::Cow;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Level {
-    Fatal,
-    Error,
-    Warning,
-    Info,
     Debug,
+    Info,
+    Warning,
+    Error,
+    Fatal,
 }
 
 #[allow(unused)]

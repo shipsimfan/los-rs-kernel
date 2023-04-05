@@ -3,14 +3,26 @@ use alloc::{borrow::Cow, string::String};
 
 pub struct Logger {
     name: Cow<'static, str>,
+    minimum: Level,
 }
 
 impl Logger {
     pub const fn new(name: Cow<'static, str>) -> Self {
-        Logger { name }
+        Logger {
+            name,
+            minimum: Level::Debug,
+        }
+    }
+
+    pub fn set_minimum_level(&mut self, level: Level) {
+        self.minimum = level;
     }
 
     pub fn log(&self, level: Level, message: Cow<'static, str>) {
+        if level < self.minimum {
+            return;
+        }
+
         LogController::get().log(level, self.name.clone(), message);
     }
 }

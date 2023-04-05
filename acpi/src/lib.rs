@@ -17,7 +17,10 @@ pub fn initialize<B: BootVideo>(rsdp: NonNull<RSDP>, boot_video: &CriticalLock<B
     log_info!(logger, "Loading tables");
 
     match tables::load(rsdp, &logger) {
-        Ok(namespace) => write!(boot_video, "{}", namespace),
+        Ok(namespace) => {
+            #[cfg(feature = "namespace_logging")]
+            write!(boot_video, "{}", namespace)
+        }
         Err(error) => log_error!(logger, "{}", error),
     }
 }
