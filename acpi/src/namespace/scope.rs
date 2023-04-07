@@ -1,70 +1,48 @@
 use super::{display_prefix, impl_core_display, Children, Display, Node};
 use crate::namespace::display_name;
-use alloc::{
-    rc::{Rc, Weak},
-    vec::Vec,
-};
+use alloc::rc::{Rc, Weak};
 use core::cell::RefCell;
 
-pub(super) struct Scope {
-    parent: Option<Weak<RefCell<dyn Node>>>,
+pub(crate) struct Scope<'a> {
+    parent: Option<Weak<RefCell<Node<'a>>>>,
     name: Option<[u8; 4]>,
-    children: Vec<Rc<RefCell<dyn Node>>>,
+    children: Children<'a>,
 }
 
-impl Scope {
-    pub(super) fn new_raw(parent: Option<&Rc<RefCell<dyn Node>>>, name: Option<[u8; 4]>) -> Self {
+impl<'a> Scope<'a> {
+    pub(super) fn new_raw(parent: Option<&Rc<RefCell<Node<'a>>>>, name: Option<[u8; 4]>) -> Self {
         Scope {
             parent: parent.map(|parent| Rc::downgrade(parent)),
             name,
-            children: Vec::new(),
+            children: Children::new(),
         }
     }
 
     pub(super) fn new(
-        parent: Option<&Rc<RefCell<dyn Node>>>,
+        parent: Option<&Rc<RefCell<Node<'a>>>>,
         name: Option<[u8; 4]>,
-    ) -> Rc<RefCell<dyn Node>> {
-        Rc::new(RefCell::new(Self::new_raw(parent, name)))
+    ) -> Rc<RefCell<Node<'a>>> {
+        Rc::new(RefCell::new(Node::Scope(Self::new_raw(parent, name))))
     }
-}
 
-impl Node for Scope {
-    fn parent(&self) -> Option<Rc<RefCell<dyn Node>>> {
+    pub(super) fn parent(&self) -> Option<Rc<RefCell<Node<'a>>>> {
         self.parent.as_ref().map(|parent| parent.upgrade().unwrap())
     }
 
-    fn name(&self) -> Option<[u8; 4]> {
+    pub(super) fn name(&self) -> Option<[u8; 4]> {
         self.name
     }
 
-    fn as_children(&self) -> Option<&dyn Children> {
-        Some(self)
-    }
-
-    fn as_children_mut(&mut self) -> Option<&mut dyn Children> {
-        Some(self)
-    }
-}
-
-impl Children for Scope {
-    fn children(&self) -> &[Rc<RefCell<dyn Node>>] {
+    pub(super) fn children(&self) -> &Children<'a> {
         &self.children
     }
 
-    fn add_child(&mut self, new_child: Rc<RefCell<dyn Node>>) -> bool {
-        for child in &self.children {
-            if child.borrow().name() == new_child.borrow().name() {
-                return false;
-            }
-        }
-
-        self.children.push(new_child);
-        true
+    pub(super) fn children_mut(&mut self) -> &mut Children<'a> {
+        &mut self.children
     }
 }
 
-impl Display for Scope {
+impl<'a> Display for Scope<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Scope (")?;
@@ -74,26 +52,8 @@ impl Display for Scope {
             None => write!(f, "\\")?,
         }
 
-        if self.children.len() == 0 {
-            return writeln!(f, ") {{ }}");
-        }
-
-        writeln!(f, ") {{")?;
-
-        for i in 0..self.children.len() {
-            self.children[i]
-                .borrow()
-                .display(f, depth + 1, i == self.children.len() - 1)?;
-        }
-
-        display_prefix!(f, depth);
-        writeln!(f, "}}")?;
-
-        if !last {
-            writeln!(f)
-        } else {
-            Ok(())
-        }
+        write!(f, ") ")?;
+        self.children.display(f, depth, last)
     }
 }
 

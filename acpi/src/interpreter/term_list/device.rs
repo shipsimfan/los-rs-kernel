@@ -6,8 +6,15 @@ use crate::{
 };
 use base::log_debug;
 
-pub(super) fn execute(interpreter: &mut Interpreter, mut device: parser::Device) -> Result<()> {
+pub(super) fn execute<'a, 'b>(
+    interpreter: &mut Interpreter<'a, 'b>,
+    mut device: parser::Device<'a>,
+) -> Result<()> {
     log_debug!(interpreter.logger(), "Device ({})", device.name());
+
+    if interpreter.executing_method() {
+        todo!();
+    }
 
     let parent = get_parent!(interpreter, device.name())?;
     let device_object = Device::new(Some(&parent), unwrap_object_name!(device.name())?);

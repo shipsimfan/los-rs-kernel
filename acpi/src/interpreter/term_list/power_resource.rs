@@ -5,9 +5,9 @@ use crate::{
 };
 use base::log_debug;
 
-pub(super) fn execute(
-    interpreter: &mut Interpreter,
-    mut power_resource: parser::PowerResource,
+pub(super) fn execute<'a, 'b>(
+    interpreter: &mut Interpreter<'a, 'b>,
+    mut power_resource: parser::PowerResource<'a>,
 ) -> Result<()> {
     log_debug!(
         interpreter.logger(),
@@ -16,6 +16,10 @@ pub(super) fn execute(
         power_resource.system_level(),
         power_resource.resource_order(),
     );
+
+    if interpreter.executing_method() {
+        todo!();
+    }
 
     let parent = get_parent!(interpreter, power_resource.name())?;
     let power_resource_object = PowerResource::new(

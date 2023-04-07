@@ -1,5 +1,5 @@
 use super::TermList;
-use crate::parser::{next, pkg_length, NameString, Result, Stream};
+use crate::parser::{pkg_length, NameString, Result, Stream};
 
 pub(crate) struct ThermalZone<'a> {
     name: NameString,

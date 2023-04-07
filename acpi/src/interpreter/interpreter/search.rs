@@ -5,12 +5,12 @@ use crate::{
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
-pub(super) fn get_node(
-    start_node: &Rc<RefCell<dyn Node>>,
-    namespace_root: &Rc<RefCell<dyn Node>>,
+pub(super) fn get_node<'a>(
+    start_node: &Rc<RefCell<Node<'a>>>,
+    namespace_root: &Rc<RefCell<Node<'a>>>,
     name: &NameString,
     include_final: bool,
-) -> Option<Rc<RefCell<dyn Node>>> {
+) -> Option<Rc<RefCell<Node<'a>>>> {
     match name.prefix() {
         Prefix::None => {
             let mut node = start_node.clone();
@@ -41,16 +41,16 @@ pub(super) fn get_node(
     }
 }
 
-fn perform_search(
-    start_node: &Rc<RefCell<dyn Node>>,
+fn perform_search<'a>(
+    start_node: &Rc<RefCell<Node<'a>>>,
     name: &NameString,
     include_final: bool,
-) -> Option<Rc<RefCell<dyn Node>>> {
+) -> Option<Rc<RefCell<Node<'a>>>> {
     let mut node = start_node.clone();
 
     for part in name.path() {
         let current_node_ref = node.borrow();
-        let current_node = match current_node_ref.as_children() {
+        let current_node = match current_node_ref.children() {
             Some(children) => children,
             None => return None,
         };
@@ -71,7 +71,7 @@ fn perform_search(
     match name.name() {
         Some(name) => {
             let node = node.borrow();
-            match node.as_children() {
+            match node.children() {
                 Some(children) => children.get_child(name),
                 None => None,
             }

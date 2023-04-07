@@ -5,37 +5,35 @@ use crate::{
 use alloc::rc::{Rc, Weak};
 use core::cell::RefCell;
 
-pub(crate) struct Name {
-    parent: Option<Weak<RefCell<dyn Node>>>,
+pub(crate) struct Name<'a> {
+    parent: Option<Weak<RefCell<Node<'a>>>>,
     name: [u8; 4],
     data_object: DataObject,
 }
 
-impl Name {
+impl<'a> Name<'a> {
     pub(crate) fn new(
-        parent: Option<&Rc<RefCell<dyn Node>>>,
+        parent: Option<&Rc<RefCell<Node<'a>>>>,
         name: [u8; 4],
         data_object: DataObject,
-    ) -> Rc<RefCell<dyn Node>> {
-        Rc::new(RefCell::new(Name {
+    ) -> Rc<RefCell<Node<'a>>> {
+        Rc::new(RefCell::new(Node::Name(Name {
             parent: parent.map(|parent| Rc::downgrade(parent)),
             name,
             data_object,
-        }))
-    }
-}
-
-impl Node for Name {
-    fn name(&self) -> Option<[u8; 4]> {
-        Some(self.name)
+        })))
     }
 
-    fn parent(&self) -> Option<Rc<RefCell<dyn Node>>> {
+    pub(in crate::namespace) fn name(&self) -> [u8; 4] {
+        self.name
+    }
+
+    pub(in crate::namespace) fn parent(&self) -> Option<Rc<RefCell<Node<'a>>>> {
         self.parent.as_ref().map(|parent| parent.upgrade().unwrap())
     }
 }
 
-impl Display for Name {
+impl<'a> Display for Name<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Name (")?;

@@ -16,6 +16,10 @@ pub(super) fn execute(interpreter: &mut Interpreter, op_region: OpRegion) -> Res
         op_region.length(),
     );
 
+    if interpreter.executing_method() {
+        todo!();
+    }
+
     let offset = unwrap_type!(
         argument::execute(interpreter, op_region.offset(), op_region.name())?,
         Integer,

@@ -14,6 +14,10 @@ pub(super) fn execute(interpreter: &mut Interpreter, name: parser::Name) -> Resu
         name.data_object()
     );
 
+    if interpreter.executing_method() {
+        todo!();
+    }
+
     let parent = get_parent!(interpreter, name.name())?;
 
     let data_object = data_object::execute(interpreter, name.data_object(), name.name())?;

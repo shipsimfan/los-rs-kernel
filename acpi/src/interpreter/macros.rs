@@ -2,7 +2,7 @@ macro_rules! add_child {
     ($parent: expr, $child_object: expr, $name: expr) => {{
         let mut parent = $parent.borrow_mut();
         let parent = parent
-            .as_children_mut()
+            .children_mut()
             .ok_or_else(|| $crate::interpreter::Error::InvalidParent($name.clone()))?;
 
         if parent.add_child($child_object) {
@@ -14,11 +14,11 @@ macro_rules! add_child {
 }
 
 macro_rules! downcast_node {
-    ($node: expr, $ty: ty, $name: expr) => {
-        $node
-            .as_any_mut()
-            .downcast_mut::<$ty>()
-            .ok_or_else(|| $crate::interpreter::Error::InvalidParent($name.clone()))
+    ($node: expr, $ty: ident, $name: expr) => {
+        match &mut *$node {
+            $crate::namespace::Node::$ty(value) => Ok(value),
+            _ => Err($crate::interpreter::Error::InvalidParent($name.clone())),
+        }
     };
 }
 

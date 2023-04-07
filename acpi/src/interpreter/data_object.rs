@@ -12,6 +12,7 @@ pub(crate) enum DataObject {
     Integer(Integer),
     Package(Vec<PackageElement>),
     String(Vec<u8>),
+    Uninitialized,
 }
 
 pub(super) fn execute(
@@ -97,6 +98,7 @@ impl core::fmt::Display for DataObject {
                 }
                 Ok(())
             }
+            DataObject::Uninitialized => write!(f, "Uninitialized"),
         }
     }
 }

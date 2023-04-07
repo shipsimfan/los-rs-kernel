@@ -5,9 +5,9 @@ use crate::{
 };
 use base::log_debug;
 
-pub(super) fn execute(
-    interpreter: &mut Interpreter,
-    mut processor: parser::Processor,
+pub(super) fn execute<'a, 'b>(
+    interpreter: &mut Interpreter<'a, 'b>,
+    mut processor: parser::Processor<'a>,
 ) -> Result<()> {
     log_debug!(
         interpreter.logger(),
@@ -17,6 +17,10 @@ pub(super) fn execute(
         processor.address(),
         processor.length()
     );
+
+    if interpreter.executing_method() {
+        todo!();
+    }
 
     let parent = get_parent!(interpreter, processor.name())?;
     let processor_object = Processor::new(

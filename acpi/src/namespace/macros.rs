@@ -14,4 +14,6 @@ macro_rules! display_name {
     };
 }
 
-pub(super) use {display_name, display_prefix};
+pub(super) use display_prefix;
+
+pub(crate) use display_name;

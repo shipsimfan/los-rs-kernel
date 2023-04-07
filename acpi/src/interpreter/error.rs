@@ -1,4 +1,7 @@
-use crate::parser::{self, NameString};
+use crate::{
+    namespace::display_name,
+    parser::{self, NameString},
+};
 
 pub(crate) enum Error {
     Parse(parser::Error),
@@ -7,6 +10,9 @@ pub(crate) enum Error {
     InvalidName(NameString),
     InvalidType(NameString),
     NameCollision(NameString),
+
+    InvalidArgumentCount([u8; 4]),
+    InvalidNodeType([u8; 4]),
 }
 
 pub(super) type Result<T> = core::result::Result<T, Error>;
@@ -27,6 +33,17 @@ impl core::fmt::Display for Error {
             Error::InvalidName(name) => write!(f, "Invalid name \"{}\"", name),
             Error::InvalidType(name) => write!(f, "Invalid type around \"{}\"", name),
             Error::NameCollision(name) => write!(f, "Name collision \"{}\"", name),
+
+            Error::InvalidArgumentCount(name) => {
+                write!(f, "Invalid argument count for \"")?;
+                display_name!(f, *name);
+                write!(f, "\"")
+            }
+            Error::InvalidNodeType(name) => {
+                write!(f, "Invalid node type \"")?;
+                display_name!(f, *name);
+                write!(f, "\"")
+            }
         }
     }
 }

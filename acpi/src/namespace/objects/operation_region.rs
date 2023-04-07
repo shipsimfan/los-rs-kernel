@@ -9,54 +9,52 @@ use alloc::{
 };
 use core::cell::RefCell;
 
-pub(crate) struct OperationRegion {
-    parent: Option<Weak<RefCell<dyn Node>>>,
+pub(crate) struct OperationRegion<'a> {
+    parent: Option<Weak<RefCell<Node<'a>>>>,
     name: [u8; 4],
     space: RegionSpace,
     offset: Integer,
     length: Integer,
-    fields: Vec<Field>,
+    fields: Vec<Field<'a>>,
 }
 
-pub(crate) struct Field {
+pub(crate) struct Field<'a> {
     flags: FieldFlags,
-    units: Vec<u8>,
+    units: &'a [u8],
 }
 
-impl OperationRegion {
+impl<'a> OperationRegion<'a> {
     pub(crate) fn new(
-        parent: Option<&Rc<RefCell<dyn Node>>>,
+        parent: Option<&Rc<RefCell<Node<'a>>>>,
         name: [u8; 4],
         space: RegionSpace,
         offset: Integer,
         length: Integer,
-    ) -> Rc<RefCell<dyn Node>> {
-        Rc::new(RefCell::new(OperationRegion {
+    ) -> Rc<RefCell<Node<'a>>> {
+        Rc::new(RefCell::new(Node::OperationRegion(OperationRegion {
             parent: parent.map(|parent| Rc::downgrade(parent)),
             name,
             space,
             offset,
             length,
             fields: Vec::new(),
-        }))
+        })))
     }
 
-    pub(crate) fn add_field(&mut self, field: Field) {
+    pub(crate) fn add_field(&mut self, field: Field<'a>) {
         self.fields.push(field);
     }
-}
 
-impl Node for OperationRegion {
-    fn parent(&self) -> Option<alloc::rc::Rc<RefCell<dyn Node>>> {
+    pub(in crate::namespace) fn parent(&self) -> Option<alloc::rc::Rc<RefCell<Node<'a>>>> {
         self.parent.as_ref().map(|parent| parent.upgrade().unwrap())
     }
 
-    fn name(&self) -> Option<[u8; 4]> {
-        Some(self.name)
+    pub(in crate::namespace) fn name(&self) -> [u8; 4] {
+        self.name
     }
 }
 
-impl Display for OperationRegion {
+impl<'a> Display for OperationRegion<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Operation Region (")?;
@@ -84,13 +82,13 @@ impl Display for OperationRegion {
     }
 }
 
-impl Field {
-    pub(crate) fn new(flags: FieldFlags, units: Vec<u8>) -> Self {
+impl<'a> Field<'a> {
+    pub(crate) fn new(flags: FieldFlags, units: &'a [u8]) -> Self {
         Field { flags, units }
     }
 }
 
-impl Display for Field {
+impl<'a> Display for Field<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         writeln!(

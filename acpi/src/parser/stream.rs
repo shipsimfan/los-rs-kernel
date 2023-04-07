@@ -1,5 +1,6 @@
 use super::{next, Error, Result};
 
+#[derive(Clone)]
 pub(crate) struct Stream<'a> {
     bytes: &'a [u8],
     offset: usize,
@@ -7,7 +8,7 @@ pub(crate) struct Stream<'a> {
 }
 
 impl<'a> Stream<'a> {
-    pub(super) fn new(bytes: &'a [u8], base_offset: usize) -> Self {
+    pub(crate) fn new(bytes: &'a [u8], base_offset: usize) -> Self {
         Stream {
             bytes,
             offset: 0,
@@ -15,12 +16,12 @@ impl<'a> Stream<'a> {
         }
     }
 
-    pub(super) fn offset(&self) -> usize {
-        self.offset + self.base_offset
-    }
-
     pub(super) fn remaining(&self) -> usize {
         self.bytes.len() - self.offset
+    }
+
+    pub(super) fn offset(&self) -> usize {
+        self.offset + self.base_offset
     }
 
     pub(super) fn prev(&mut self) {

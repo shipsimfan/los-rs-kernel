@@ -6,7 +6,6 @@ pub(crate) struct Method<'a> {
     arg_count: u8,
     serialized: bool,
     sync_level: u8,
-    method_size: usize,
     term_list: TermList<'a>,
 }
 
@@ -24,7 +23,6 @@ impl<'a> Method<'a> {
 
         let name = NameString::parse(&mut stream)?;
         let (arg_count, serialized, sync_level) = parse_flags(next!(stream));
-        let method_size = stream.remaining();
         let term_list = TermList::parse(stream);
 
         Ok(Method {
@@ -32,7 +30,6 @@ impl<'a> Method<'a> {
             arg_count,
             serialized,
             sync_level,
-            method_size,
             term_list,
         })
     }
@@ -53,7 +50,7 @@ impl<'a> Method<'a> {
         self.sync_level
     }
 
-    pub(crate) fn method_size(&self) -> usize {
-        self.method_size
+    pub(crate) fn term_list(&self) -> &TermList<'a> {
+        &self.term_list
     }
 }

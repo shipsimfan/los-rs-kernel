@@ -7,4 +7,4 @@ members = ["base", "global_state", "init", "uefi", "acpi"]
 base = { path = "./base" }
 global_state = { path = "./global_state" }
 uefi = { path = "./uefi" }
-acpi = { path = "./acpi", features = ["debug_logging"] }
+acpi = { path = "./acpi" }

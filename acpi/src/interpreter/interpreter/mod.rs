@@ -9,22 +9,24 @@ use core::cell::RefCell;
 
 mod search;
 
-pub(crate) struct Interpreter<'namespace> {
-    namespace: &'namespace Namespace,
+pub(crate) struct Interpreter<'a, 'b> {
+    namespace: &'b Namespace<'a>,
 
-    current_node: Rc<RefCell<dyn Node>>,
-    node_context: Vec<Rc<RefCell<dyn Node>>>,
+    current_node: Rc<RefCell<Node<'a>>>,
+    node_context: Vec<Rc<RefCell<Node<'a>>>>,
 
     logger: Logger,
 
     wide_integers: bool,
+    executing_method: bool,
 }
 
-impl<'namespace, 'name> Interpreter<'namespace> {
+impl<'a, 'b> Interpreter<'a, 'b> {
     pub(crate) fn new(
-        namespace: &'namespace Namespace,
+        namespace: &'b Namespace<'a>,
         logger: Logger,
         wide_integers: bool,
+        executing_method: bool,
     ) -> Self {
         Interpreter {
             namespace,
@@ -35,6 +37,7 @@ impl<'namespace, 'name> Interpreter<'namespace> {
             logger,
 
             wide_integers,
+            executing_method,
         }
     }
 
@@ -46,11 +49,19 @@ impl<'namespace, 'name> Interpreter<'namespace> {
         log_info!(self.logger, "\n{}", self.namespace)
     }
 
+    pub(super) fn wide_integers(&self) -> bool {
+        self.wide_integers
+    }
+
+    pub(super) fn executing_method(&self) -> bool {
+        self.executing_method
+    }
+
     pub(super) fn get_node(
         &self,
         name: &NameString,
         include_final: bool,
-    ) -> Option<Rc<RefCell<dyn Node>>> {
+    ) -> Option<Rc<RefCell<Node<'a>>>> {
         search::get_node(
             &self.current_node,
             self.namespace.root(),
@@ -67,11 +78,11 @@ impl<'namespace, 'name> Interpreter<'namespace> {
         }
     }
 
-    pub(crate) fn load_definition_block(&mut self, definition_block: &[u8]) -> Result<()> {
-        term_list::execute(self, &mut TermList::parse(Stream::from(definition_block)))
+    pub(crate) fn load_definition_block(&mut self, definition_block: &'a [u8]) -> Result<()> {
+        term_list::execute(self, &mut TermList::parse(Stream::from(definition_block))).map(|_| ())
     }
 
-    pub(super) fn push_current_node(&mut self, mut new_node: Rc<RefCell<dyn Node>>) {
+    pub(super) fn push_current_node(&mut self, mut new_node: Rc<RefCell<Node<'a>>>) {
         core::mem::swap(&mut new_node, &mut self.current_node);
         self.node_context.push(new_node);
     }

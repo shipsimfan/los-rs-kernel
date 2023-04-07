@@ -1,6 +1,7 @@
 use super::term::Term;
 use crate::parser::{Result, Stream};
 
+#[derive(Clone)]
 pub(crate) struct TermList<'a> {
     stream: Stream<'a>,
 }

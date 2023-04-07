@@ -17,7 +17,7 @@ impl Table for DSDT {
         #[cfg(not(feature = "dsdt_logging"))]
         logger.set_minimum_level(base::Level::Info);
 
-        Interpreter::new(namespace, logger, self.header.revision() >= 2)
+        Interpreter::new(namespace, logger, self.header.revision() >= 2, false)
             .load_definition_block(unsafe {
                 core::slice::from_raw_parts(
                     &self.definition_block,

@@ -1,4 +1,4 @@
-use super::{Interpreter, Result};
+use super::{DataObject, Interpreter, Result};
 use crate::parser::{Term, TermList};
 
 mod device;
@@ -12,7 +12,10 @@ mod processor;
 mod scope;
 mod thermal_zone;
 
-pub(super) fn execute(interpreter: &mut Interpreter, term_list: &mut TermList) -> Result<()> {
+pub(super) fn execute<'a, 'b>(
+    interpreter: &mut Interpreter<'a, 'b>,
+    term_list: &mut TermList<'a>,
+) -> Result<Option<DataObject>> {
     for term in term_list {
         let term = term?;
 
@@ -32,5 +35,5 @@ pub(super) fn execute(interpreter: &mut Interpreter, term_list: &mut TermList) -
         }?
     }
 
-    Ok(())
+    Ok(None)
 }

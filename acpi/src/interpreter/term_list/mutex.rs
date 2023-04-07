@@ -13,6 +13,10 @@ pub(super) fn execute(interpreter: &mut Interpreter, mutex: parser::Mutex) -> Re
         mutex.sync_level()
     );
 
+    if interpreter.executing_method() {
+        todo!();
+    }
+
     let parent = get_parent!(interpreter, mutex.name())?;
 
     let mutex_object = Mutex::new(

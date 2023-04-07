@@ -4,7 +4,7 @@ pub(crate) trait Display: core::fmt::Display {
 
 macro_rules! impl_core_display {
     ($type: ident) => {
-        impl core::fmt::Display for $type {
+        impl<'a> core::fmt::Display for $type<'a> {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.display(f, 0, true)
             }

@@ -1,93 +1,58 @@
-use crate::namespace::{
-    display_name, display_prefix, impl_core_display, Children, Display, Node, Scope,
-};
-use alloc::rc::Rc;
+use crate::namespace::{display_name, display_prefix, impl_core_display, Children, Display, Node};
+use alloc::rc::{Rc, Weak};
 use core::cell::RefCell;
 
-pub(crate) struct Processor {
+pub(crate) struct Processor<'a> {
+    parent: Option<Weak<RefCell<Node<'a>>>>,
+    name: [u8; 4],
     id: u8,
     address: u32,
     length: u8,
-    scope: Scope,
+    children: Children<'a>,
 }
 
-impl Processor {
+impl<'a> Processor<'a> {
     pub(crate) fn new(
-        parent: Option<&Rc<RefCell<dyn Node>>>,
+        parent: Option<&Rc<RefCell<Node<'a>>>>,
         name: [u8; 4],
         id: u8,
         address: u32,
         length: u8,
-    ) -> Rc<RefCell<dyn Node>> {
-        Rc::new(RefCell::new(Processor {
+    ) -> Rc<RefCell<Node<'a>>> {
+        Rc::new(RefCell::new(Node::Processor(Processor {
+            parent: parent.map(|parent| Rc::downgrade(parent)),
+            name,
             id,
             address,
             length,
-            scope: Scope::new_raw(parent, Some(name)),
-        }))
+            children: Children::new(),
+        })))
+    }
+
+    pub(in crate::namespace) fn name(&self) -> [u8; 4] {
+        self.name
+    }
+
+    pub(in crate::namespace) fn parent(&self) -> Option<Rc<RefCell<Node<'a>>>> {
+        self.parent.as_ref().map(|parent| parent.upgrade().unwrap())
+    }
+
+    pub(in crate::namespace) fn children(&self) -> &Children<'a> {
+        &self.children
+    }
+
+    pub(in crate::namespace) fn children_mut(&mut self) -> &mut Children<'a> {
+        &mut self.children
     }
 }
 
-impl Node for Processor {
-    fn name(&self) -> Option<[u8; 4]> {
-        self.scope.name()
-    }
-
-    fn parent(&self) -> Option<alloc::rc::Rc<core::cell::RefCell<dyn Node>>> {
-        self.scope.parent()
-    }
-
-    fn as_children(&self) -> Option<&dyn Children> {
-        self.scope.as_children()
-    }
-
-    fn as_children_mut(&mut self) -> Option<&mut dyn Children> {
-        self.scope.as_children_mut()
-    }
-}
-
-impl Children for Processor {
-    fn children(&self) -> &[alloc::rc::Rc<core::cell::RefCell<dyn Node>>] {
-        self.scope.children()
-    }
-
-    fn get_child(&self, name: [u8; 4]) -> Option<alloc::rc::Rc<core::cell::RefCell<dyn Node>>> {
-        self.scope.get_child(name)
-    }
-
-    fn add_child(&mut self, child: alloc::rc::Rc<core::cell::RefCell<dyn Node>>) -> bool {
-        self.scope.add_child(child)
-    }
-}
-
-impl Display for Processor {
+impl<'a> Display for Processor<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Processor (")?;
-        display_name!(f, self.name().unwrap());
-        write!(f, ", {}, {}, {}) {{", self.id, self.address, self.length)?;
-
-        if self.scope.children().len() == 0 {
-            return writeln!(f, " }}");
-        }
-
-        writeln!(f)?;
-
-        let children = self.scope.children();
-        for i in 0..children.len() {
-            children[i]
-                .borrow()
-                .display(f, depth + 1, i == children.len() - 1)?;
-        }
-
-        display_prefix!(f, depth);
-        writeln!(f, "}}")?;
-
-        if !last {
-            writeln!(f)
-        } else {
-            Ok(())
-        }
+        display_name!(f, self.name());
+        write!(f, ", {}, {}, {}) ", self.id, self.address, self.length)?;
+        self.children.display(f, depth, last)
     }
 }
 
