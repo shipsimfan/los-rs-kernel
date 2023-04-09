@@ -1,11 +1,11 @@
-use crate::interpreter;
+use crate::parser;
 
 pub(super) type Result<T> = core::result::Result<T, Error>;
 
 enum ErrorKind {
     InvalidTable,
     MissingTable,
-    Interpreter(interpreter::Error),
+    Parser(parser::Error),
 }
 
 pub(crate) struct Error {
@@ -28,10 +28,10 @@ impl Error {
         }
     }
 
-    pub(super) fn interpreter_error(table: &'static [u8], error: interpreter::Error) -> Self {
+    pub(super) fn parser_error(table: &'static [u8], error: parser::Error) -> Self {
         Error {
             table,
-            kind: ErrorKind::Interpreter(error),
+            kind: ErrorKind::Parser(error),
         }
     }
 }
@@ -51,7 +51,7 @@ impl core::fmt::Display for ErrorKind {
         match self {
             ErrorKind::InvalidTable => write!(f, "Invalid Table"),
             ErrorKind::MissingTable => write!(f, "Missing Table"),
-            ErrorKind::Interpreter(error) => error.fmt(f),
+            ErrorKind::Parser(error) => error.fmt(f),
         }
     }
 }

@@ -1,5 +1,4 @@
-use super::{Error, Table, TableHeader};
-use crate::interpreter::Interpreter;
+use super::{Table, TableHeader};
 
 #[repr(packed)]
 pub(crate) struct DSDT {
@@ -17,6 +16,9 @@ impl Table for DSDT {
         #[cfg(not(feature = "dsdt_logging"))]
         logger.set_minimum_level(base::Level::Info);
 
+        todo!()
+
+        /*
         Interpreter::new(namespace, logger, self.header.revision() >= 2, false)
             .load_definition_block(unsafe {
                 core::slice::from_raw_parts(
@@ -25,6 +27,7 @@ impl Table for DSDT {
                 )
             })
             .map_err(|error| Error::interpreter_error(&Self::SIGNATURE, error))
+            */
     }
 
     fn header(&self) -> &TableHeader {

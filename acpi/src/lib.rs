@@ -5,6 +5,8 @@ extern crate alloc;
 use base::{log_error, log_info, BootVideo, CriticalLock, Logger};
 use core::ptr::NonNull;
 
+mod namespace;
+mod parser;
 mod tables;
 
 pub use tables::RSDP;
