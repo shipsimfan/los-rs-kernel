@@ -25,8 +25,14 @@ impl Path {
             r#final,
         }
     }
+}
 
-    pub(crate) fn parse(source: &[u8]) -> Result<Self, InvalidPathError> {
+impl<'a> TryFrom<&'a str> for Path {
+    type Error = InvalidPathError;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        let source = value.as_bytes();
+
         let (prefix, mut offset) = PathPrefix::parse(source);
 
         let mut path = Vec::new();
@@ -44,7 +50,7 @@ impl Path {
                 len += 1;
             }
 
-            let name = Name::parse(&source[offset..offset + len])?;
+            let name = Name::try_from(&source[offset..offset + len])?;
 
             if offset + len == source.len() {
                 return Ok(Path::new(prefix, path, Some(name)));
@@ -55,14 +61,6 @@ impl Path {
                 return Err(InvalidPathError);
             }
         }
-    }
-}
-
-impl<'a> TryFrom<&'a str> for Path {
-    type Error = InvalidPathError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Path::parse(value.as_bytes())
     }
 }
 

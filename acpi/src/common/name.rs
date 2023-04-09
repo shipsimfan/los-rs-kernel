@@ -23,19 +23,6 @@ impl Name {
         Name(name)
     }
 
-    pub(crate) fn parse(source: &[u8]) -> Result<Self, InvalidNameError> {
-        if source.len() > NAME_LENGTH {
-            return Err(InvalidNameError);
-        }
-
-        let mut name = [b'_'; NAME_LENGTH];
-        for i in 0..source.len() {
-            name[i] = source[i];
-        }
-
-        Name::new(name)
-    }
-
     pub(crate) fn len(&self) -> usize {
         let mut i = 0;
 
@@ -55,7 +42,24 @@ impl<'a> TryFrom<&'a str> for Name {
     type Error = InvalidNameError;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::parse(value.as_bytes())
+        Name::try_from(value.as_bytes())
+    }
+}
+
+impl<'a> TryFrom<&'a [u8]> for Name {
+    type Error = InvalidNameError;
+
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        if value.len() > NAME_LENGTH {
+            return Err(InvalidNameError);
+        }
+
+        let mut name = [b'_'; NAME_LENGTH];
+        for i in 0..value.len() {
+            name[i] = value[i];
+        }
+
+        Name::new(name)
     }
 }
 
