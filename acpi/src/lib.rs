@@ -2,13 +2,9 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
-use base::{log_error, log_info, BootVideo, CriticalLock, LogOutput, Logger};
+use base::{log_error, log_info, BootVideo, CriticalLock, Logger};
 use core::ptr::NonNull;
 
-mod interpreter;
-mod namespace;
-mod parser;
 mod tables;
 
 pub use tables::RSDP;
@@ -19,17 +15,6 @@ pub fn initialize<B: BootVideo>(rsdp: NonNull<RSDP>, boot_video: &CriticalLock<B
 
     match tables::load(rsdp, &logger) {
         Ok(namespace) => {
-            let node = namespace.get_node(&[*b"_SB_", *b"PCI0", *b"_PRT"]).unwrap();
-
-            let prt = interpreter::method::execute(
-                &namespace,
-                node,
-                Vec::new(),
-                "PRT Interpreter".into(),
-            )
-            .unwrap();
-            writeln!(boot_video, "PRT: {}", prt);
-
             #[cfg(feature = "namespace_logging")]
             write!(boot_video, "{}", namespace)
         }
