@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use base::{log_debug, log_error, log_info, BootVideo, CriticalLock, Logger};
+use base::{log_error, log_info, BootVideo, CriticalLock, Logger};
 use core::ptr::NonNull;
 
 mod common;
@@ -10,7 +10,10 @@ mod namespace;
 mod parser;
 mod tables;
 
-pub(self) use common::{InvalidNameError, InvalidPathError, Name, Path, PathPrefix};
+pub(self) use common::{
+    display_prefix, impl_core_display, Display, InvalidNameError, InvalidPathError, Name, Path,
+    PathPrefix,
+};
 
 pub use tables::RSDP;
 
