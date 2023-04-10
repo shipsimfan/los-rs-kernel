@@ -25,6 +25,29 @@ impl Path {
             r#final,
         }
     }
+
+    pub(crate) fn join(&self, other: &Path) -> Self {
+        let super_count = match other.prefix {
+            PathPrefix::Root => return other.clone(),
+            PathPrefix::Super(count) => count,
+            PathPrefix::None => 0,
+        };
+
+        let mut new_path = self.clone();
+
+        if let Some(r#final) = new_path.r#final.take() {
+            new_path.path.push(r#final);
+        }
+
+        for _ in 0..super_count {
+            new_path.path.pop();
+        }
+
+        new_path.path.extend_from_slice(&other.path);
+        new_path.r#final = other.r#final.clone();
+
+        new_path
+    }
 }
 
 impl<'a> TryFrom<&'a str> for Path {
@@ -79,6 +102,26 @@ impl core::fmt::Display for Path {
         }
     }
 }
+
+impl PartialEq for Path {
+    fn eq(&self, other: &Self) -> bool {
+        assert!(self.prefix == PathPrefix::Root && other.prefix == PathPrefix::Root);
+
+        if self.path.len() != other.path.len() {
+            return false;
+        }
+
+        for i in 0..self.path.len() {
+            if self.path[i] != other.path[i] {
+                return false;
+            }
+        }
+
+        self.r#final == other.r#final
+    }
+}
+
+impl Eq for Path {}
 
 impl PathPrefix {
     pub(self) fn parse(prefix: &[u8]) -> (Self, usize) {

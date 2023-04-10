@@ -1,3 +1,4 @@
+mod method;
 mod scope;
 mod term;
 mod term_list;

@@ -1,3 +1,4 @@
+use super::{Error, Result};
 use crate::Path;
 use alloc::vec::Vec;
 use base::Logger;
@@ -26,5 +27,24 @@ impl Context {
 
     pub(super) fn logger(&self) -> &Logger {
         &self.logger
+    }
+
+    pub(super) fn add_method(
+        &mut self,
+        path: &Path,
+        argument_count: u8,
+        offset: usize,
+    ) -> Result<()> {
+        let path = self.current_location.join(path);
+
+        for (method, _) in &self.method_list {
+            if *method == path {
+                return Err(Error::name_collision(path, offset, "Method"));
+            }
+        }
+
+        self.method_list.push((path, argument_count));
+
+        Ok(())
     }
 }

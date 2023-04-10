@@ -1,8 +1,12 @@
+use crate::{InvalidNameError, Path};
+
 pub(super) type Result<T> = core::result::Result<T, Error>;
 
 pub(crate) enum ErrorKind {
     UnexpectedByte(u8),
     UnexpectedEndOfStream,
+    InvalidName(InvalidNameError),
+    NameCollision(Path),
 }
 
 pub(crate) struct Error {
@@ -25,6 +29,26 @@ impl Error {
             offset,
             source,
             kind: ErrorKind::UnexpectedEndOfStream,
+        }
+    }
+
+    pub(super) fn invalid_name(
+        error: InvalidNameError,
+        offset: usize,
+        source: &'static str,
+    ) -> Self {
+        Error {
+            offset,
+            source,
+            kind: ErrorKind::InvalidName(error),
+        }
+    }
+
+    pub(super) fn name_collision(path: Path, offset: usize, source: &'static str) -> Self {
+        Error {
+            offset,
+            source,
+            kind: ErrorKind::NameCollision(path),
         }
     }
 }
@@ -50,6 +74,10 @@ impl core::fmt::Display for ErrorKind {
         match self {
             ErrorKind::UnexpectedByte(byte) => write!(f, "Unexpected byte {:#04X}", *byte),
             ErrorKind::UnexpectedEndOfStream => write!(f, "Unexpected end of stream"),
+            ErrorKind::InvalidName(invalid_name) => invalid_name.fmt(f),
+            ErrorKind::NameCollision(path) => {
+                write!(f, "Two methods defined with the same name ({})", path)
+            }
         }
     }
 }
