@@ -15,7 +15,13 @@ impl TermList {
         stream: &mut Stream,
         context: &mut Context,
     ) -> Result<Self> {
-        todo!()
+        let mut terms = Vec::new();
+
+        while stream.remaining() > 0 {
+            terms.push(Term::parse(stream, context)?);
+        }
+
+        Ok(TermList { terms })
     }
 }
 

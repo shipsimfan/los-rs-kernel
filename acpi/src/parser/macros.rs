@@ -11,11 +11,11 @@ macro_rules! next {
 }
 
 macro_rules! match_next {
-    ($stream: expr, $($pattern: pat => $result: expr)*) => {{
+    ($stream: expr, $source: expr $(,$pattern: pat => $result: expr)*,) => {{
         let offset = $stream.offset();
-        match $crate::parser::next!($stream) {
+        match $crate::parser::next!($stream, $source) {
             $($pattern => $result,)*
-            c => return Err($crate::parser::Error::unexpected_byte(c, offset)).unwrap(),
+            c => return Err($crate::parser::Error::unexpected_byte(c, offset, $source)).unwrap(),
         }}
     };
 }

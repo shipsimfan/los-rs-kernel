@@ -2,6 +2,8 @@ mod ast;
 mod context;
 mod error;
 mod macros;
+mod name_string;
+mod pkg_length;
 mod stream;
 
 pub(self) use ast::AST;
