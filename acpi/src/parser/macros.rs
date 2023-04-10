@@ -5,8 +5,7 @@ macro_rules! next {
             .next()
             .ok_or($crate::parser::Error::unexpected_end_of_stream(
                 offset, $source,
-            ))
-            .unwrap()
+            ))?
     }};
 }
 
@@ -15,7 +14,7 @@ macro_rules! match_next {
         let offset = $stream.offset();
         match $crate::parser::next!($stream, $source) {
             $($pattern => $result,)*
-            c => return Err($crate::parser::Error::unexpected_byte(c, offset, $source)).unwrap(),
+            c => return Err($crate::parser::Error::unexpected_byte(c, offset, $source)),
         }}
     };
 }
