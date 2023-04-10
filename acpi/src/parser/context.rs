@@ -47,4 +47,19 @@ impl Context {
 
         Ok(())
     }
+
+    pub(super) fn push_path(&mut self, path: &Path) {
+        // Create the new path
+        let mut new_path = self.current_location.join(path);
+
+        // Set the current path to the new path
+        core::mem::swap(&mut new_path, &mut self.current_location);
+
+        // Push the old path (which is now in "new_path" due to the swap)
+        self.location_stack.push(new_path);
+    }
+
+    pub(super) fn pop_path(&mut self) {
+        self.current_location = self.location_stack.pop().unwrap();
+    }
 }
