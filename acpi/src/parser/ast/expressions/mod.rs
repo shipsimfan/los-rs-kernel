@@ -1,6 +1,7 @@
 mod deref_of;
 mod expression;
 mod index;
+mod lless;
 mod ref_of;
 mod reference_type_op;
 mod size_of;
@@ -12,6 +13,7 @@ mod to_hex_string;
 pub(crate) use deref_of::DerefOf;
 pub(crate) use expression::Expression;
 pub(crate) use index::Index;
+pub(crate) use lless::LLess;
 pub(crate) use reference_type_op::ReferenceTypeOp;
 pub(crate) use store::Store;
 pub(crate) use subtract::Subtract;
