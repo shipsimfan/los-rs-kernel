@@ -1,5 +1,5 @@
 use crate::{
-    display_prefix, impl_core_display,
+    display_prefix, impl_core_display_lifetime,
     parser::{name_string, next, pkg_length, Context, Result, Stream},
     Display, Path,
 };
@@ -53,4 +53,4 @@ impl<'a> Display for Method<'a> {
     }
 }
 
-impl_core_display!(Method);
+impl_core_display_lifetime!(Method);

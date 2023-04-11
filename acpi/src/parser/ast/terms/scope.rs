@@ -1,6 +1,6 @@
 use super::TermList;
 use crate::{
-    display_prefix, impl_core_display,
+    display_prefix, impl_core_display_lifetime,
     parser::{name_string, pkg_length, Context, Result, Stream},
     Display, Path,
 };
@@ -32,4 +32,4 @@ impl<'a> Display for Scope<'a> {
     }
 }
 
-impl_core_display!(Scope);
+impl_core_display_lifetime!(Scope);

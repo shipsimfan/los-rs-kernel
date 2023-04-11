@@ -11,8 +11,8 @@ mod parser;
 mod tables;
 
 pub(self) use common::{
-    display_prefix, impl_core_display, Display, InvalidNameError, InvalidPathError, Name, Path,
-    PathPrefix, String,
+    display_prefix, impl_core_display, impl_core_display_lifetime, Display, InvalidNameError,
+    InvalidPathError, Name, Path, PathPrefix, String,
 };
 
 pub use tables::RSDP;

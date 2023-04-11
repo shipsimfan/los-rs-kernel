@@ -4,6 +4,16 @@ pub(crate) trait Display: core::fmt::Display {
 
 macro_rules! impl_core_display {
     ($type: ident) => {
+        impl core::fmt::Display for $type {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                self.display(f, 0, true)
+            }
+        }
+    };
+}
+
+macro_rules! impl_core_display_lifetime {
+    ($type: ident) => {
         impl<'a> core::fmt::Display for $type<'a> {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.display(f, 0, true)
@@ -20,4 +30,4 @@ macro_rules! display_prefix {
     };
 }
 
-pub(crate) use {display_prefix, impl_core_display};
+pub(crate) use {display_prefix, impl_core_display, impl_core_display_lifetime};

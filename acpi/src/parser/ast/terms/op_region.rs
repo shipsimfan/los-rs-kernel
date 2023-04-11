@@ -1,5 +1,5 @@
 use crate::{
-    display_prefix, impl_core_display,
+    display_prefix, impl_core_display_lifetime,
     namespace::objects::RegionSpace,
     parser::{ast::Argument, match_next, name_string, Context, Result, Stream},
     Display, Path,
@@ -55,4 +55,4 @@ impl<'a> Display for OpRegion<'a> {
     }
 }
 
-impl_core_display!(OpRegion);
+impl_core_display_lifetime!(OpRegion);

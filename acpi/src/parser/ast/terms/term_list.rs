@@ -1,6 +1,6 @@
 use super::Term;
 use crate::{
-    display_prefix, impl_core_display,
+    display_prefix, impl_core_display_lifetime,
     parser::{Context, Result, Stream},
     Display,
 };
@@ -50,4 +50,4 @@ impl<'a> Display for TermList<'a> {
     }
 }
 
-impl_core_display!(TermList);
+impl_core_display_lifetime!(TermList);
