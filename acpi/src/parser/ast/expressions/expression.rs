@@ -1,11 +1,13 @@
-use super::{ReferenceTypeOp, ToHexString};
+use super::{ReferenceTypeOp, ToBuffer, ToHexString};
 use crate::parser::{next, Context, Result, Stream};
 
 pub(crate) enum Expression<'a> {
     ReferenceTypeOp(ReferenceTypeOp<'a>),
+    ToBuffer(ToBuffer<'a>),
     ToHexString(ToHexString<'a>),
 }
 
+const TO_BUFFER_OP: u8 = 0x96;
 const TO_HEX_STRING_OP: u8 = 0x98;
 
 impl<'a> Expression<'a> {
@@ -18,6 +20,9 @@ impl<'a> Expression<'a> {
         }
 
         match next!(stream, "Expression") {
+            TO_BUFFER_OP => {
+                ToBuffer::parse(stream, context).map(|to_buffer| Expression::ToBuffer(to_buffer))
+            }
             TO_HEX_STRING_OP => ToHexString::parse(stream, context)
                 .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
             _ => {
@@ -33,6 +38,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
+            Expression::ToBuffer(to_buffer) => to_buffer.fmt(f),
             Expression::ToHexString(to_hex_string) => to_hex_string.fmt(f),
         }
     }
