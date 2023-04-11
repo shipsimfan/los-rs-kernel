@@ -1,6 +1,6 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Increment, LLess, ReferenceTypeOp, ShiftLeft, Store,
-    Subtract, ToBuffer, ToHexString,
+    acquire::Acquire, size_of::SizeOf, Increment, LLess, ReferenceTypeOp, Release, ShiftLeft,
+    Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{next, Context, Result, Stream};
 
@@ -9,6 +9,7 @@ pub(crate) enum Expression<'a> {
     Increment(Increment<'a>),
     LLess(LLess<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
+    Release(Release<'a>),
     ShiftLeft(ShiftLeft<'a>),
     SizeOf(SizeOf<'a>),
     Store(Store<'a>),
@@ -29,6 +30,7 @@ const TO_HEX_STRING_OP: u8 = 0x98;
 const EXT_OP_PREFIX: u8 = 0x5B;
 
 const ACQUIRE_OP: u8 = 0x23;
+const RELEASE_OP: u8 = 0x27;
 
 impl<'a> Expression<'a> {
     pub(in crate::parser::ast) fn parse(
@@ -60,6 +62,9 @@ impl<'a> Expression<'a> {
                 ACQUIRE_OP => {
                     Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire))
                 }
+                RELEASE_OP => {
+                    Release::parse(stream, context).map(|release| Expression::Release(release))
+                }
                 _ => {
                     stream.prev();
                     stream.prev();
@@ -82,6 +87,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
+            Expression::Release(release) => release.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),
             Expression::SizeOf(size_of) => size_of.fmt(f),
             Expression::Store(store) => store.fmt(f),
