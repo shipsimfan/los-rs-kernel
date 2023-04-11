@@ -1,7 +1,10 @@
-use super::{size_of::SizeOf, LLess, ReferenceTypeOp, Store, Subtract, ToBuffer, ToHexString};
+use super::{
+    size_of::SizeOf, Increment, LLess, ReferenceTypeOp, Store, Subtract, ToBuffer, ToHexString,
+};
 use crate::parser::{next, Context, Result, Stream};
 
 pub(crate) enum Expression<'a> {
+    Increment(Increment<'a>),
     LLess(LLess<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     SizeOf(SizeOf<'a>),
@@ -13,10 +16,13 @@ pub(crate) enum Expression<'a> {
 
 const STORE_OP: u8 = 0x70;
 const SUBTRACT_OP: u8 = 0x74;
+const INCREMENT_OP: u8 = 0x75;
 const SIZE_OF_OP: u8 = 0x87;
 const LLESS_OP: u8 = 0x95;
 const TO_BUFFER_OP: u8 = 0x96;
 const TO_HEX_STRING_OP: u8 = 0x98;
+
+const EXT_OP_PREFIX: u8 = 0x5B;
 
 impl<'a> Expression<'a> {
     pub(in crate::parser::ast) fn parse(
@@ -28,6 +34,9 @@ impl<'a> Expression<'a> {
         }
 
         match next!(stream, "Expression") {
+            INCREMENT_OP => {
+                Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
+            }
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
             STORE_OP => Store::parse(stream, context).map(|store| Expression::Store(store)),
             SIZE_OF_OP => SizeOf::parse(stream, context).map(|size_of| Expression::SizeOf(size_of)),
@@ -51,6 +60,7 @@ impl<'a> Expression<'a> {
 impl<'a> core::fmt::Display for Expression<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Expression::Increment(increment) => increment.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::SizeOf(size_of) => size_of.fmt(f),

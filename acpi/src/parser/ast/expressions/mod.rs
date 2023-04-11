@@ -1,5 +1,6 @@
 mod deref_of;
 mod expression;
+mod increment;
 mod index;
 mod lless;
 mod ref_of;
@@ -12,6 +13,7 @@ mod to_hex_string;
 
 pub(crate) use deref_of::DerefOf;
 pub(crate) use expression::Expression;
+pub(crate) use increment::Increment;
 pub(crate) use index::Index;
 pub(crate) use lless::LLess;
 pub(crate) use reference_type_op::ReferenceTypeOp;
