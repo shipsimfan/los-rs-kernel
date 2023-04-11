@@ -1,4 +1,4 @@
-use super::{Device, Field, Method, Name, OpRegion, Scope};
+use super::{Device, Field, Method, Mutex, Name, OpRegion, Scope};
 use crate::{
     impl_core_display_lifetime,
     parser::{match_next, Context, Result, Stream},
@@ -9,6 +9,7 @@ pub(crate) enum Term<'a> {
     Device(Device<'a>),
     Field(Field),
     Method(Method<'a>),
+    Mutex(Mutex),
     Name(Name<'a>),
     OpRegion(OpRegion<'a>),
     Scope(Scope<'a>),
@@ -20,6 +21,7 @@ const METHOD_OP: u8 = 0x14;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
+const MUTEX_OP: u8 = 0x01;
 const OP_REGION_OP: u8 = 0x80;
 const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
@@ -33,6 +35,7 @@ impl<'a> Term<'a> {
             EXT_OP_PREFIX => match_next!(stream, "Extended Term",
                 DEVICE_OP => Device::parse(stream, context).map(|device| Term::Device(device)),
                 FIELD_OP => Field::parse(stream).map(|field| Term::Field(field)),
+                MUTEX_OP => Mutex::parse(stream).map(|mutex| Term::Mutex(mutex)),
                 OP_REGION_OP => OpRegion::parse(stream, context).map(|op_region| Term::OpRegion(op_region)),
             ),
         )
@@ -45,6 +48,7 @@ impl<'a> Display for Term<'a> {
             Term::Device(device) => device.display(f, depth, last),
             Term::Field(field) => field.display(f, depth, last),
             Term::Method(method) => method.display(f, depth, last),
+            Term::Mutex(mutex) => mutex.display(f, depth, last),
             Term::Name(name) => name.display(f, depth, last),
             Term::OpRegion(op_region) => op_region.display(f, depth, last),
             Term::Scope(scope) => scope.display(f, depth, last),
