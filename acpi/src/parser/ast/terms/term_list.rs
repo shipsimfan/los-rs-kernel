@@ -6,13 +6,13 @@ use crate::{
 };
 use alloc::vec::Vec;
 
-pub(crate) struct TermList {
-    terms: Vec<Term>,
+pub(crate) struct TermList<'a> {
+    terms: Vec<Term<'a>>,
 }
 
-impl TermList {
+impl<'a> TermList<'a> {
     pub(in crate::parser::ast) fn parse(
-        stream: &mut Stream,
+        stream: &mut Stream<'a>,
         context: &mut Context,
     ) -> Result<Self> {
         let mut terms = Vec::new();
@@ -25,7 +25,7 @@ impl TermList {
     }
 }
 
-impl Display for TermList {
+impl<'a> Display for TermList<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         write!(f, "{{")?;
 

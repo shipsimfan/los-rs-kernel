@@ -5,13 +5,13 @@ use crate::{
     Display, Path,
 };
 
-pub(crate) struct Scope {
+pub(crate) struct Scope<'a> {
     path: Path,
-    term_list: TermList,
+    term_list: TermList<'a>,
 }
 
-impl Scope {
-    pub(super) fn parse(stream: &mut Stream, context: &mut Context) -> Result<Self> {
+impl<'a> Scope<'a> {
+    pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
         let mut stream = pkg_length::parse_to_stream(stream, "Scope")?;
 
         let path = name_string::parse(&mut stream, "Scope")?;
@@ -24,7 +24,7 @@ impl Scope {
     }
 }
 
-impl Display for Scope {
+impl<'a> Display for Scope<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Scope ({}) ", self.path)?;

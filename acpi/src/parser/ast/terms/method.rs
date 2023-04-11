@@ -3,13 +3,15 @@ use crate::{
     parser::{name_string, next, pkg_length, Context, Result, Stream},
     Display, Path,
 };
+use core::marker::PhantomData;
 
-pub(crate) struct Method {
+pub(crate) struct Method<'a> {
     path: Path,
     argument_count: u8,
     serialized: bool,
     sync_level: u8,
     // TODO: Add TermList
+    phantom: PhantomData<&'a ()>,
 }
 
 fn parse_method_flags(flags: u8) -> (u8, bool, u8) {
@@ -20,8 +22,8 @@ fn parse_method_flags(flags: u8) -> (u8, bool, u8) {
     (argument_count, serialized, sync_level)
 }
 
-impl Method {
-    pub(super) fn parse(stream: &mut Stream, context: &mut Context) -> Result<Self> {
+impl<'a> Method<'a> {
+    pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
         let mut stream = pkg_length::parse_to_stream(stream, "Method")?;
 
         let offset = stream.offset();
@@ -35,11 +37,12 @@ impl Method {
             argument_count,
             serialized,
             sync_level,
+            phantom: PhantomData,
         })
     }
 }
 
-impl Display for Method {
+impl<'a> Display for Method<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         writeln!(

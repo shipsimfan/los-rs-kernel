@@ -12,7 +12,7 @@ mod tables;
 
 pub(self) use common::{
     display_prefix, impl_core_display, Display, InvalidNameError, InvalidPathError, Name, Path,
-    PathPrefix,
+    PathPrefix, String,
 };
 
 pub use tables::RSDP;

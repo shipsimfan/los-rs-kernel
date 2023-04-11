@@ -2,12 +2,15 @@ use super::TermList;
 use crate::parser::{Context, Result, Stream};
 use base::log_info;
 
-pub(crate) struct AST {
-    term_list: TermList,
+pub(crate) struct AST<'a> {
+    term_list: TermList<'a>,
 }
 
-impl AST {
-    pub(in crate::parser) fn parse(definition_block: &[u8], mut context: Context) -> Result<Self> {
+impl<'a> AST<'a> {
+    pub(in crate::parser) fn parse(
+        definition_block: &'a [u8],
+        mut context: Context,
+    ) -> Result<Self> {
         log_info!(context.logger(), "Parsing AML");
 
         let mut stream = Stream::new(definition_block, 0);
@@ -18,7 +21,7 @@ impl AST {
     }
 }
 
-impl core::fmt::Display for AST {
+impl<'a> core::fmt::Display for AST<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.term_list.fmt(f)
     }

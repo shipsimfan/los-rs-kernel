@@ -14,11 +14,12 @@ pub(self) use stream::Stream;
 
 pub(crate) use error::Error;
 
+#[allow(unused_variables)]
 pub(crate) fn parse_definition_block(
     definition_block: &[u8],
     logger: base::Logger,
     wide_integers: bool,
 ) -> Result<AST> {
-    let context = Context::new(logger, wide_integers);
+    let context = Context::new(logger);
     AST::parse(definition_block, context)
 }
