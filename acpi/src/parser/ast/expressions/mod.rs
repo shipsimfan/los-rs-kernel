@@ -3,6 +3,7 @@ mod expression;
 mod index;
 mod ref_of;
 mod reference_type_op;
+mod size_of;
 mod subtract;
 mod to_buffer;
 mod to_hex_string;
