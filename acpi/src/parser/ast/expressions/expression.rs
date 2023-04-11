@@ -1,9 +1,11 @@
 use super::{
-    size_of::SizeOf, Increment, LLess, ReferenceTypeOp, Store, Subtract, ToBuffer, ToHexString,
+    acquire::Acquire, size_of::SizeOf, Increment, LLess, ReferenceTypeOp, Store, Subtract,
+    ToBuffer, ToHexString,
 };
 use crate::parser::{next, Context, Result, Stream};
 
 pub(crate) enum Expression<'a> {
+    Acquire(Acquire<'a>),
     Increment(Increment<'a>),
     LLess(LLess<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
@@ -23,6 +25,8 @@ const TO_BUFFER_OP: u8 = 0x96;
 const TO_HEX_STRING_OP: u8 = 0x98;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
+
+const ACQUIRE_OP: u8 = 0x23;
 
 impl<'a> Expression<'a> {
     pub(in crate::parser::ast) fn parse(
@@ -48,6 +52,16 @@ impl<'a> Expression<'a> {
             }
             TO_HEX_STRING_OP => ToHexString::parse(stream, context)
                 .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
+            EXT_OP_PREFIX => match next!(stream, "Extended Expression") {
+                ACQUIRE_OP => {
+                    Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire))
+                }
+                _ => {
+                    stream.prev();
+                    stream.prev();
+                    return Ok(None);
+                }
+            },
             _ => {
                 stream.prev();
                 return Ok(None);
@@ -60,6 +74,7 @@ impl<'a> Expression<'a> {
 impl<'a> core::fmt::Display for Expression<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Expression::Acquire(acquire) => acquire.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),

@@ -1,3 +1,4 @@
+mod acquire;
 mod deref_of;
 mod expression;
 mod increment;
