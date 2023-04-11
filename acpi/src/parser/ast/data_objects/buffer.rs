@@ -19,6 +19,16 @@ impl<'a> Buffer<'a> {
 
 impl<'a> core::fmt::Display for Buffer<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Buffer ({}, {:#04X?}", self.size, self.initial_data)
+        write!(f, "Buffer ({}, [", self.size)?;
+
+        for i in 0..self.initial_data.len() {
+            write!(f, "{:#04X}", self.initial_data[i])?;
+
+            if i < self.initial_data.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+
+        write!(f, "])")
     }
 }

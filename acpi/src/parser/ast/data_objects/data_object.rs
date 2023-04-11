@@ -1,6 +1,6 @@
-use super::{buffer::Buffer, byte, dword, qword, string, word};
+use super::{buffer::Buffer, byte, dword, qword, string, word, Package};
 use crate::{
-    parser::{match_next, Context, Result, Stream},
+    parser::{next, Context, Error, Result, Stream},
     String,
 };
 
@@ -16,6 +16,8 @@ pub(crate) enum DataObject<'a> {
 
     Buffer(Buffer<'a>),
     String(String),
+
+    Package(Package<'a>),
 }
 
 const ZERO_OP: u8 = 0x00;
@@ -26,14 +28,15 @@ const DWORD_PREFIX: u8 = 0x0C;
 const STRING_PREFIX: u8 = 0x0D;
 const QWORD_PREFIX: u8 = 0x0E;
 const BUFFER_OP: u8 = 0x11;
+const PACKAGE_OP: u8 = 0x12;
 const ONES_OP: u8 = 0xFF;
 
 impl<'a> DataObject<'a> {
-    pub(in crate::parser::ast) fn parse(
+    pub(in crate::parser::ast) fn parse_opt(
         stream: &mut Stream<'a>,
         context: &mut Context,
-    ) -> Result<Self> {
-        match_next!(stream, "Data Object",
+    ) -> Result<Option<Self>> {
+        match next!(stream, "Data Object") {
             ZERO_OP => Ok(DataObject::Zero),
             ONE_OP => Ok(DataObject::One),
             ONES_OP => Ok(DataObject::Ones),
@@ -45,7 +48,31 @@ impl<'a> DataObject<'a> {
 
             BUFFER_OP => Buffer::parse(stream, context).map(|buffer| DataObject::Buffer(buffer)),
             STRING_PREFIX => string::parse(stream).map(|string| DataObject::String(string)),
-        )
+
+            PACKAGE_OP => {
+                Package::parse(stream, context).map(|package| DataObject::Package(package))
+            }
+
+            _ => {
+                stream.prev();
+                return Ok(None);
+            }
+        }
+        .map(|data_object| Some(data_object))
+    }
+
+    pub(in crate::parser::ast) fn parse(
+        stream: &mut Stream<'a>,
+        context: &mut Context,
+    ) -> Result<Self> {
+        match DataObject::parse_opt(stream, context)? {
+            Some(data_object) => Ok(data_object),
+            None => Err(Error::unexpected_byte(
+                stream.next().unwrap(),
+                stream.offset() - 1,
+                "Data Object",
+            )),
+        }
     }
 }
 
@@ -63,6 +90,8 @@ impl<'a> core::fmt::Display for DataObject<'a> {
 
             DataObject::Buffer(buffer) => buffer.fmt(f),
             DataObject::String(string) => string.fmt(f),
+
+            DataObject::Package(package) => package.fmt(f),
         }
     }
 }

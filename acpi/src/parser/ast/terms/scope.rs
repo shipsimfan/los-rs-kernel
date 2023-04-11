@@ -28,7 +28,7 @@ impl<'a> Display for Scope<'a> {
     fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Scope ({}) ", self.path)?;
-        self.term_list.display(f, depth + 1, last)
+        self.term_list.display(f, depth, last)
     }
 }
 
