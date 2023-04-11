@@ -1,7 +1,7 @@
 use super::{Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope};
 use crate::{
     impl_core_display_lifetime,
-    parser::{match_next, Context, Result, Stream},
+    parser::{ast::Statement, match_next, Context, Result, Stream},
     Display,
 };
 
@@ -14,6 +14,7 @@ pub(crate) enum Term<'a> {
     OpRegion(OpRegion<'a>),
     Processor(Processor<'a>),
     Scope(Scope<'a>),
+    Statement(Statement<'a>),
 }
 
 const NAME_OP: u8 = 0x08;
@@ -30,6 +31,10 @@ const PROCESSOR_OP: u8 = 0x83;
 
 impl<'a> Term<'a> {
     pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
+        if let Some(statement) = Statement::parse(stream, context)? {
+            return Ok(Term::Statement(statement));
+        }
+
         match_next!(stream, "Term",
             METHOD_OP => Method::parse(stream, context).map(|method| Term::Method(method)),
             NAME_OP => Name::parse(stream, context).map(|name| Term::Name(name)),
@@ -56,6 +61,7 @@ impl<'a> Display for Term<'a> {
             Term::OpRegion(op_region) => op_region.display(f, depth, last),
             Term::Processor(processor) => processor.display(f, depth, last),
             Term::Scope(scope) => scope.display(f, depth, last),
+            Term::Statement(statement) => statement.display(f, depth, last),
         }
     }
 }

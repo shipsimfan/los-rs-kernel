@@ -1,0 +1,39 @@
+use super::{ReferenceTypeOp, ToHexString};
+use crate::parser::{next, Context, Result, Stream};
+
+pub(crate) enum Expression<'a> {
+    ReferenceTypeOp(ReferenceTypeOp<'a>),
+    ToHexString(ToHexString<'a>),
+}
+
+const TO_HEX_STRING_OP: u8 = 0x98;
+
+impl<'a> Expression<'a> {
+    pub(in crate::parser::ast) fn parse(
+        stream: &mut Stream<'a>,
+        context: &mut Context,
+    ) -> Result<Option<Self>> {
+        if let Some(reference_type_op) = ReferenceTypeOp::parse(stream, context)? {
+            return Ok(Some(Expression::ReferenceTypeOp(reference_type_op)));
+        }
+
+        match next!(stream, "Expression") {
+            TO_HEX_STRING_OP => ToHexString::parse(stream, context)
+                .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
+            _ => {
+                stream.prev();
+                return Ok(None);
+            }
+        }
+        .map(|expression| Some(expression))
+    }
+}
+
+impl<'a> core::fmt::Display for Expression<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
+            Expression::ToHexString(to_hex_string) => to_hex_string.fmt(f),
+        }
+    }
+}

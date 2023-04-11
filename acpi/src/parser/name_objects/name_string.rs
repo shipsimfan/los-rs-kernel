@@ -1,8 +1,10 @@
-use super::{next, Error, Result, Stream};
-use crate::{Name, Path, PathPrefix};
+use crate::{
+    parser::{next, Error, Result, Stream},
+    Name, Path, PathPrefix,
+};
 use alloc::vec::Vec;
 
-pub(super) fn parse(stream: &mut Stream, source: &'static str) -> Result<Path> {
+pub(in crate::parser) fn parse(stream: &mut Stream, source: &'static str) -> Result<Path> {
     let prefix = parse_prefix(stream, source)?;
 
     let offset = stream.offset();
