@@ -1,5 +1,5 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Increment, LLess, MethodInvocation, ReferenceTypeOp,
+    acquire::Acquire, size_of::SizeOf, Increment, LEqual, LLess, MethodInvocation, ReferenceTypeOp,
     Release, ShiftLeft, Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
@@ -7,6 +7,7 @@ use crate::parser::{match_next, next, Context, Error, Result, Stream};
 pub(crate) enum Expression<'a> {
     Acquire(Acquire<'a>),
     Increment(Increment<'a>),
+    LEqual(LEqual<'a>),
     LLess(LLess<'a>),
     MethodInvocation(MethodInvocation<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
@@ -24,6 +25,7 @@ const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
 const SHIFT_LEFT_OP: u8 = 0x79;
 const SIZE_OF_OP: u8 = 0x87;
+const LEQUAL_OP: u8 = 0x93;
 const LLESS_OP: u8 = 0x95;
 const TO_BUFFER_OP: u8 = 0x96;
 const TO_HEX_STRING_OP: u8 = 0x98;
@@ -60,6 +62,7 @@ impl<'a> Expression<'a> {
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
+            LEQUAL_OP => LEqual::parse(stream, context).map(|lequal| Expression::LEqual(lequal)),
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
                 .map(|shift_left| Expression::ShiftLeft(shift_left)),
@@ -91,6 +94,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
         match self {
             Expression::Acquire(acquire) => acquire.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
+            Expression::LEqual(lequal) => lequal.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
