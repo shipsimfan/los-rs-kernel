@@ -1,6 +1,6 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Increment, LEqual, LLess, MethodInvocation, ReferenceTypeOp,
-    Release, ShiftLeft, Store, Subtract, ToBuffer, ToHexString,
+    acquire::Acquire, size_of::SizeOf, Increment, LEqual, LLess, LNot, MethodInvocation,
+    ReferenceTypeOp, Release, ShiftLeft, Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -9,6 +9,7 @@ pub(crate) enum Expression<'a> {
     Increment(Increment<'a>),
     LEqual(LEqual<'a>),
     LLess(LLess<'a>),
+    LNot(LNot<'a>),
     MethodInvocation(MethodInvocation<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     Release(Release<'a>),
@@ -25,6 +26,7 @@ const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
 const SHIFT_LEFT_OP: u8 = 0x79;
 const SIZE_OF_OP: u8 = 0x87;
+const LNOT_OP: u8 = 0x92;
 const LEQUAL_OP: u8 = 0x93;
 const LLESS_OP: u8 = 0x95;
 const TO_BUFFER_OP: u8 = 0x96;
@@ -64,6 +66,7 @@ impl<'a> Expression<'a> {
             }
             LEQUAL_OP => LEqual::parse(stream, context).map(|lequal| Expression::LEqual(lequal)),
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
+            LNOT_OP => LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
                 .map(|shift_left| Expression::ShiftLeft(shift_left)),
             SIZE_OF_OP => SizeOf::parse(stream, context).map(|size_of| Expression::SizeOf(size_of)),
@@ -96,6 +99,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
+            Expression::LNot(lnot) => lnot.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::Release(release) => release.fmt(f),
