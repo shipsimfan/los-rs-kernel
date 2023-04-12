@@ -18,7 +18,7 @@ pub(in crate::parser) fn parse(stream: &mut Stream, source: &'static str) -> Res
     } else if c == 0x00 {
         return Ok(Path::new(PathPrefix::None, Vec::new(), None));
     } else {
-        return Err(Error::unexpected_byte(c, offset, source)).unwrap();
+        return Err(Error::unexpected_byte(c, offset, source));
     };
 
     let mut path = Vec::with_capacity(count - 1);

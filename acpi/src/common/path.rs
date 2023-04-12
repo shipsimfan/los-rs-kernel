@@ -48,6 +48,10 @@ impl Path {
 
         new_path
     }
+
+    pub(crate) fn r#final(&self) -> Option<&Name> {
+        self.r#final.as_ref()
+    }
 }
 
 impl<'a> TryFrom<&'a str> for Path {
@@ -84,6 +88,12 @@ impl<'a> TryFrom<&'a str> for Path {
                 return Err(InvalidPathError);
             }
         }
+    }
+}
+
+impl core::fmt::Debug for Path {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
     }
 }
 

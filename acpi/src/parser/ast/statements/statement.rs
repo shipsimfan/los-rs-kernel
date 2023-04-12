@@ -18,20 +18,16 @@ impl<'a> Statement<'a> {
     pub(in crate::parser::ast) fn parse(
         stream: &mut Stream<'a>,
         context: &mut Context,
-    ) -> Result<Option<Self>> {
-        if let Some(expression) = Expression::parse(stream, context)? {
-            return Ok(Some(Statement::Expression(expression)));
-        }
-
+    ) -> Result<Self> {
         match next!(stream, "Statement") {
             RETURN_OP => Return::parse(stream, context).map(|r#return| Statement::Return(r#return)),
             WHILE_OP => While::parse(stream, context).map(|r#while| Statement::While(r#while)),
             _ => {
                 stream.prev();
-                return Ok(None);
+                Expression::parse(stream, context)
+                    .map(|expression| Statement::Expression(expression))
             }
         }
-        .map(|statement| Some(statement))
     }
 }
 

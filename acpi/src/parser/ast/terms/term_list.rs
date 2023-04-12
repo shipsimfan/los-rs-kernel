@@ -23,6 +23,14 @@ impl<'a> TermList<'a> {
 
         Ok(TermList { terms })
     }
+
+    pub(in crate::parser::ast) fn parse_methods(&mut self, context: &mut Context) -> Result<()> {
+        for term in &mut self.terms {
+            term.parse_methods(context)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a> Display for TermList<'a> {

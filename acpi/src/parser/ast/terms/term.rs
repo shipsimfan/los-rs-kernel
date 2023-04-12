@@ -1,7 +1,7 @@
 use super::{Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope};
 use crate::{
     impl_core_display_lifetime,
-    parser::{ast::Statement, match_next, Context, Result, Stream},
+    parser::{ast::Statement, next, Context, Result, Stream},
     Display,
 };
 
@@ -31,22 +31,42 @@ const PROCESSOR_OP: u8 = 0x83;
 
 impl<'a> Term<'a> {
     pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
-        if let Some(statement) = Statement::parse(stream, context)? {
-            return Ok(Term::Statement(statement));
-        }
-
-        match_next!(stream, "Term",
+        match next!(stream, "Term") {
             METHOD_OP => Method::parse(stream, context).map(|method| Term::Method(method)),
             NAME_OP => Name::parse(stream, context).map(|name| Term::Name(name)),
             SCOPE_OP => Scope::parse(stream, context).map(|scope| Term::Scope(scope)),
-            EXT_OP_PREFIX => match_next!(stream, "Extended Term",
+            EXT_OP_PREFIX => match next!(stream, "Extended Term") {
                 DEVICE_OP => Device::parse(stream, context).map(|device| Term::Device(device)),
                 FIELD_OP => Field::parse(stream).map(|field| Term::Field(field)),
                 MUTEX_OP => Mutex::parse(stream).map(|mutex| Term::Mutex(mutex)),
-                OP_REGION_OP => OpRegion::parse(stream, context).map(|op_region| Term::OpRegion(op_region)),
-                PROCESSOR_OP => Processor::parse(stream, context).map(|processor| Term::Processor(processor)),
-            ),
-        )
+                OP_REGION_OP => {
+                    OpRegion::parse(stream, context).map(|op_region| Term::OpRegion(op_region))
+                }
+                PROCESSOR_OP => {
+                    Processor::parse(stream, context).map(|processor| Term::Processor(processor))
+                }
+                _ => {
+                    stream.prev();
+                    stream.prev();
+                    Statement::parse(stream, context).map(|statement| Term::Statement(statement))
+                }
+            },
+            _ => {
+                stream.prev();
+                Statement::parse(stream, context).map(|statement| Term::Statement(statement))
+            }
+        }
+    }
+
+    pub(super) fn parse_methods(&mut self, context: &mut Context) -> Result<()> {
+        match self {
+            Term::Device(device) => device.parse_methods(context),
+            Term::Method(method) => method.parse_methods(context),
+            Term::Processor(processor) => processor.parse_methods(context),
+            Term::Scope(scope) => scope.parse_methods(context),
+
+            _ => Ok(()),
+        }
     }
 }
 

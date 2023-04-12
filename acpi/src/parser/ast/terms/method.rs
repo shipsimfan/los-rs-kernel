@@ -5,12 +5,17 @@ use crate::{
     Display, Path,
 };
 
+enum MethodTermList<'a> {
+    Parsed(TermList<'a>),
+    NotParsed(Stream<'a>),
+}
+
 pub(crate) struct Method<'a> {
     path: Path,
     argument_count: u8,
     serialized: bool,
     sync_level: u8,
-    term_list: TermList<'a>,
+    term_list: MethodTermList<'a>,
 }
 
 fn parse_method_flags(flags: u8) -> (u8, bool, u8) {
@@ -31,9 +36,7 @@ impl<'a> Method<'a> {
 
         context.add_method(&path, argument_count, offset)?;
 
-        context.push_path(&path);
-        let term_list = TermList::parse(&mut stream, context)?;
-        context.pop_path();
+        let term_list = MethodTermList::NotParsed(stream);
 
         Ok(Method {
             path,
@@ -42,6 +45,17 @@ impl<'a> Method<'a> {
             sync_level,
             term_list,
         })
+    }
+
+    pub(super) fn parse_methods(&mut self, context: &mut Context) -> Result<()> {
+        let term_list = match &mut self.term_list {
+            MethodTermList::NotParsed(stream) => TermList::parse(stream, context)?,
+            MethodTermList::Parsed(_) => return Ok(()),
+        };
+
+        self.term_list = MethodTermList::Parsed(term_list);
+
+        Ok(())
     }
 }
 
@@ -58,3 +72,14 @@ impl<'a> Display for Method<'a> {
 }
 
 impl_core_display_lifetime!(Method);
+
+impl<'a> Display for MethodTermList<'a> {
+    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+        match self {
+            MethodTermList::NotParsed(_) => write!(f, "{{ Not Parsed Yet }}"),
+            MethodTermList::Parsed(term_list) => term_list.display(f, depth, last),
+        }
+    }
+}
+
+impl_core_display_lifetime!(MethodTermList);

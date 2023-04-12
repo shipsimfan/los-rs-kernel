@@ -15,7 +15,8 @@ impl<'a> AST<'a> {
 
         let mut stream = Stream::new(definition_block, 0);
 
-        let term_list = TermList::parse(&mut stream, &mut context)?;
+        let mut term_list = TermList::parse(&mut stream, &mut context)?;
+        term_list.parse_methods(&mut context)?;
 
         Ok(AST { term_list })
     }

@@ -1,13 +1,14 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Increment, LLess, ReferenceTypeOp, Release, ShiftLeft,
-    Store, Subtract, ToBuffer, ToHexString,
+    acquire::Acquire, size_of::SizeOf, Increment, LLess, MethodInvocation, ReferenceTypeOp,
+    Release, ShiftLeft, Store, Subtract, ToBuffer, ToHexString,
 };
-use crate::parser::{next, Context, Result, Stream};
+use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
 pub(crate) enum Expression<'a> {
     Acquire(Acquire<'a>),
     Increment(Increment<'a>),
     LLess(LLess<'a>),
+    MethodInvocation(MethodInvocation<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     Release(Release<'a>),
     ShiftLeft(ShiftLeft<'a>),
@@ -36,6 +37,20 @@ impl<'a> Expression<'a> {
     pub(in crate::parser::ast) fn parse(
         stream: &mut Stream<'a>,
         context: &mut Context,
+    ) -> Result<Self> {
+        match Expression::parse_opt(stream, context)? {
+            Some(expression) => Ok(expression),
+            None => Err(Error::unexpected_byte(
+                stream.next().unwrap(),
+                stream.offset() - 1,
+                "Expression",
+            )),
+        }
+    }
+
+    pub(in crate::parser::ast) fn parse_opt(
+        stream: &mut Stream<'a>,
+        context: &mut Context,
     ) -> Result<Option<Self>> {
         if let Some(reference_type_op) = ReferenceTypeOp::parse(stream, context)? {
             return Ok(Some(Expression::ReferenceTypeOp(reference_type_op)));
@@ -58,25 +73,16 @@ impl<'a> Expression<'a> {
             }
             TO_HEX_STRING_OP => ToHexString::parse(stream, context)
                 .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
-            EXT_OP_PREFIX => match next!(stream, "Extended Expression") {
-                ACQUIRE_OP => {
-                    Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire))
-                }
-                RELEASE_OP => {
-                    Release::parse(stream, context).map(|release| Expression::Release(release))
-                }
-                _ => {
-                    stream.prev();
-                    stream.prev();
-                    return Ok(None);
-                }
-            },
+            EXT_OP_PREFIX => match_next!(stream, "Extended Expression",
+                ACQUIRE_OP => Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire)),
+                RELEASE_OP => Release::parse(stream, context).map(|release| Expression::Release(release)),
+            ),
             _ => {
                 stream.prev();
-                return Ok(None);
+                MethodInvocation::parse(stream, context)
+                    .map(|method_invocation| Expression::MethodInvocation(method_invocation))
             }
-        }
-        .map(|expression| Some(expression))
+        }.map(|expression| Some(expression))
     }
 }
 
@@ -86,6 +92,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Acquire(acquire) => acquire.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
+            Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::Release(release) => release.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),

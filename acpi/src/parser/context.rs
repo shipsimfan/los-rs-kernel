@@ -26,6 +26,16 @@ impl Context {
         &self.logger
     }
 
+    pub(super) fn get_method_argument_count(&self, method: &Path, source: &'static str) -> usize {
+        for (m, _) in &self.method_list {
+            if m.r#final().unwrap() == method.r#final().unwrap() {
+                panic!("Found! ({})", m);
+            }
+        }
+
+        0
+    }
+
     pub(super) fn add_method(
         &mut self,
         path: &Path,
