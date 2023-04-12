@@ -27,6 +27,8 @@ impl Context {
     }
 
     pub(super) fn get_method_argument_count(&self, method: &Path, source: &'static str) -> usize {
+        // TODO: Perform a proper search for the method
+
         for (m, _) in &self.method_list {
             if m.r#final().unwrap() == method.r#final().unwrap() {
                 panic!("Found! ({})", m);

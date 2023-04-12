@@ -15,10 +15,28 @@ impl<'a> TermList<'a> {
         stream: &mut Stream<'a>,
         context: &mut Context,
     ) -> Result<Self> {
+        Self::inner_parse(stream, context, false)
+    }
+
+    pub(in crate::parser::ast) fn parse_with_else(
+        stream: &mut Stream<'a>,
+        context: &mut Context,
+    ) -> Result<Self> {
+        Self::inner_parse(stream, context, true)
+    }
+
+    fn inner_parse(
+        stream: &mut Stream<'a>,
+        context: &mut Context,
+        allow_else: bool,
+    ) -> Result<Self> {
         let mut terms = Vec::new();
 
         while stream.remaining() > 0 {
-            terms.push(Term::parse(stream, context)?);
+            terms.push(match Term::parse(stream, context, allow_else)? {
+                Some(term) => term,
+                None => break,
+            });
         }
 
         Ok(TermList { terms })

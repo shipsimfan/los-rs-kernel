@@ -1,7 +1,7 @@
 use super::{Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope};
 use crate::{
     impl_core_display_lifetime,
-    parser::{ast::Statement, next, Context, Result, Stream},
+    parser::{ast::Statement, next, Context, Error, Result, Stream},
     Display,
 };
 
@@ -28,10 +28,23 @@ const OP_REGION_OP: u8 = 0x80;
 const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
 const PROCESSOR_OP: u8 = 0x83;
+const ELSE_OP: u8 = 0xA1;
 
 impl<'a> Term<'a> {
-    pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
+    pub(super) fn parse(
+        stream: &mut Stream<'a>,
+        context: &mut Context,
+        allow_else: bool,
+    ) -> Result<Option<Self>> {
         match next!(stream, "Term") {
+            ELSE_OP => {
+                if allow_else {
+                    stream.prev();
+                    return Ok(None);
+                } else {
+                    return Err(Error::unexpected_byte(ELSE_OP, stream.offset() - 1, "Term"));
+                }
+            }
             METHOD_OP => Method::parse(stream, context).map(|method| Term::Method(method)),
             NAME_OP => Name::parse(stream, context).map(|name| Term::Name(name)),
             SCOPE_OP => Scope::parse(stream, context).map(|scope| Term::Scope(scope)),
@@ -56,6 +69,7 @@ impl<'a> Term<'a> {
                 Statement::parse(stream, context).map(|statement| Term::Statement(statement))
             }
         }
+        .map(|term| Some(term))
     }
 
     pub(super) fn parse_methods(&mut self, context: &mut Context) -> Result<()> {
