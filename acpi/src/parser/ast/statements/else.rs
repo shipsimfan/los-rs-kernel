@@ -19,10 +19,16 @@ impl<'a> Else<'a> {
 }
 
 impl<'a> Display for Else<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Else ")?;
-        self.term_list.display(f, depth, last)
+        self.term_list.display(f, depth, last, newline)
     }
 }
 

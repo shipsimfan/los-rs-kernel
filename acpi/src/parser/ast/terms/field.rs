@@ -23,9 +23,21 @@ impl Field {
 }
 
 impl Display for Field {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        _: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
-        writeln!(f, "Field ({}, {})", self.path, self.flags)
+        write!(f, "Field ({}, {})", self.path, self.flags)?;
+
+        if newline {
+            writeln!(f)
+        } else {
+            Ok(())
+        }
     }
 }
 

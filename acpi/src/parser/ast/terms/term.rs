@@ -85,17 +85,23 @@ impl<'a> Term<'a> {
 }
 
 impl<'a> Display for Term<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         match self {
-            Term::Device(device) => device.display(f, depth, last),
-            Term::Field(field) => field.display(f, depth, last),
-            Term::Method(method) => method.display(f, depth, last),
-            Term::Mutex(mutex) => mutex.display(f, depth, last),
-            Term::Name(name) => name.display(f, depth, last),
-            Term::OpRegion(op_region) => op_region.display(f, depth, last),
-            Term::Processor(processor) => processor.display(f, depth, last),
-            Term::Scope(scope) => scope.display(f, depth, last),
-            Term::Statement(statement) => statement.display(f, depth, last),
+            Term::Device(device) => device.display(f, depth, last, newline),
+            Term::Field(field) => field.display(f, depth, last, newline),
+            Term::Method(method) => method.display(f, depth, last, newline),
+            Term::Mutex(mutex) => mutex.display(f, depth, last, newline),
+            Term::Name(name) => name.display(f, depth, last, newline),
+            Term::OpRegion(op_region) => op_region.display(f, depth, last, newline),
+            Term::Processor(processor) => processor.display(f, depth, last, newline),
+            Term::Scope(scope) => scope.display(f, depth, last, newline),
+            Term::Statement(statement) => statement.display(f, depth, last, newline),
         }
     }
 }

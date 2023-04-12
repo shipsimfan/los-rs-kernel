@@ -2,7 +2,7 @@ use crate::{
     display_prefix, impl_core_display_lifetime,
     parser::{
         ast::{Argument, TermList},
-        Context, Result, Stream, pkg_length,
+        pkg_length, Context, Result, Stream,
     },
     Display,
 };
@@ -27,10 +27,16 @@ impl<'a> While<'a> {
 }
 
 impl<'a> Display for While<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "While ({}) ", self.predicate)?;
-        self.term_list.display(f, depth, last)
+        self.term_list.display(f, depth, last, newline)
     }
 }
 

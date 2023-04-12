@@ -60,24 +60,36 @@ impl<'a> Method<'a> {
 }
 
 impl<'a> Display for Method<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(
             f,
             "Method ({}, {}, {}, {}) ",
             self.path, self.argument_count, self.serialized, self.sync_level
         )?;
-        self.term_list.display(f, depth, last)
+        self.term_list.display(f, depth, last, newline)
     }
 }
 
 impl_core_display_lifetime!(Method);
 
 impl<'a> Display for MethodTermList<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         match self {
             MethodTermList::NotParsed(_) => write!(f, "{{ Not Parsed Yet }}"),
-            MethodTermList::Parsed(term_list) => term_list.display(f, depth, last),
+            MethodTermList::Parsed(term_list) => term_list.display(f, depth, last, newline),
         }
     }
 }

@@ -13,7 +13,7 @@ impl<'a> MethodInvocation<'a> {
     pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
         let path = name_string::parse(stream, "Method Invocation")?;
 
-        let argument_count = context.get_method_argument_count(&path, "Method Invocation");
+        let argument_count = context.get_method_argument_count(&path);
 
         let mut arg_list = Vec::with_capacity(argument_count);
         for _ in 0..argument_count {

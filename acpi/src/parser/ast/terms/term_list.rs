@@ -52,7 +52,13 @@ impl<'a> TermList<'a> {
 }
 
 impl<'a> Display for TermList<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         write!(f, "{{")?;
 
         if self.terms.len() == 0 {
@@ -62,13 +68,15 @@ impl<'a> Display for TermList<'a> {
         writeln!(f)?;
 
         for i in 0..self.terms.len() {
-            self.terms[i].display(f, depth + 1, i == self.terms.len() - 1)?;
+            self.terms[i].display(f, depth + 1, i == self.terms.len() - 1, true)?;
         }
 
         display_prefix!(f, depth);
-        writeln!(f, "}}")?;
+        write!(f, "}}")?;
 
         if !last {
+            writeln!(f, "\n")
+        } else if newline {
             writeln!(f)
         } else {
             Ok(())

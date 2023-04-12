@@ -46,14 +46,20 @@ impl<'a> Processor<'a> {
 }
 
 impl<'a> Display for Processor<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(
             f,
             "Processor ({}, {:#04X}, {:#010X}, {:#04X}) ",
             self.path, self.id, self.address, self.length
         )?;
-        self.term_list.display(f, depth, last)
+        self.term_list.display(f, depth, last, newline)
     }
 }
 

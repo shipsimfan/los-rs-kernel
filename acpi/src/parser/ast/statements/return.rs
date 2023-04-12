@@ -17,9 +17,21 @@ impl<'a> Return<'a> {
 }
 
 impl<'a> Display for Return<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        _: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
-        writeln!(f, "Return ({})", self.arg)
+        write!(f, "Return ({})", self.arg)?;
+
+        if newline {
+            writeln!(f)
+        } else {
+            Ok(())
+        }
     }
 }
 

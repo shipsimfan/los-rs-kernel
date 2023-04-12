@@ -35,15 +35,27 @@ impl<'a> Statement<'a> {
 }
 
 impl<'a> Display for Statement<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         match self {
             Statement::Expression(expression) => {
                 display_prefix!(f, depth);
-                writeln!(f, "{}", expression)
+                write!(f, "{}", expression)?;
+
+                if newline {
+                    writeln!(f)
+                } else {
+                    Ok(())
+                }
             }
-            Statement::If(r#if) => r#if.display(f, depth, last),
-            Statement::Return(r#return) => r#return.display(f, depth, last),
-            Statement::While(r#while) => r#while.display(f, depth, last),
+            Statement::If(r#if) => r#if.display(f, depth, last, newline),
+            Statement::Return(r#return) => r#return.display(f, depth, last, newline),
+            Statement::While(r#while) => r#while.display(f, depth, last, newline),
         }
     }
 }

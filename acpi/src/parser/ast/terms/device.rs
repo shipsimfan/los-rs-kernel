@@ -29,10 +29,16 @@ impl<'a> Device<'a> {
 }
 
 impl<'a> Display for Device<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "Device ({}) ", self.path)?;
-        self.term_list.display(f, depth, last)
+        self.term_list.display(f, depth, last, newline)
     }
 }
 

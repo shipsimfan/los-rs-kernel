@@ -19,9 +19,21 @@ impl<'a> Name<'a> {
 }
 
 impl<'a> Display for Name<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, _: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        _: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
-        writeln!(f, "Name ({}, {})", self.path, self.data_object)
+        write!(f, "Name ({}, {})", self.path, self.data_object)?;
+
+        if newline {
+            writeln!(f)
+        } else {
+            Ok(())
+        }
     }
 }
 

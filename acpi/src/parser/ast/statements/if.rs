@@ -42,14 +42,24 @@ impl<'a> If<'a> {
 }
 
 impl<'a> Display for If<'a> {
-    fn display(&self, f: &mut core::fmt::Formatter, depth: usize, last: bool) -> core::fmt::Result {
+    fn display(
+        &self,
+        f: &mut core::fmt::Formatter,
+        depth: usize,
+        last: bool,
+        newline: bool,
+    ) -> core::fmt::Result {
         display_prefix!(f, depth);
         write!(f, "If ({}) ", self.predicate)?;
-        self.term_list
-            .display(f, depth, last && self.r#else.is_none())?;
+        self.term_list.display(
+            f,
+            depth,
+            last && self.r#else.is_none(),
+            newline && self.r#else.is_none(),
+        )?;
 
         match &self.r#else {
-            Some(r#else) => r#else.display(f, depth, last),
+            Some(r#else) => r#else.display(f, depth, last, newline),
             None => Ok(()),
         }
     }

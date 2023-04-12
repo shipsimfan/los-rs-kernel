@@ -26,7 +26,7 @@ impl Context {
         &self.logger
     }
 
-    pub(super) fn get_method_argument_count(&self, method: &Path, source: &'static str) -> usize {
+    pub(super) fn get_method_argument_count(&self, method: &Path) -> usize {
         // TODO: Perform a proper search for the method
 
         for (m, _) in &self.method_list {
