@@ -7,3 +7,9 @@ impl Namespace {
         Namespace {}
     }
 }
+
+impl core::fmt::Display for Namespace {
+    fn fmt(&self, _: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        todo!()
+    }
+}

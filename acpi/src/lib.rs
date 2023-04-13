@@ -5,6 +5,9 @@ extern crate alloc;
 use base::{log_error, log_info, BootVideo, CriticalLock, Logger};
 use core::ptr::NonNull;
 
+#[cfg(feature = "namespace_logging")]
+use base::LogOutput;
+
 mod common;
 mod namespace;
 mod parser;

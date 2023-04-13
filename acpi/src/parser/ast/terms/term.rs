@@ -71,17 +71,6 @@ impl<'a> Term<'a> {
         }
         .map(|term| Some(term))
     }
-
-    pub(super) fn parse_methods(&mut self, context: &mut Context) -> Result<()> {
-        match self {
-            Term::Device(device) => device.parse_methods(context),
-            Term::Method(method) => method.parse_methods(context),
-            Term::Processor(processor) => processor.parse_methods(context),
-            Term::Scope(scope) => scope.parse_methods(context),
-
-            _ => Ok(()),
-        }
-    }
 }
 
 impl<'a> Display for Term<'a> {

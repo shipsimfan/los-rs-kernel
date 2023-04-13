@@ -22,10 +22,6 @@ impl<'a> Device<'a> {
 
         Ok(Device { path, term_list })
     }
-
-    pub(super) fn parse_methods(&mut self, context: &mut Context) -> Result<()> {
-        self.term_list.parse_methods(context)
-    }
 }
 
 impl<'a> Display for Device<'a> {

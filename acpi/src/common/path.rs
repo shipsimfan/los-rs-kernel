@@ -1,7 +1,7 @@
 use super::{InvalidNameError, Name};
 use alloc::vec::Vec;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PathPrefix {
     None,
     Super(usize),
@@ -49,8 +49,31 @@ impl Path {
         new_path
     }
 
-    pub(crate) fn r#final(&self) -> Option<&Name> {
-        self.r#final.as_ref()
+    pub(crate) fn prefix(&self) -> PathPrefix {
+        self.prefix
+    }
+
+    #[allow(unused)]
+    pub(crate) fn move_up(&mut self) -> bool {
+        match &self.r#final {
+            Some(_) => {}
+            None => match self.path.pop() {
+                Some(_) => {}
+                None => return false,
+            },
+        }
+
+        match self.path.pop() {
+            Some(new_final) => {
+                self.r#final = Some(new_final);
+                true
+            }
+            None => false,
+        }
+    }
+
+    pub(crate) fn pop_path_part(&mut self) -> Option<Name> {
+        self.path.pop()
     }
 }
 

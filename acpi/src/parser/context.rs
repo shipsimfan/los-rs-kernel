@@ -1,7 +1,7 @@
 use super::{Error, Result};
-use crate::Path;
+use crate::{Path, PathPrefix};
 use alloc::vec::Vec;
-use base::Logger;
+use base::{log_debug, Logger};
 
 pub(super) struct Context {
     logger: Logger,
@@ -26,16 +26,29 @@ impl Context {
         &self.logger
     }
 
-    pub(super) fn get_method_argument_count(&self, method: &Path) -> usize {
-        // TODO: Perform a proper search for the method
+    pub(super) fn get_method_argument_count(&self, path: &Path) -> usize {
+        log_debug!(self.logger, "{} --> {:?}", path, self.method_list);
 
-        for (m, _) in &self.method_list {
-            if m.r#final().unwrap() == method.r#final().unwrap() {
-                panic!("Found! ({})", m);
+        match path.prefix() {
+            PathPrefix::Root => self.search_for_method(path).unwrap_or(0),
+            PathPrefix::Super(_) => {
+                let path = self.current_location.join(path);
+                self.search_for_method(&path).unwrap_or(0)
+            }
+            PathPrefix::None => {
+                let mut path = self.current_location.join(path);
+                loop {
+                    match self.search_for_method(&path) {
+                        Some(arg_count) => break arg_count,
+                        None => {
+                            if path.pop_path_part().is_none() {
+                                break 0;
+                            }
+                        }
+                    }
+                }
             }
         }
-
-        0
     }
 
     pub(super) fn add_method(
@@ -70,5 +83,17 @@ impl Context {
 
     pub(super) fn pop_path(&mut self) {
         self.current_location = self.location_stack.pop().unwrap();
+    }
+
+    fn search_for_method(&self, path: &Path) -> Option<usize> {
+        assert!(path.prefix() == PathPrefix::Root);
+
+        for (method, arg_count) in &self.method_list {
+            if method == path {
+                return Some(*arg_count as usize);
+            }
+        }
+
+        None
     }
 }

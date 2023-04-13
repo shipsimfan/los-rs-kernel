@@ -3,6 +3,7 @@ use crate::{
     Path,
 };
 use alloc::vec::Vec;
+use base::{log_debug, Logger};
 
 pub(crate) struct MethodInvocation<'a> {
     path: Path,
@@ -16,6 +17,10 @@ impl<'a> MethodInvocation<'a> {
         let argument_count = context.get_method_argument_count(&path);
 
         let mut arg_list = Vec::with_capacity(argument_count);
+
+        let logger: Logger = "MethodInvoke".into();
+        log_debug!(logger, "{} Argument count: {}", path, argument_count);
+
         for _ in 0..argument_count {
             if stream.remaining() == 0 {
                 break;
