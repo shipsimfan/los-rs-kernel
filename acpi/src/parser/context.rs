@@ -1,7 +1,7 @@
 use super::{Error, Result};
 use crate::{Path, PathPrefix};
 use alloc::vec::Vec;
-use base::{log_debug, Logger};
+use base::Logger;
 
 pub(super) struct Context {
     logger: Logger,
@@ -27,8 +27,6 @@ impl Context {
     }
 
     pub(super) fn get_method_argument_count(&self, path: &Path) -> usize {
-        log_debug!(self.logger, "{} --> {:?}", path, self.method_list);
-
         match path.prefix() {
             PathPrefix::Root => self.search_for_method(path).unwrap_or(0),
             PathPrefix::Super(_) => {
