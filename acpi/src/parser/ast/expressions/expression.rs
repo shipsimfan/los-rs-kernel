@@ -1,6 +1,6 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Increment, LEqual, LLess, LNot, MethodInvocation, Or,
-    ReferenceTypeOp, Release, ShiftLeft, Store, Subtract, ToBuffer, ToHexString,
+    ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -15,6 +15,7 @@ pub(crate) enum Expression<'a> {
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     Release(Release<'a>),
     ShiftLeft(ShiftLeft<'a>),
+    ShiftRight(ShiftRight<'a>),
     SizeOf(SizeOf<'a>),
     Store(Store<'a>),
     Subtract(Subtract<'a>),
@@ -26,6 +27,7 @@ const STORE_OP: u8 = 0x70;
 const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
 const SHIFT_LEFT_OP: u8 = 0x79;
+const SHIFT_RIGHT_OP: u8 = 0x7A;
 const OR_OP: u8 = 0x7D;
 const SIZE_OF_OP: u8 = 0x87;
 const LNOT_OP: u8 = 0x92;
@@ -72,6 +74,7 @@ impl<'a> Expression<'a> {
             OR_OP => Or::parse(stream, context).map(|or| Expression::Or(or)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
                 .map(|shift_left| Expression::ShiftLeft(shift_left)),
+            SHIFT_RIGHT_OP => ShiftRight::parse(stream, context).map(|shift_right| Expression::ShiftRight(shift_right)),
             SIZE_OF_OP => SizeOf::parse(stream, context).map(|size_of| Expression::SizeOf(size_of)),
             STORE_OP => Store::parse(stream, context).map(|store| Expression::Store(store)),
             SUBTRACT_OP => {
@@ -108,6 +111,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::Release(release) => release.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),
+            Expression::ShiftRight(shift_right) => shift_right.fmt(f),
             Expression::SizeOf(size_of) => size_of.fmt(f),
             Expression::Store(store) => store.fmt(f),
             Expression::Subtract(subtract) => subtract.fmt(f),
