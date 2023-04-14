@@ -1,5 +1,5 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Increment, LEqual, LLess, LNot, LOr,
+    acquire::Acquire, size_of::SizeOf, Add, And, Increment, LEqual, LGreater, LLess, LNot, LOr,
     MethodInvocation, Or, ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract,
     ToBuffer, ToHexString,
 };
@@ -11,6 +11,7 @@ pub(crate) enum Expression<'a> {
     And(And<'a>),
     Increment(Increment<'a>),
     LEqual(LEqual<'a>),
+    LGreater(LGreater<'a>),
     LLess(LLess<'a>),
     LNot(LNot<'a>),
     LOr(LOr<'a>),
@@ -39,6 +40,7 @@ const SIZE_OF_OP: u8 = 0x87;
 const LOR_OP: u8 = 0x91;
 const LNOT_OP: u8 = 0x92;
 const LEQUAL_OP: u8 = 0x93;
+const LGREATER_OP: u8 = 0x94;
 const LLESS_OP: u8 = 0x95;
 const TO_BUFFER_OP: u8 = 0x96;
 const TO_HEX_STRING_OP: u8 = 0x98;
@@ -78,6 +80,7 @@ impl<'a> Expression<'a> {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
             LEQUAL_OP => LEqual::parse(stream, context).map(|lequal| Expression::LEqual(lequal)),
+            LGREATER_OP => LGreater::parse(stream, context).map(|lgreater| Expression::LGreater(lgreater)),
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
             LNOT_OP => LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot)),
             LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
@@ -116,6 +119,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::And(and) => and.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
+            Expression::LGreater(lgreator) => lgreator.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
             Expression::LNot(lnot) => lnot.fmt(f),
             Expression::LOr(lor) => lor.fmt(f),
