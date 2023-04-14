@@ -1,4 +1,7 @@
-use super::{Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope};
+use super::{
+    CreateBitField, CreateByteField, CreateDWordField, CreateField, CreateQWordField,
+    CreateWordField, Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope,
+};
 use crate::{
     impl_core_display_lifetime,
     parser::{ast::Statement, next, Context, Error, Result, Stream},
@@ -6,6 +9,12 @@ use crate::{
 };
 
 pub(crate) enum Term<'a> {
+    CreateBitField(CreateBitField<'a>),
+    CreateByteField(CreateByteField<'a>),
+    CreateDWordField(CreateDWordField<'a>),
+    CreateField(CreateField<'a>),
+    CreateQWordField(CreateQWordField<'a>),
+    CreateWordField(CreateWordField<'a>),
     Device(Device<'a>),
     Field(Field),
     Method(Method<'a>),
@@ -20,10 +29,16 @@ pub(crate) enum Term<'a> {
 const NAME_OP: u8 = 0x08;
 const SCOPE_OP: u8 = 0x10;
 const METHOD_OP: u8 = 0x14;
+const CREATE_DWORD_FIELD_OP: u8 = 0x8A;
+const CREATE_WORD_FIELD_OP: u8 = 0x8B;
+const CREATE_BYTE_FIELD_OP: u8 = 0x8C;
+const CREATE_BIT_FIELD_OP: u8 = 0x8D;
+const CREATE_QWORD_FIELD_OP: u8 = 0x8F;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
 const MUTEX_OP: u8 = 0x01;
+const CREATE_FIELD_OP: u8 = 0x13;
 const OP_REGION_OP: u8 = 0x80;
 const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
@@ -37,6 +52,16 @@ impl<'a> Term<'a> {
         allow_else: bool,
     ) -> Result<Option<Self>> {
         match next!(stream, "Term") {
+            CREATE_BIT_FIELD_OP => CreateBitField::parse(stream, context)
+                .map(|create_bit_field| Term::CreateBitField(create_bit_field)),
+            CREATE_BYTE_FIELD_OP => CreateByteField::parse(stream, context)
+                .map(|create_byte_field| Term::CreateByteField(create_byte_field)),
+            CREATE_DWORD_FIELD_OP => CreateDWordField::parse(stream, context)
+                .map(|create_dword_field| Term::CreateDWordField(create_dword_field)),
+            CREATE_QWORD_FIELD_OP => CreateQWordField::parse(stream, context)
+                .map(|create_qword_field| Term::CreateQWordField(create_qword_field)),
+            CREATE_WORD_FIELD_OP => CreateWordField::parse(stream, context)
+                .map(|create_word_field| Term::CreateWordField(create_word_field)),
             ELSE_OP => {
                 if allow_else {
                     stream.prev();
@@ -49,6 +74,8 @@ impl<'a> Term<'a> {
             NAME_OP => Name::parse(stream, context).map(|name| Term::Name(name)),
             SCOPE_OP => Scope::parse(stream, context).map(|scope| Term::Scope(scope)),
             EXT_OP_PREFIX => match next!(stream, "Extended Term") {
+                CREATE_FIELD_OP => CreateField::parse(stream, context)
+                    .map(|create_field| Term::CreateField(create_field)),
                 DEVICE_OP => Device::parse(stream, context).map(|device| Term::Device(device)),
                 FIELD_OP => Field::parse(stream).map(|field| Term::Field(field)),
                 MUTEX_OP => Mutex::parse(stream).map(|mutex| Term::Mutex(mutex)),
@@ -82,6 +109,22 @@ impl<'a> Display for Term<'a> {
         newline: bool,
     ) -> core::fmt::Result {
         match self {
+            Term::CreateBitField(create_bit_field) => {
+                create_bit_field.display(f, depth, last, newline)
+            }
+            Term::CreateByteField(create_byte_field) => {
+                create_byte_field.display(f, depth, last, newline)
+            }
+            Term::CreateDWordField(create_dword_field) => {
+                create_dword_field.display(f, depth, last, newline)
+            }
+            Term::CreateField(create_field) => create_field.display(f, depth, last, newline),
+            Term::CreateQWordField(create_qword_field) => {
+                create_qword_field.display(f, depth, last, newline)
+            }
+            Term::CreateWordField(create_word_field) => {
+                create_word_field.display(f, depth, last, newline)
+            }
             Term::Device(device) => device.display(f, depth, last, newline),
             Term::Field(field) => field.display(f, depth, last, newline),
             Term::Method(method) => method.display(f, depth, last, newline),
