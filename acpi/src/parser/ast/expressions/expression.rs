@@ -1,11 +1,12 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Increment, LEqual, LLess, LNot, MethodInvocation, Or,
+    acquire::Acquire, size_of::SizeOf, And, Increment, LEqual, LLess, LNot, MethodInvocation, Or,
     ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
 pub(crate) enum Expression<'a> {
     Acquire(Acquire<'a>),
+    And(And<'a>),
     Increment(Increment<'a>),
     LEqual(LEqual<'a>),
     LLess(LLess<'a>),
@@ -28,6 +29,7 @@ const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
 const SHIFT_LEFT_OP: u8 = 0x79;
 const SHIFT_RIGHT_OP: u8 = 0x7A;
+const AND_OP: u8 = 0x7B;
 const OR_OP: u8 = 0x7D;
 const SIZE_OF_OP: u8 = 0x87;
 const LNOT_OP: u8 = 0x92;
@@ -65,6 +67,7 @@ impl<'a> Expression<'a> {
         }
 
         match next!(stream, "Expression") {
+            AND_OP => And::parse(stream, context).map(|and| Expression::And(and)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -102,6 +105,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Expression::Acquire(acquire) => acquire.fmt(f),
+            Expression::And(and) => and.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
