@@ -1,6 +1,7 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Increment, LEqual, LLess, LNot, MethodInvocation,
-    Or, ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString,
+    acquire::Acquire, size_of::SizeOf, Add, And, Increment, LEqual, LLess, LNot, LOr,
+    MethodInvocation, Or, ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract,
+    ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -12,6 +13,7 @@ pub(crate) enum Expression<'a> {
     LEqual(LEqual<'a>),
     LLess(LLess<'a>),
     LNot(LNot<'a>),
+    LOr(LOr<'a>),
     MethodInvocation(MethodInvocation<'a>),
     Or(Or<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
@@ -34,6 +36,7 @@ const SHIFT_RIGHT_OP: u8 = 0x7A;
 const AND_OP: u8 = 0x7B;
 const OR_OP: u8 = 0x7D;
 const SIZE_OF_OP: u8 = 0x87;
+const LOR_OP: u8 = 0x91;
 const LNOT_OP: u8 = 0x92;
 const LEQUAL_OP: u8 = 0x93;
 const LLESS_OP: u8 = 0x95;
@@ -77,6 +80,7 @@ impl<'a> Expression<'a> {
             LEQUAL_OP => LEqual::parse(stream, context).map(|lequal| Expression::LEqual(lequal)),
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
             LNOT_OP => LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot)),
+            LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
             OR_OP => Or::parse(stream, context).map(|or| Expression::Or(or)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
                 .map(|shift_left| Expression::ShiftLeft(shift_left)),
@@ -114,6 +118,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LEqual(lequal) => lequal.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
             Expression::LNot(lnot) => lnot.fmt(f),
+            Expression::LOr(lor) => lor.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::Or(or) => or.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
