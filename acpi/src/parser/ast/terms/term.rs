@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     impl_core_display_lifetime,
-    parser::{ast::Statement, next, Context, Error, Result, Stream},
+    parser::{ast::Statement, next, Context, Result, Stream},
     Display,
 };
 
@@ -43,14 +43,9 @@ const OP_REGION_OP: u8 = 0x80;
 const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
 const PROCESSOR_OP: u8 = 0x83;
-const ELSE_OP: u8 = 0xA1;
 
 impl<'a> Term<'a> {
-    pub(super) fn parse(
-        stream: &mut Stream<'a>,
-        context: &mut Context,
-        allow_else: bool,
-    ) -> Result<Option<Self>> {
+    pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Option<Self>> {
         match next!(stream, "Term") {
             CREATE_BIT_FIELD_OP => CreateBitField::parse(stream, context)
                 .map(|create_bit_field| Term::CreateBitField(create_bit_field)),
@@ -62,14 +57,6 @@ impl<'a> Term<'a> {
                 .map(|create_qword_field| Term::CreateQWordField(create_qword_field)),
             CREATE_WORD_FIELD_OP => CreateWordField::parse(stream, context)
                 .map(|create_word_field| Term::CreateWordField(create_word_field)),
-            ELSE_OP => {
-                if allow_else {
-                    stream.prev();
-                    return Ok(None);
-                } else {
-                    return Err(Error::unexpected_byte(ELSE_OP, stream.offset() - 1, "Term"));
-                }
-            }
             METHOD_OP => Method::parse(stream, context).map(|method| Term::Method(method)),
             NAME_OP => Name::parse(stream, context).map(|name| Term::Name(name)),
             SCOPE_OP => Scope::parse(stream, context).map(|scope| Term::Scope(scope)),

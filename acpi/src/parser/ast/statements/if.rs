@@ -18,15 +18,16 @@ const ELSE_OP: u8 = 0xA1;
 
 impl<'a> If<'a> {
     pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
-        let mut stream = pkg_length::parse_to_stream(stream, "If")?;
+        let mut sub_stream = pkg_length::parse_to_stream(stream, "If")?;
 
-        let predicate = Argument::parse(&mut stream, context)?;
-        let term_list = TermList::parse_with_else(&mut stream, context)?;
+        let predicate = Argument::parse(&mut sub_stream, context)?;
+        let term_list = TermList::parse(&mut sub_stream, context)?;
 
         let r#else = if let Some(c) = stream.next() {
             if c == ELSE_OP {
-                Some(Else::parse(&mut stream, context)?)
+                Some(Else::parse(stream, context)?)
             } else {
+                stream.prev();
                 None
             }
         } else {

@@ -81,7 +81,11 @@ impl<'a> Iterator for Stream<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let ret = self.peek();
-        self.offset += 1;
+
+        if ret.is_some() {
+            self.offset += 1;
+        }
+
         ret
     }
 }
