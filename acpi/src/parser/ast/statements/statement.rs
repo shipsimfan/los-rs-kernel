@@ -1,4 +1,4 @@
-use super::{If, Return, While};
+use super::{If, Notify, Return, While};
 use crate::{
     display_prefix, impl_core_display_lifetime,
     parser::{ast::Expression, next, Context, Result, Stream},
@@ -8,10 +8,12 @@ use crate::{
 pub(crate) enum Statement<'a> {
     Expression(Expression<'a>),
     If(If<'a>),
+    Notify(Notify<'a>),
     Return(Return<'a>),
     While(While<'a>),
 }
 
+const NOTIFY_OP: u8 = 0x86;
 const IF_OP: u8 = 0xA0;
 const WHILE_OP: u8 = 0xA2;
 const RETURN_OP: u8 = 0xA4;
@@ -23,6 +25,7 @@ impl<'a> Statement<'a> {
     ) -> Result<Self> {
         match next!(stream, "Statement") {
             IF_OP => If::parse(stream, context).map(|r#if| Statement::If(r#if)),
+            NOTIFY_OP => Notify::parse(stream, context).map(|notify| Statement::Notify(notify)),
             RETURN_OP => Return::parse(stream, context).map(|r#return| Statement::Return(r#return)),
             WHILE_OP => While::parse(stream, context).map(|r#while| Statement::While(r#while)),
             _ => {
@@ -54,6 +57,7 @@ impl<'a> Display for Statement<'a> {
                 }
             }
             Statement::If(r#if) => r#if.display(f, depth, last, newline),
+            Statement::Notify(notify) => notify.display(f, depth, last, newline),
             Statement::Return(r#return) => r#return.display(f, depth, last, newline),
             Statement::While(r#while) => r#while.display(f, depth, last, newline),
         }
