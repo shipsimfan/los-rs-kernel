@@ -1,3 +1,4 @@
+mod r#break;
 mod r#else;
 mod r#if;
 mod notify;
@@ -6,6 +7,7 @@ mod statement;
 mod r#while;
 
 pub(crate) use notify::Notify;
+pub(crate) use r#break::Break;
 pub(crate) use r#if::If;
 pub(crate) use r#return::Return;
 pub(crate) use r#while::While;
