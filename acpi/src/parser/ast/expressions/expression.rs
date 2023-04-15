@@ -1,6 +1,6 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Increment, LEqual, LGreater, LLess, LNot, LOr,
-    MethodInvocation, Or, ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract,
+    acquire::Acquire, size_of::SizeOf, Add, And, Increment, LAnd, LEqual, LGreater, LLess, LNot,
+    LOr, MethodInvocation, Or, ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract,
     ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
@@ -10,6 +10,7 @@ pub(crate) enum Expression<'a> {
     Add(Add<'a>),
     And(And<'a>),
     Increment(Increment<'a>),
+    LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
     LGreater(LGreater<'a>),
     LLess(LLess<'a>),
@@ -37,6 +38,7 @@ const SHIFT_RIGHT_OP: u8 = 0x7A;
 const AND_OP: u8 = 0x7B;
 const OR_OP: u8 = 0x7D;
 const SIZE_OF_OP: u8 = 0x87;
+const LAND_OP: u8 = 0x90;
 const LOR_OP: u8 = 0x91;
 const LNOT_OP: u8 = 0x92;
 const LEQUAL_OP: u8 = 0x93;
@@ -79,6 +81,7 @@ impl<'a> Expression<'a> {
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
+            LAND_OP => LAnd::parse(stream, context).map(|land| Expression::LAnd(land)),
             LEQUAL_OP => LEqual::parse(stream, context).map(|lequal| Expression::LEqual(lequal)),
             LGREATER_OP => LGreater::parse(stream, context).map(|lgreater| Expression::LGreater(lgreater)),
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
@@ -118,6 +121,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Add(add) => add.fmt(f),
             Expression::And(and) => and.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
+            Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
             Expression::LGreater(lgreator) => lgreator.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
