@@ -1,9 +1,9 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
     Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
-    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, MethodInvocation, Mid, Mod, Multiply,
-    NAnd, NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer,
-    ToDecimalString, ToHexString, ToInteger, ToString, Xor,
+    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, LoadTable, MethodInvocation, Mid, Mod,
+    Multiply, NAnd, NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD,
+    ToBuffer, ToDecimalString, ToHexString, ToInteger, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -29,6 +29,7 @@ pub(crate) enum Expression<'a> {
     LLessEqual(LLessEqual<'a>),
     LNot(LNot<'a>),
     LNotEqual(LNotEqual<'a>),
+    LoadTable(LoadTable<'a>),
     LOr(LOr<'a>),
     MethodInvocation(MethodInvocation<'a>),
     Mid(Mid<'a>),
@@ -91,6 +92,7 @@ const MID_OP: u8 = 0x9E;
 const EXT_OP_PREFIX: u8 = 0x5B;
 
 const COND_REF_OF_OP: u8 = 0x12;
+const LOAD_TABLE_OP: u8 = 0x1F;
 const ACQUIRE_OP: u8 = 0x23;
 const FROM_BCD: u8 = 0x28;
 const TO_BCD_OP: u8 = 0x29;
@@ -165,6 +167,7 @@ impl<'a> Expression<'a> {
                 ACQUIRE_OP => Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire)),
                 COND_REF_OF_OP => CondRefOf::parse(stream, context).map(|cond_ref_of| Expression::CondRefOf(cond_ref_of)),
                 FROM_BCD => FromBCD::parse(stream, context).map(|from_bcd| Expression::FromBCD(from_bcd)),
+                LOAD_TABLE_OP => LoadTable::parse(stream, context).map(|load_table| Expression::LoadTable(load_table)),
                 TO_BCD_OP => ToBCD::parse(stream, context).map(|to_bcd| Expression::ToBCD(to_bcd)),
             ),
             _ => {
@@ -200,6 +203,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LLessEqual(lless_equal) => lless_equal.fmt(f),
             Expression::LNot(lnot) => lnot.fmt(f),
             Expression::LNotEqual(lnot_equal) => lnot_equal.fmt(f),
+            Expression::LoadTable(load_table) => load_table.fmt(f),
             Expression::LOr(lor) => lor.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::Mid(mid) => mid.fmt(f),
