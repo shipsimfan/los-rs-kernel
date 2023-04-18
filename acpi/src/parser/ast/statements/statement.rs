@@ -1,4 +1,4 @@
-use super::{Break, If, Notify, Return, While};
+use super::{Break, BreakPoint, If, Notify, Return, While};
 use crate::{
     display_prefix, impl_core_display_lifetime,
     parser::{ast::Expression, next, Context, Result, Stream},
@@ -7,6 +7,7 @@ use crate::{
 
 pub(crate) enum Statement<'a> {
     Break(Break),
+    BreakPoint(BreakPoint),
     Expression(Expression<'a>),
     If(If<'a>),
     Notify(Notify<'a>),
@@ -19,6 +20,7 @@ const IF_OP: u8 = 0xA0;
 const WHILE_OP: u8 = 0xA2;
 const RETURN_OP: u8 = 0xA4;
 const BREAK_OP: u8 = 0xA5;
+const BREAK_POINT_OP: u8 = 0xCC;
 
 impl<'a> Statement<'a> {
     pub(in crate::parser::ast) fn parse(
@@ -27,6 +29,7 @@ impl<'a> Statement<'a> {
     ) -> Result<Self> {
         match next!(stream, "Statement") {
             BREAK_OP => Ok(Statement::Break(Break)),
+            BREAK_POINT_OP => Ok(Statement::BreakPoint(BreakPoint)),
             IF_OP => If::parse(stream, context).map(|r#if| Statement::If(r#if)),
             NOTIFY_OP => Notify::parse(stream, context).map(|notify| Statement::Notify(notify)),
             RETURN_OP => Return::parse(stream, context).map(|r#return| Statement::Return(r#return)),
@@ -50,6 +53,7 @@ impl<'a> Display for Statement<'a> {
     ) -> core::fmt::Result {
         match self {
             Statement::Break(r#break) => r#break.display(f, depth, last, newline),
+            Statement::BreakPoint(break_point) => break_point.display(f, depth, last, newline),
             Statement::Expression(expression) => {
                 display_prefix!(f, depth);
                 write!(f, "{}", expression)?;
