@@ -1,6 +1,7 @@
 mod acquire;
 mod add;
 mod and;
+mod concat;
 mod deref_of;
 mod expression;
 mod increment;
@@ -25,6 +26,7 @@ mod to_hex_string;
 
 pub(crate) use add::Add;
 pub(crate) use and::And;
+pub(crate) use concat::Concat;
 pub(crate) use deref_of::DerefOf;
 pub(crate) use expression::Expression;
 pub(crate) use increment::Increment;

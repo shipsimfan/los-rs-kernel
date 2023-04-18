@@ -1,7 +1,7 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Increment, LAnd, LEqual, LGreater, LLess, LNot,
-    LOr, MethodInvocation, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer,
-    ToHexString,
+    acquire::Acquire, size_of::SizeOf, Add, And, Concat, Increment, LAnd, LEqual, LGreater, LLess,
+    LNot, LOr, MethodInvocation, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract,
+    ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -9,6 +9,7 @@ pub(crate) enum Expression<'a> {
     Acquire(Acquire<'a>),
     Add(Add<'a>),
     And(And<'a>),
+    Concat(Concat<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -30,6 +31,7 @@ pub(crate) enum Expression<'a> {
 
 const STORE_OP: u8 = 0x70;
 const ADD_OP: u8 = 0x72;
+const CONCAT_OP: u8 = 0x73;
 const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
 const SHIFT_LEFT_OP: u8 = 0x79;
@@ -76,6 +78,7 @@ impl<'a> Expression<'a> {
         match next!(stream, "Expression") {
             ADD_OP => Add::parse(stream, context).map(|add| Expression::Add(add)),
             AND_OP => And::parse(stream, context).map(|and| Expression::And(and)),
+            CONCAT_OP => Concat::parse(stream, context).map(|concat| Expression::Concat(concat)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -117,6 +120,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Acquire(acquire) => acquire.fmt(f),
             Expression::Add(add) => add.fmt(f),
             Expression::And(and) => and.fmt(f),
+            Expression::Concat(concat) => concat.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
