@@ -1,7 +1,7 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
-    Decrement, Divide, FindSetLeftBit, FindSetRightBit, Increment, LAnd, LEqual, LGreater, LLess,
-    LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp, ShiftLeft,
+    Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
+    LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp, ShiftLeft,
     ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
@@ -18,6 +18,7 @@ pub(crate) enum Expression<'a> {
     Divide(Divide<'a>),
     FindSetLeftBit(FindSetLeftBit<'a>),
     FindSetRightBit(FindSetRightBit<'a>),
+    FromBCD(FromBCD<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -78,6 +79,7 @@ const EXT_OP_PREFIX: u8 = 0x5B;
 
 const COND_REF_OF_OP: u8 = 0x12;
 const ACQUIRE_OP: u8 = 0x23;
+const FROM_BCD: u8 = 0x28;
 
 impl<'a> Expression<'a> {
     pub(in crate::parser::ast) fn parse(
@@ -113,9 +115,8 @@ impl<'a> Expression<'a> {
             DIVIDE_OP => Divide::parse(stream, context).map(|divide| Expression::Divide(divide)),
             FIND_SET_LEFT_BIT_OP => FindSetLeftBit::parse(stream, context).map(|find_set_left_bit| Expression::FindSetLeftBit(find_set_left_bit)),
             FIND_SET_RIGHT_BIT_OP => FindSetRightBit::parse(stream, context).map(|find_set_left_bit| Expression::FindSetRightBit(find_set_left_bit)),
-            INCREMENT_OP => {
-                Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
-            }
+            FROM_BCD => FromBCD::parse(stream, context).map(|from_bcd| Expression::FromBCD(from_bcd)),
+            INCREMENT_OP => Increment::parse(stream, context).map(|increment| Expression::Increment(increment)),
             LAND_OP => LAnd::parse(stream, context).map(|land| Expression::LAnd(land)),
             LEQUAL_OP => LEqual::parse(stream, context).map(|lequal| Expression::LEqual(lequal)),
             LGREATER_OP => LGreater::parse(stream, context).map(|lgreater| Expression::LGreater(lgreater)),
@@ -127,19 +128,13 @@ impl<'a> Expression<'a> {
             NAND_OP => NAnd::parse(stream, context).map(|nand| Expression::NAnd(nand)),
             NOR_OP => NOr::parse(stream, context).map(|nor| Expression::NOr(nor)),
             OR_OP => Or::parse(stream, context).map(|or| Expression::Or(or)),
-            SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
-                .map(|shift_left| Expression::ShiftLeft(shift_left)),
+            SHIFT_LEFT_OP => ShiftLeft::parse(stream, context).map(|shift_left| Expression::ShiftLeft(shift_left)),
             SHIFT_RIGHT_OP => ShiftRight::parse(stream, context).map(|shift_right| Expression::ShiftRight(shift_right)),
             SIZE_OF_OP => SizeOf::parse(stream, context).map(|size_of| Expression::SizeOf(size_of)),
             STORE_OP => Store::parse(stream, context).map(|store| Expression::Store(store)),
-            SUBTRACT_OP => {
-                Subtract::parse(stream, context).map(|subtract| Expression::Subtract(subtract))
-            }
-            TO_BUFFER_OP => {
-                ToBuffer::parse(stream, context).map(|to_buffer| Expression::ToBuffer(to_buffer))
-            }
-            TO_HEX_STRING_OP => ToHexString::parse(stream, context)
-                .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
+            SUBTRACT_OP => Subtract::parse(stream, context).map(|subtract| Expression::Subtract(subtract)),
+            TO_BUFFER_OP => ToBuffer::parse(stream, context).map(|to_buffer| Expression::ToBuffer(to_buffer)),
+            TO_HEX_STRING_OP => ToHexString::parse(stream, context).map(|to_hex_string| Expression::ToHexString(to_hex_string)),
             TO_STRING_OP => ToString::parse(stream, context).map(|to_string| Expression::ToString(to_string)),
             XOR_OP => Xor::parse(stream, context).map(|xor| Expression::Xor(xor)),
             EXT_OP_PREFIX => match_next!(stream, "Extended Expression",
@@ -168,6 +163,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Divide(divide) => divide.fmt(f),
             Expression::FindSetLeftBit(find_set_left_bit) => find_set_left_bit.fmt(f),
             Expression::FindSetRightBit(find_set_right_bit) => find_set_right_bit.fmt(f),
+            Expression::FromBCD(from_bcd) => from_bcd.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
