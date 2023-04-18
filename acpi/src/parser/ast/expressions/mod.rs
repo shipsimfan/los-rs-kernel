@@ -38,6 +38,7 @@ mod to_bcd;
 mod to_buffer;
 mod to_decimal_string;
 mod to_hex_string;
+mod to_integer;
 mod to_string;
 mod xor;
 
@@ -78,5 +79,6 @@ pub(crate) use to_bcd::ToBCD;
 pub(crate) use to_buffer::ToBuffer;
 pub(crate) use to_decimal_string::ToDecimalString;
 pub(crate) use to_hex_string::ToHexString;
+pub(crate) use to_integer::ToInteger;
 pub(crate) use to_string::ToString;
 pub(crate) use xor::Xor;

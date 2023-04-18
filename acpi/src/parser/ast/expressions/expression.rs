@@ -3,7 +3,7 @@ use super::{
     Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
     LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Not, Or, ReferenceTypeOp,
     ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer, ToDecimalString, ToHexString,
-    ToString, Xor,
+    ToInteger, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -44,6 +44,7 @@ pub(crate) enum Expression<'a> {
     ToBuffer(ToBuffer<'a>),
     ToDecimalString(ToDecimalString<'a>),
     ToHexString(ToHexString<'a>),
+    ToInteger(ToInteger<'a>),
     ToString(ToString<'a>),
     Xor(Xor<'a>),
 }
@@ -78,6 +79,7 @@ const LLESS_OP: u8 = 0x95;
 const TO_BUFFER_OP: u8 = 0x96;
 const TO_DECIMAL_STRING_OP: u8 = 0x97;
 const TO_HEX_STRING_OP: u8 = 0x98;
+const TO_INTEGER_OP: u8 = 0x99;
 const TO_STRING_OP: u8 = 0x9C;
 const COPY_OBJECT_OP: u8 = 0x9D;
 
@@ -142,6 +144,7 @@ impl<'a> Expression<'a> {
             TO_BUFFER_OP => ToBuffer::parse(stream, context).map(|to_buffer| Expression::ToBuffer(to_buffer)),
             TO_DECIMAL_STRING_OP => ToDecimalString::parse(stream, context).map(|to_decimal_string| Expression::ToDecimalString(to_decimal_string)),
             TO_HEX_STRING_OP => ToHexString::parse(stream, context).map(|to_hex_string| Expression::ToHexString(to_hex_string)),
+            TO_INTEGER_OP => ToInteger::parse(stream, context).map(|to_integer| Expression::ToInteger(to_integer)),
             TO_STRING_OP => ToString::parse(stream, context).map(|to_string| Expression::ToString(to_string)),
             XOR_OP => Xor::parse(stream, context).map(|xor| Expression::Xor(xor)),
             EXT_OP_PREFIX => match_next!(stream, "Extended Expression",
@@ -198,6 +201,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::ToBuffer(to_buffer) => to_buffer.fmt(f),
             Expression::ToDecimalString(to_decimal_string) => to_decimal_string.fmt(f),
             Expression::ToHexString(to_hex_string) => to_hex_string.fmt(f),
+            Expression::ToInteger(to_integer) => to_integer.fmt(f),
             Expression::ToString(to_string) => to_string.fmt(f),
             Expression::Xor(xor) => xor.fmt(f),
         }
