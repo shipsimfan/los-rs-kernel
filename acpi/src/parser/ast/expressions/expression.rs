@@ -1,7 +1,7 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, Increment, LAnd, LEqual,
-    LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp,
-    ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
+    acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, Increment, LAnd,
+    LEqual, LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or,
+    ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -11,6 +11,7 @@ pub(crate) enum Expression<'a> {
     And(And<'a>),
     Concat(Concat<'a>),
     ConcatRes(ConcatRes<'a>),
+    CondRefOf(CondRefOf<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -64,6 +65,7 @@ const TO_STRING_OP: u8 = 0x9C;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
+const COND_REF_OF_OP: u8 = 0x12;
 const ACQUIRE_OP: u8 = 0x23;
 
 impl<'a> Expression<'a> {
@@ -94,6 +96,7 @@ impl<'a> Expression<'a> {
             AND_OP => And::parse(stream, context).map(|and| Expression::And(and)),
             CONCAT_OP => Concat::parse(stream, context).map(|concat| Expression::Concat(concat)),
             CONCAT_RES_OP => ConcatRes::parse(stream, context).map(|concat_res| Expression::ConcatRes(concat_res)),
+            COND_REF_OF_OP => CondRefOf::parse(stream, context).map(|cond_ref_of| Expression::CondRefOf(cond_ref_of)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -143,6 +146,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::And(and) => and.fmt(f),
             Expression::Concat(concat) => concat.fmt(f),
             Expression::ConcatRes(concat_res) => concat_res.fmt(f),
+            Expression::CondRefOf(cond_ref_of) => cond_ref_of.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
