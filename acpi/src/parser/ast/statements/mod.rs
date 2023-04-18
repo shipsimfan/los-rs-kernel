@@ -2,6 +2,7 @@ mod r#break;
 mod break_point;
 mod r#continue;
 mod r#else;
+mod fatal;
 mod r#if;
 mod no_op;
 mod notify;
@@ -10,6 +11,7 @@ mod statement;
 mod r#while;
 
 pub(crate) use break_point::BreakPoint;
+pub(crate) use fatal::Fatal;
 pub(crate) use no_op::NoOp;
 pub(crate) use notify::Notify;
 pub(crate) use r#break::Break;

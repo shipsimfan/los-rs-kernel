@@ -3,7 +3,7 @@
 .align 4096
 pml4: .fill 4096
 
-stackBottom: .fill 65536
+stackBottom: .fill 524288
 stackTop:
 
 .section .text.low

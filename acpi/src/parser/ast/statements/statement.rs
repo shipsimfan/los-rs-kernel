@@ -1,4 +1,4 @@
-use super::{Break, BreakPoint, Continue, If, NoOp, Notify, Return, While};
+use super::{Break, BreakPoint, Continue, Fatal, If, NoOp, Notify, Return, While};
 use crate::{
     display_prefix, impl_core_display_lifetime,
     parser::{ast::Expression, next, Context, Result, Stream},
@@ -10,6 +10,7 @@ pub(crate) enum Statement<'a> {
     BreakPoint(BreakPoint),
     Continue(Continue),
     Expression(Expression<'a>),
+    Fatal(Fatal<'a>),
     If(If<'a>),
     NoOp(NoOp),
     Notify(Notify<'a>),
@@ -26,6 +27,10 @@ const RETURN_OP: u8 = 0xA4;
 const BREAK_OP: u8 = 0xA5;
 const BREAK_POINT_OP: u8 = 0xCC;
 
+const EXT_OP_PREFIX: u8 = 0x5B;
+
+const FATAL_OP: u8 = 0x32;
+
 impl<'a> Statement<'a> {
     pub(in crate::parser::ast) fn parse(
         stream: &mut Stream<'a>,
@@ -40,6 +45,15 @@ impl<'a> Statement<'a> {
             NOTIFY_OP => Notify::parse(stream, context).map(|notify| Statement::Notify(notify)),
             RETURN_OP => Return::parse(stream, context).map(|r#return| Statement::Return(r#return)),
             WHILE_OP => While::parse(stream, context).map(|r#while| Statement::While(r#while)),
+            EXT_OP_PREFIX => match next!(stream, "Extended Statement") {
+                FATAL_OP => Fatal::parse(stream, context).map(|fatal| Statement::Fatal(fatal)),
+                _ => {
+                    stream.prev();
+                    stream.prev();
+                    Expression::parse(stream, context)
+                        .map(|expression| Statement::Expression(expression))
+                }
+            },
             _ => {
                 stream.prev();
                 Expression::parse(stream, context)
@@ -71,6 +85,7 @@ impl<'a> Display for Statement<'a> {
                     Ok(())
                 }
             }
+            Statement::Fatal(fatal) => fatal.display(f, depth, last, newline),
             Statement::If(r#if) => r#if.display(f, depth, last, newline),
             Statement::NoOp(no_op) => no_op.display(f, depth, last, newline),
             Statement::Notify(notify) => notify.display(f, depth, last, newline),
