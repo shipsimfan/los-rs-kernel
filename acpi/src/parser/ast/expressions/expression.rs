@@ -1,7 +1,7 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, Increment, LAnd, LEqual,
-    LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, Or, ReferenceTypeOp, ShiftLeft,
-    ShiftRight, Store, Subtract, ToBuffer, ToHexString,
+    LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, Or, ReferenceTypeOp,
+    ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -21,6 +21,7 @@ pub(crate) enum Expression<'a> {
     MethodInvocation(MethodInvocation<'a>),
     Mod(Mod<'a>),
     Multiply(Multiply<'a>),
+    NAnd(NAnd<'a>),
     Or(Or<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     ShiftLeft(ShiftLeft<'a>),
@@ -41,6 +42,7 @@ const MULTIPLY_OP: u8 = 0x77;
 const SHIFT_LEFT_OP: u8 = 0x79;
 const SHIFT_RIGHT_OP: u8 = 0x7A;
 const AND_OP: u8 = 0x7B;
+const NAND_OP: u8 = 0x7C;
 const OR_OP: u8 = 0x7D;
 const CONCAT_RES_OP: u8 = 0x84;
 const MOD_OP: u8 = 0x85;
@@ -97,6 +99,7 @@ impl<'a> Expression<'a> {
             LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
             MOD_OP => Mod::parse(stream, context).map(|r#mod| Expression::Mod(r#mod)),
             MULTIPLY_OP => Multiply::parse(stream, context).map(|multiply| Expression::Multiply(multiply)),
+            NAND_OP => NAnd::parse(stream, context).map(|nand| Expression::NAnd(nand)),
             OR_OP => Or::parse(stream, context).map(|or| Expression::Or(or)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
                 .map(|shift_left| Expression::ShiftLeft(shift_left)),
@@ -141,6 +144,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::Mod(r#mod) => r#mod.fmt(f),
             Expression::Multiply(multiply) => multiply.fmt(f),
+            Expression::NAnd(nand) => nand.fmt(f),
             Expression::Or(or) => or.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),
