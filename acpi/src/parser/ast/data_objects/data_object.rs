@@ -1,4 +1,4 @@
-use super::{buffer::Buffer, byte, dword, qword, string, word, Package};
+use super::{buffer::Buffer, byte, dword, qword, string, word, Package, VarPackage};
 use crate::{
     parser::{next, Context, Error, Result, Stream},
     String,
@@ -18,6 +18,7 @@ pub(crate) enum DataObject<'a> {
     String(String),
 
     Package(Package<'a>),
+    VarPackage(VarPackage<'a>),
 }
 
 const ZERO_OP: u8 = 0x00;
@@ -29,6 +30,7 @@ const STRING_PREFIX: u8 = 0x0D;
 const QWORD_PREFIX: u8 = 0x0E;
 const BUFFER_OP: u8 = 0x11;
 const PACKAGE_OP: u8 = 0x12;
+const VAR_PACKAGE_OP: u8 = 0x13;
 const ONES_OP: u8 = 0xFF;
 
 impl<'a> DataObject<'a> {
@@ -52,6 +54,8 @@ impl<'a> DataObject<'a> {
             PACKAGE_OP => {
                 Package::parse(stream, context).map(|package| DataObject::Package(package))
             }
+            VAR_PACKAGE_OP => VarPackage::parse(stream, context)
+                .map(|var_package| DataObject::VarPackage(var_package)),
 
             _ => {
                 stream.prev();
@@ -92,6 +96,7 @@ impl<'a> core::fmt::Display for DataObject<'a> {
             DataObject::String(string) => string.fmt(f),
 
             DataObject::Package(package) => package.fmt(f),
+            DataObject::VarPackage(var_package) => var_package.fmt(f),
         }
     }
 }

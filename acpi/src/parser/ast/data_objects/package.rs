@@ -50,7 +50,7 @@ impl<'a> core::fmt::Display for Package<'a> {
 }
 
 impl<'a> PackageElement<'a> {
-    pub(self) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
+    pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Self> {
         if let Some(data_object) = DataObject::parse_opt(stream, context)? {
             return Ok(PackageElement::DataObject(data_object));
         }
