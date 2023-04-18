@@ -1,9 +1,9 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
     Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
-    LGreaterEqual, LLess, LLessEqual, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Not,
-    Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer, ToDecimalString,
-    ToHexString, ToInteger, ToString, Xor,
+    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, MethodInvocation, Mod, Multiply, NAnd,
+    NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer,
+    ToDecimalString, ToHexString, ToInteger, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -28,6 +28,7 @@ pub(crate) enum Expression<'a> {
     LLess(LLess<'a>),
     LLessEqual(LLessEqual<'a>),
     LNot(LNot<'a>),
+    LNotEqual(LNotEqual<'a>),
     LOr(LOr<'a>),
     MethodInvocation(MethodInvocation<'a>),
     Mod(Mod<'a>),
@@ -131,8 +132,9 @@ impl<'a> Expression<'a> {
             LGREATER_OP => LGreater::parse(stream, context).map(|lgreater| Expression::LGreater(lgreater)),
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
             LNOT_OP => match next!(stream, "LNot") {
-                LLESS_OP => LGreaterEqual::parse(stream, context).map(|lgreater_equal| Expression::LGreaterEqual(lgreater_equal)),
+                LEQUAL_OP => LNotEqual::parse(stream, context).map(|lnot_equal| Expression::LNotEqual(lnot_equal)),
                 LGREATER_OP => LLessEqual::parse(stream, context).map(|lless_equal| Expression::LLessEqual(lless_equal)),
+                LLESS_OP => LGreaterEqual::parse(stream, context).map(|lgreater_equal| Expression::LGreaterEqual(lgreater_equal)),
                 _ => {
                     stream.prev();
                     LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot))
@@ -194,6 +196,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LLess(lless) => lless.fmt(f),
             Expression::LLessEqual(lless_equal) => lless_equal.fmt(f),
             Expression::LNot(lnot) => lnot.fmt(f),
+            Expression::LNotEqual(lnot_equal) => lnot_equal.fmt(f),
             Expression::LOr(lor) => lor.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::Mod(r#mod) => r#mod.fmt(f),
