@@ -1,3 +1,4 @@
+mod alias;
 mod create_bit_field;
 mod create_byte_field;
 mod create_dword_field;
@@ -15,6 +16,7 @@ mod scope;
 mod term;
 mod term_list;
 
+pub(crate) use alias::Alias;
 pub(crate) use create_bit_field::CreateBitField;
 pub(crate) use create_byte_field::CreateByteField;
 pub(crate) use create_dword_field::CreateDWordField;

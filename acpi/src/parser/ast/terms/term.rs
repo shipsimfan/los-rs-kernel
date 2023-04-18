@@ -1,5 +1,5 @@
 use super::{
-    CreateBitField, CreateByteField, CreateDWordField, CreateField, CreateQWordField,
+    Alias, CreateBitField, CreateByteField, CreateDWordField, CreateField, CreateQWordField,
     CreateWordField, Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope,
 };
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
 };
 
 pub(crate) enum Term<'a> {
+    Alias(Alias),
     CreateBitField(CreateBitField<'a>),
     CreateByteField(CreateByteField<'a>),
     CreateDWordField(CreateDWordField<'a>),
@@ -26,6 +27,7 @@ pub(crate) enum Term<'a> {
     Statement(Statement<'a>),
 }
 
+const ALIAS_OP: u8 = 0x06;
 const NAME_OP: u8 = 0x08;
 const SCOPE_OP: u8 = 0x10;
 const METHOD_OP: u8 = 0x14;
@@ -47,6 +49,7 @@ const PROCESSOR_OP: u8 = 0x83;
 impl<'a> Term<'a> {
     pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Option<Self>> {
         match next!(stream, "Term") {
+            ALIAS_OP => Alias::parse(stream).map(|alias| Term::Alias(alias)),
             CREATE_BIT_FIELD_OP => CreateBitField::parse(stream, context)
                 .map(|create_bit_field| Term::CreateBitField(create_bit_field)),
             CREATE_BYTE_FIELD_OP => CreateByteField::parse(stream, context)
@@ -96,6 +99,7 @@ impl<'a> Display for Term<'a> {
         newline: bool,
     ) -> core::fmt::Result {
         match self {
+            Term::Alias(alias) => alias.display(f, depth, last, newline),
             Term::CreateBitField(create_bit_field) => {
                 create_bit_field.display(f, depth, last, newline)
             }
