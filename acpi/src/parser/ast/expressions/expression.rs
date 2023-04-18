@@ -1,9 +1,9 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
-    Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
-    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, LoadTable, Match, MethodInvocation,
-    Mid, Mod, Multiply, NAnd, NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store,
-    Subtract, ToBCD, ToBuffer, ToDecimalString, ToHexString, ToInteger, ToString, Xor,
+    Acquire, Add, And, Concat, ConcatRes, CondRefOf, CopyObject, Decrement, Divide, FindSetLeftBit,
+    FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater, LGreaterEqual, LLess, LLessEqual,
+    LNot, LNotEqual, LOr, LoadTable, Match, MethodInvocation, Mid, Mod, Multiply, NAnd, NOr, Not,
+    Or, ReferenceTypeOp, ShiftLeft, ShiftRight, SizeOf, Store, Subtract, Timer, ToBCD, ToBuffer,
+    ToDecimalString, ToHexString, ToInteger, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -46,6 +46,7 @@ pub(crate) enum Expression<'a> {
     SizeOf(SizeOf<'a>),
     Store(Store<'a>),
     Subtract(Subtract<'a>),
+    Timer(Timer),
     ToBCD(ToBCD<'a>),
     ToBuffer(ToBuffer<'a>),
     ToDecimalString(ToDecimalString<'a>),
@@ -98,6 +99,7 @@ const LOAD_TABLE_OP: u8 = 0x1F;
 const ACQUIRE_OP: u8 = 0x23;
 const FROM_BCD: u8 = 0x28;
 const TO_BCD_OP: u8 = 0x29;
+const TIMER_OP: u8 = 0x33;
 
 impl<'a> Expression<'a> {
     pub(in crate::parser::ast) fn parse(
@@ -160,6 +162,7 @@ impl<'a> Expression<'a> {
             SIZE_OF_OP => SizeOf::parse(stream, context).map(|size_of| Expression::SizeOf(size_of)),
             STORE_OP => Store::parse(stream, context).map(|store| Expression::Store(store)),
             SUBTRACT_OP => Subtract::parse(stream, context).map(|subtract| Expression::Subtract(subtract)),
+            TIMER_OP => Ok(Expression::Timer(Timer)),
             TO_BUFFER_OP => ToBuffer::parse(stream, context).map(|to_buffer| Expression::ToBuffer(to_buffer)),
             TO_DECIMAL_STRING_OP => ToDecimalString::parse(stream, context).map(|to_decimal_string| Expression::ToDecimalString(to_decimal_string)),
             TO_HEX_STRING_OP => ToHexString::parse(stream, context).map(|to_hex_string| Expression::ToHexString(to_hex_string)),
@@ -223,6 +226,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::SizeOf(size_of) => size_of.fmt(f),
             Expression::Store(store) => store.fmt(f),
             Expression::Subtract(subtract) => subtract.fmt(f),
+            Expression::Timer(timer) => timer.fmt(f),
             Expression::ToBCD(to_bcd) => to_bcd.fmt(f),
             Expression::ToBuffer(to_buffer) => to_buffer.fmt(f),
             Expression::ToDecimalString(to_decimal_string) => to_decimal_string.fmt(f),
