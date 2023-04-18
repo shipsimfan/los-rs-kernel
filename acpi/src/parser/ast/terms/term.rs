@@ -1,7 +1,7 @@
 use super::{
     Alias, BankField, CreateBitField, CreateByteField, CreateDWordField, CreateField,
-    CreateQWordField, CreateWordField, DataRegion, Device, Field, Method, Mutex, Name, OpRegion,
-    Processor, Scope,
+    CreateQWordField, CreateWordField, DataRegion, Device, External, Field, Method, Mutex, Name,
+    OpRegion, Processor, Scope,
 };
 use crate::{
     impl_core_display_lifetime,
@@ -20,6 +20,7 @@ pub(crate) enum Term<'a> {
     CreateWordField(CreateWordField<'a>),
     DataRegion(DataRegion<'a>),
     Device(Device<'a>),
+    External(External),
     Field(Field),
     Method(Method<'a>),
     Mutex(Mutex),
@@ -34,6 +35,7 @@ const ALIAS_OP: u8 = 0x06;
 const NAME_OP: u8 = 0x08;
 const SCOPE_OP: u8 = 0x10;
 const METHOD_OP: u8 = 0x14;
+const EXTERNAL_OP: u8 = 0x15;
 const CREATE_DWORD_FIELD_OP: u8 = 0x8A;
 const CREATE_WORD_FIELD_OP: u8 = 0x8B;
 const CREATE_BYTE_FIELD_OP: u8 = 0x8C;
@@ -65,6 +67,9 @@ impl<'a> Term<'a> {
                 .map(|create_qword_field| Term::CreateQWordField(create_qword_field)),
             CREATE_WORD_FIELD_OP => CreateWordField::parse(stream, context)
                 .map(|create_word_field| Term::CreateWordField(create_word_field)),
+            EXTERNAL_OP => {
+                External::parse(stream, context).map(|external| Term::External(external))
+            }
             METHOD_OP => Method::parse(stream, context).map(|method| Term::Method(method)),
             NAME_OP => Name::parse(stream, context).map(|name| Term::Name(name)),
             SCOPE_OP => Scope::parse(stream, context).map(|scope| Term::Scope(scope)),
@@ -129,6 +134,7 @@ impl<'a> Display for Term<'a> {
             }
             Term::DataRegion(data_region) => data_region.display(f, depth, last, newline),
             Term::Device(device) => device.display(f, depth, last, newline),
+            Term::External(external) => external.display(f, depth, last, newline),
             Term::Field(field) => field.display(f, depth, last, newline),
             Term::Method(method) => method.display(f, depth, last, newline),
             Term::Mutex(mutex) => mutex.display(f, depth, last, newline),
