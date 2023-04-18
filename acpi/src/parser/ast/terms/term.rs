@@ -1,7 +1,7 @@
 use super::{
     Alias, BankField, CreateBitField, CreateByteField, CreateDWordField, CreateField,
     CreateQWordField, CreateWordField, DataRegion, Device, External, Field, Method, Mutex, Name,
-    OpRegion, Processor, Scope,
+    OpRegion, PowerRes, Processor, Scope,
 };
 use crate::{
     impl_core_display_lifetime,
@@ -26,6 +26,7 @@ pub(crate) enum Term<'a> {
     Mutex(Mutex),
     Name(Name<'a>),
     OpRegion(OpRegion<'a>),
+    PowerRes(PowerRes<'a>),
     Processor(Processor<'a>),
     Scope(Scope<'a>),
     Statement(Statement<'a>),
@@ -50,6 +51,7 @@ const OP_REGION_OP: u8 = 0x80;
 const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
 const PROCESSOR_OP: u8 = 0x83;
+const POWER_RES_OP: u8 = 0x84;
 const BANK_FIELD_OP: u8 = 0x87;
 const DATA_REGION_OP: u8 = 0x88;
 
@@ -86,6 +88,9 @@ impl<'a> Term<'a> {
                 MUTEX_OP => Mutex::parse(stream).map(|mutex| Term::Mutex(mutex)),
                 OP_REGION_OP => {
                     OpRegion::parse(stream, context).map(|op_region| Term::OpRegion(op_region))
+                }
+                POWER_RES_OP => {
+                    PowerRes::parse(stream, context).map(|power_res| Term::PowerRes(power_res))
                 }
                 PROCESSOR_OP => {
                     Processor::parse(stream, context).map(|processor| Term::Processor(processor))
@@ -140,6 +145,7 @@ impl<'a> Display for Term<'a> {
             Term::Mutex(mutex) => mutex.display(f, depth, last, newline),
             Term::Name(name) => name.display(f, depth, last, newline),
             Term::OpRegion(op_region) => op_region.display(f, depth, last, newline),
+            Term::PowerRes(power_res) => power_res.display(f, depth, last, newline),
             Term::Processor(processor) => processor.display(f, depth, last, newline),
             Term::Scope(scope) => scope.display(f, depth, last, newline),
             Term::Statement(statement) => statement.display(f, depth, last, newline),
