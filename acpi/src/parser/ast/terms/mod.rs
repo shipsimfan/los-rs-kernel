@@ -1,4 +1,5 @@
 mod alias;
+mod bank_field;
 mod create_bit_field;
 mod create_byte_field;
 mod create_dword_field;

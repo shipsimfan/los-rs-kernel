@@ -1,6 +1,7 @@
 use super::{
-    Alias, CreateBitField, CreateByteField, CreateDWordField, CreateField, CreateQWordField,
-    CreateWordField, Device, Field, Method, Mutex, Name, OpRegion, Processor, Scope,
+    bank_field::BankField, Alias, CreateBitField, CreateByteField, CreateDWordField, CreateField,
+    CreateQWordField, CreateWordField, Device, Field, Method, Mutex, Name, OpRegion, Processor,
+    Scope,
 };
 use crate::{
     impl_core_display_lifetime,
@@ -10,6 +11,7 @@ use crate::{
 
 pub(crate) enum Term<'a> {
     Alias(Alias),
+    BankField(BankField<'a>),
     CreateBitField(CreateBitField<'a>),
     CreateByteField(CreateByteField<'a>),
     CreateDWordField(CreateDWordField<'a>),
@@ -45,6 +47,7 @@ const OP_REGION_OP: u8 = 0x80;
 const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
 const PROCESSOR_OP: u8 = 0x83;
+const BANK_FIELD_OP: u8 = 0x87;
 
 impl<'a> Term<'a> {
     pub(super) fn parse(stream: &mut Stream<'a>, context: &mut Context) -> Result<Option<Self>> {
@@ -64,6 +67,9 @@ impl<'a> Term<'a> {
             NAME_OP => Name::parse(stream, context).map(|name| Term::Name(name)),
             SCOPE_OP => Scope::parse(stream, context).map(|scope| Term::Scope(scope)),
             EXT_OP_PREFIX => match next!(stream, "Extended Term") {
+                BANK_FIELD_OP => {
+                    BankField::parse(stream, context).map(|bank_field| Term::BankField(bank_field))
+                }
                 CREATE_FIELD_OP => CreateField::parse(stream, context)
                     .map(|create_field| Term::CreateField(create_field)),
                 DEVICE_OP => Device::parse(stream, context).map(|device| Term::Device(device)),
@@ -100,6 +106,7 @@ impl<'a> Display for Term<'a> {
     ) -> core::fmt::Result {
         match self {
             Term::Alias(alias) => alias.display(f, depth, last, newline),
+            Term::BankField(bank_field) => bank_field.display(f, depth, last, newline),
             Term::CreateBitField(create_bit_field) => {
                 create_bit_field.display(f, depth, last, newline)
             }
