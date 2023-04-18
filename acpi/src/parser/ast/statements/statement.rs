@@ -1,4 +1,4 @@
-use super::{Break, BreakPoint, Continue, Fatal, If, NoOp, Notify, Return, While};
+use super::{Break, BreakPoint, Continue, Fatal, If, NoOp, Notify, Release, Return, While};
 use crate::{
     display_prefix, impl_core_display_lifetime,
     parser::{ast::Expression, next, Context, Result, Stream},
@@ -14,6 +14,7 @@ pub(crate) enum Statement<'a> {
     If(If<'a>),
     NoOp(NoOp),
     Notify(Notify<'a>),
+    Release(Release<'a>),
     Return(Return<'a>),
     While(While<'a>),
 }
@@ -29,6 +30,7 @@ const BREAK_POINT_OP: u8 = 0xCC;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
+const RELEASE_OP: u8 = 0x27;
 const FATAL_OP: u8 = 0x32;
 
 impl<'a> Statement<'a> {
@@ -47,6 +49,9 @@ impl<'a> Statement<'a> {
             WHILE_OP => While::parse(stream, context).map(|r#while| Statement::While(r#while)),
             EXT_OP_PREFIX => match next!(stream, "Extended Statement") {
                 FATAL_OP => Fatal::parse(stream, context).map(|fatal| Statement::Fatal(fatal)),
+                RELEASE_OP => {
+                    Release::parse(stream, context).map(|release| Statement::Release(release))
+                }
                 _ => {
                     stream.prev();
                     stream.prev();
@@ -89,6 +94,7 @@ impl<'a> Display for Statement<'a> {
             Statement::If(r#if) => r#if.display(f, depth, last, newline),
             Statement::NoOp(no_op) => no_op.display(f, depth, last, newline),
             Statement::Notify(notify) => notify.display(f, depth, last, newline),
+            Statement::Release(release) => release.display(f, depth, last, newline),
             Statement::Return(r#return) => r#return.display(f, depth, last, newline),
             Statement::While(r#while) => r#while.display(f, depth, last, newline),
         }

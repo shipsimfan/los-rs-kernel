@@ -1,7 +1,7 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Increment, LAnd, LEqual, LGreater, LLess, LNot,
-    LOr, MethodInvocation, Or, ReferenceTypeOp, Release, ShiftLeft, ShiftRight, Store, Subtract,
-    ToBuffer, ToHexString,
+    LOr, MethodInvocation, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer,
+    ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -19,7 +19,6 @@ pub(crate) enum Expression<'a> {
     MethodInvocation(MethodInvocation<'a>),
     Or(Or<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
-    Release(Release<'a>),
     ShiftLeft(ShiftLeft<'a>),
     ShiftRight(ShiftRight<'a>),
     SizeOf(SizeOf<'a>),
@@ -50,7 +49,6 @@ const TO_HEX_STRING_OP: u8 = 0x98;
 const EXT_OP_PREFIX: u8 = 0x5B;
 
 const ACQUIRE_OP: u8 = 0x23;
-const RELEASE_OP: u8 = 0x27;
 
 impl<'a> Expression<'a> {
     pub(in crate::parser::ast) fn parse(
@@ -103,7 +101,6 @@ impl<'a> Expression<'a> {
                 .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
             EXT_OP_PREFIX => match_next!(stream, "Extended Expression",
                 ACQUIRE_OP => Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire)),
-                RELEASE_OP => Release::parse(stream, context).map(|release| Expression::Release(release)),
             ),
             _ => {
                 stream.prev();
@@ -130,7 +127,6 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::Or(or) => or.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
-            Expression::Release(release) => release.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),
             Expression::ShiftRight(shift_right) => shift_right.fmt(f),
             Expression::SizeOf(size_of) => size_of.fmt(f),
