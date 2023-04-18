@@ -1,8 +1,8 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
     Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
-    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, MethodInvocation, Mod, Multiply, NAnd,
-    NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer,
+    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, MethodInvocation, Mid, Mod, Multiply,
+    NAnd, NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer,
     ToDecimalString, ToHexString, ToInteger, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
@@ -31,6 +31,7 @@ pub(crate) enum Expression<'a> {
     LNotEqual(LNotEqual<'a>),
     LOr(LOr<'a>),
     MethodInvocation(MethodInvocation<'a>),
+    Mid(Mid<'a>),
     Mod(Mod<'a>),
     Multiply(Multiply<'a>),
     NAnd(NAnd<'a>),
@@ -85,6 +86,7 @@ const TO_HEX_STRING_OP: u8 = 0x98;
 const TO_INTEGER_OP: u8 = 0x99;
 const TO_STRING_OP: u8 = 0x9C;
 const COPY_OBJECT_OP: u8 = 0x9D;
+const MID_OP: u8 = 0x9E;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
@@ -141,6 +143,7 @@ impl<'a> Expression<'a> {
                 }
             },
             LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
+            MID_OP => Mid::parse(stream, context).map(|mid| Expression::Mid(mid)),
             MOD_OP => Mod::parse(stream, context).map(|r#mod| Expression::Mod(r#mod)),
             MULTIPLY_OP => Multiply::parse(stream, context).map(|multiply| Expression::Multiply(multiply)),
             NAND_OP => NAnd::parse(stream, context).map(|nand| Expression::NAnd(nand)),
@@ -199,6 +202,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LNotEqual(lnot_equal) => lnot_equal.fmt(f),
             Expression::LOr(lor) => lor.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
+            Expression::Mid(mid) => mid.fmt(f),
             Expression::Mod(r#mod) => r#mod.fmt(f),
             Expression::Multiply(multiply) => multiply.fmt(f),
             Expression::NAnd(nand) => nand.fmt(f),
