@@ -1,8 +1,8 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
-    Increment, LAnd, LEqual, LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd,
-    NOr, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString,
-    ToString, Xor,
+    Decrement, Increment, LAnd, LEqual, LGreater, LLess, LNot, LOr, MethodInvocation, Mod,
+    Multiply, NAnd, NOr, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer,
+    ToHexString, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -14,6 +14,7 @@ pub(crate) enum Expression<'a> {
     ConcatRes(ConcatRes<'a>),
     CondRefOf(CondRefOf<'a>),
     CopyObject(CopyObject<'a>),
+    Decrement(Decrement<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -44,6 +45,7 @@ const ADD_OP: u8 = 0x72;
 const CONCAT_OP: u8 = 0x73;
 const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
+const DECREMENT_OP: u8 = 0x76;
 const MULTIPLY_OP: u8 = 0x77;
 const SHIFT_LEFT_OP: u8 = 0x79;
 const SHIFT_RIGHT_OP: u8 = 0x7A;
@@ -101,6 +103,7 @@ impl<'a> Expression<'a> {
             CONCAT_RES_OP => ConcatRes::parse(stream, context).map(|concat_res| Expression::ConcatRes(concat_res)),
             COND_REF_OF_OP => CondRefOf::parse(stream, context).map(|cond_ref_of| Expression::CondRefOf(cond_ref_of)),
             COPY_OBJECT_OP => CopyObject::parse(stream, context).map(|copy_object| Expression::CopyObject(copy_object)),
+            DECREMENT_OP => Decrement::parse(stream, context).map(|decrement| Expression::Decrement(decrement)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -152,6 +155,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::ConcatRes(concat_res) => concat_res.fmt(f),
             Expression::CondRefOf(cond_ref_of) => cond_ref_of.fmt(f),
             Expression::CopyObject(copy_object) => copy_object.fmt(f),
+            Expression::Decrement(decrement) => decrement.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
