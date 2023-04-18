@@ -1,6 +1,6 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
-    Decrement, Increment, LAnd, LEqual, LGreater, LLess, LNot, LOr, MethodInvocation, Mod,
+    Decrement, Divide, Increment, LAnd, LEqual, LGreater, LLess, LNot, LOr, MethodInvocation, Mod,
     Multiply, NAnd, NOr, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer,
     ToHexString, ToString, Xor,
 };
@@ -15,6 +15,7 @@ pub(crate) enum Expression<'a> {
     CondRefOf(CondRefOf<'a>),
     CopyObject(CopyObject<'a>),
     Decrement(Decrement<'a>),
+    Divide(Divide<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -47,6 +48,7 @@ const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
 const DECREMENT_OP: u8 = 0x76;
 const MULTIPLY_OP: u8 = 0x77;
+const DIVIDE_OP: u8 = 0x78;
 const SHIFT_LEFT_OP: u8 = 0x79;
 const SHIFT_RIGHT_OP: u8 = 0x7A;
 const AND_OP: u8 = 0x7B;
@@ -104,6 +106,7 @@ impl<'a> Expression<'a> {
             COND_REF_OF_OP => CondRefOf::parse(stream, context).map(|cond_ref_of| Expression::CondRefOf(cond_ref_of)),
             COPY_OBJECT_OP => CopyObject::parse(stream, context).map(|copy_object| Expression::CopyObject(copy_object)),
             DECREMENT_OP => Decrement::parse(stream, context).map(|decrement| Expression::Decrement(decrement)),
+            DIVIDE_OP => Divide::parse(stream, context).map(|divide| Expression::Divide(divide)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -156,6 +159,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::CondRefOf(cond_ref_of) => cond_ref_of.fmt(f),
             Expression::CopyObject(copy_object) => copy_object.fmt(f),
             Expression::Decrement(decrement) => decrement.fmt(f),
+            Expression::Divide(divide) => divide.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
