@@ -1,7 +1,7 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Concat, Increment, LAnd, LEqual, LGreater, LLess,
-    LNot, LOr, MethodInvocation, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract,
-    ToBuffer, ToHexString,
+    acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, Increment, LAnd, LEqual,
+    LGreater, LLess, LNot, LOr, MethodInvocation, Or, ReferenceTypeOp, ShiftLeft, ShiftRight,
+    Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -10,6 +10,7 @@ pub(crate) enum Expression<'a> {
     Add(Add<'a>),
     And(And<'a>),
     Concat(Concat<'a>),
+    ConcatRes(ConcatRes<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -38,6 +39,7 @@ const SHIFT_LEFT_OP: u8 = 0x79;
 const SHIFT_RIGHT_OP: u8 = 0x7A;
 const AND_OP: u8 = 0x7B;
 const OR_OP: u8 = 0x7D;
+const CONCAT_RES_OP: u8 = 0x84;
 const SIZE_OF_OP: u8 = 0x87;
 const LAND_OP: u8 = 0x90;
 const LOR_OP: u8 = 0x91;
@@ -79,6 +81,7 @@ impl<'a> Expression<'a> {
             ADD_OP => Add::parse(stream, context).map(|add| Expression::Add(add)),
             AND_OP => And::parse(stream, context).map(|and| Expression::And(and)),
             CONCAT_OP => Concat::parse(stream, context).map(|concat| Expression::Concat(concat)),
+            CONCAT_RES_OP => ConcatRes::parse(stream, context).map(|concat_res| Expression::ConcatRes(concat_res)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -121,6 +124,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Add(add) => add.fmt(f),
             Expression::And(and) => and.fmt(f),
             Expression::Concat(concat) => concat.fmt(f),
+            Expression::ConcatRes(concat_res) => concat_res.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
