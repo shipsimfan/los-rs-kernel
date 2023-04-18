@@ -1,9 +1,9 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
     Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
-    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, LoadTable, MethodInvocation, Mid, Mod,
-    Multiply, NAnd, NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD,
-    ToBuffer, ToDecimalString, ToHexString, ToInteger, ToString, Xor,
+    LGreaterEqual, LLess, LLessEqual, LNot, LNotEqual, LOr, LoadTable, Match, MethodInvocation,
+    Mid, Mod, Multiply, NAnd, NOr, Not, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store,
+    Subtract, ToBCD, ToBuffer, ToDecimalString, ToHexString, ToInteger, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -31,6 +31,7 @@ pub(crate) enum Expression<'a> {
     LNotEqual(LNotEqual<'a>),
     LoadTable(LoadTable<'a>),
     LOr(LOr<'a>),
+    Match(Match<'a>),
     MethodInvocation(MethodInvocation<'a>),
     Mid(Mid<'a>),
     Mod(Mod<'a>),
@@ -75,6 +76,7 @@ const FIND_SET_RIGHT_BIT_OP: u8 = 0x82;
 const CONCAT_RES_OP: u8 = 0x84;
 const MOD_OP: u8 = 0x85;
 const SIZE_OF_OP: u8 = 0x87;
+const MATCH_OP: u8 = 0x89;
 const LAND_OP: u8 = 0x90;
 const LOR_OP: u8 = 0x91;
 const LNOT_OP: u8 = 0x92;
@@ -145,6 +147,7 @@ impl<'a> Expression<'a> {
                 }
             },
             LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
+            MATCH_OP => Match::parse(stream, context).map(|r#match| Expression::Match(r#match)),
             MID_OP => Mid::parse(stream, context).map(|mid| Expression::Mid(mid)),
             MOD_OP => Mod::parse(stream, context).map(|r#mod| Expression::Mod(r#mod)),
             MULTIPLY_OP => Multiply::parse(stream, context).map(|multiply| Expression::Multiply(multiply)),
@@ -205,6 +208,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LNotEqual(lnot_equal) => lnot_equal.fmt(f),
             Expression::LoadTable(load_table) => load_table.fmt(f),
             Expression::LOr(lor) => lor.fmt(f),
+            Expression::Match(r#match) => r#match.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::Mid(mid) => mid.fmt(f),
             Expression::Mod(r#mod) => r#mod.fmt(f),
