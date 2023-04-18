@@ -1,7 +1,7 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, Increment, LAnd, LEqual,
     LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp,
-    ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString,
+    ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -32,6 +32,7 @@ pub(crate) enum Expression<'a> {
     Subtract(Subtract<'a>),
     ToBuffer(ToBuffer<'a>),
     ToHexString(ToHexString<'a>),
+    ToString(ToString<'a>),
 }
 
 const STORE_OP: u8 = 0x70;
@@ -57,6 +58,7 @@ const LGREATER_OP: u8 = 0x94;
 const LLESS_OP: u8 = 0x95;
 const TO_BUFFER_OP: u8 = 0x96;
 const TO_HEX_STRING_OP: u8 = 0x98;
+const TO_STRING_OP: u8 = 0x9C;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
@@ -117,6 +119,7 @@ impl<'a> Expression<'a> {
             }
             TO_HEX_STRING_OP => ToHexString::parse(stream, context)
                 .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
+            TO_STRING_OP => ToString::parse(stream, context).map(|to_string| Expression::ToString(to_string)),
             EXT_OP_PREFIX => match_next!(stream, "Extended Expression",
                 ACQUIRE_OP => Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire)),
             ),
@@ -158,6 +161,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Subtract(subtract) => subtract.fmt(f),
             Expression::ToBuffer(to_buffer) => to_buffer.fmt(f),
             Expression::ToHexString(to_hex_string) => to_hex_string.fmt(f),
+            Expression::ToString(to_string) => to_string.fmt(f),
         }
     }
 }
