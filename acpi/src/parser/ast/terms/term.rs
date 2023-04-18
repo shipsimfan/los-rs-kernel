@@ -1,7 +1,7 @@
 use super::{
     Alias, BankField, CreateBitField, CreateByteField, CreateDWordField, CreateField,
     CreateQWordField, CreateWordField, DataRegion, Device, External, Field, Method, Mutex, Name,
-    OpRegion, PowerRes, Processor, Scope,
+    OpRegion, PowerRes, Processor, Scope, ThermalZone,
 };
 use crate::{
     impl_core_display_lifetime,
@@ -30,6 +30,7 @@ pub(crate) enum Term<'a> {
     Processor(Processor<'a>),
     Scope(Scope<'a>),
     Statement(Statement<'a>),
+    ThermalZone(ThermalZone<'a>),
 }
 
 const ALIAS_OP: u8 = 0x06;
@@ -52,6 +53,7 @@ const FIELD_OP: u8 = 0x81;
 const DEVICE_OP: u8 = 0x82;
 const PROCESSOR_OP: u8 = 0x83;
 const POWER_RES_OP: u8 = 0x84;
+const THERMAL_ZONE_OP: u8 = 0x85;
 const BANK_FIELD_OP: u8 = 0x87;
 const DATA_REGION_OP: u8 = 0x88;
 
@@ -95,6 +97,8 @@ impl<'a> Term<'a> {
                 PROCESSOR_OP => {
                     Processor::parse(stream, context).map(|processor| Term::Processor(processor))
                 }
+                THERMAL_ZONE_OP => ThermalZone::parse(stream, context)
+                    .map(|thermal_zone| Term::ThermalZone(thermal_zone)),
                 _ => {
                     stream.prev();
                     stream.prev();
@@ -149,6 +153,7 @@ impl<'a> Display for Term<'a> {
             Term::Processor(processor) => processor.display(f, depth, last, newline),
             Term::Scope(scope) => scope.display(f, depth, last, newline),
             Term::Statement(statement) => statement.display(f, depth, last, newline),
+            Term::ThermalZone(thermal_zone) => thermal_zone.display(f, depth, last, newline),
         }
     }
 }

@@ -19,6 +19,7 @@ mod processor;
 mod scope;
 mod term;
 mod term_list;
+mod thermal_zone;
 
 pub(crate) use alias::Alias;
 pub(crate) use bank_field::BankField;
@@ -41,3 +42,4 @@ pub(crate) use processor::Processor;
 pub(crate) use scope::Scope;
 pub(crate) use term::Term;
 pub(crate) use term_list::TermList;
+pub(crate) use thermal_zone::ThermalZone;
