@@ -10,6 +10,7 @@ mod release;
 mod reset;
 mod r#return;
 mod signal;
+mod sleep;
 mod statement;
 mod r#while;
 
@@ -25,4 +26,5 @@ pub(crate) use r#while::While;
 pub(crate) use release::Release;
 pub(crate) use reset::Reset;
 pub(crate) use signal::Signal;
+pub(crate) use sleep::Sleep;
 pub(crate) use statement::Statement;
