@@ -1,8 +1,8 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
     Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
-    LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp, ShiftLeft,
-    ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
+    LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Not, Or, ReferenceTypeOp,
+    ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -31,6 +31,7 @@ pub(crate) enum Expression<'a> {
     Multiply(Multiply<'a>),
     NAnd(NAnd<'a>),
     NOr(NOr<'a>),
+    Not(Not<'a>),
     Or(Or<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     ShiftLeft(ShiftLeft<'a>),
@@ -59,6 +60,7 @@ const NAND_OP: u8 = 0x7C;
 const OR_OP: u8 = 0x7D;
 const NOR_OP: u8 = 0x7E;
 const XOR_OP: u8 = 0x7F;
+const NOT_OP: u8 = 0x80;
 const FIND_SET_LEFT_BIT_OP: u8 = 0x81;
 const FIND_SET_RIGHT_BIT_OP: u8 = 0x82;
 const CONCAT_RES_OP: u8 = 0x84;
@@ -127,6 +129,7 @@ impl<'a> Expression<'a> {
             MULTIPLY_OP => Multiply::parse(stream, context).map(|multiply| Expression::Multiply(multiply)),
             NAND_OP => NAnd::parse(stream, context).map(|nand| Expression::NAnd(nand)),
             NOR_OP => NOr::parse(stream, context).map(|nor| Expression::NOr(nor)),
+            NOT_OP => Not::parse(stream, context).map(|not| Expression::Not(not)),
             OR_OP => Or::parse(stream, context).map(|or| Expression::Or(or)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context).map(|shift_left| Expression::ShiftLeft(shift_left)),
             SHIFT_RIGHT_OP => ShiftRight::parse(stream, context).map(|shift_right| Expression::ShiftRight(shift_right)),
@@ -176,6 +179,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Multiply(multiply) => multiply.fmt(f),
             Expression::NAnd(nand) => nand.fmt(f),
             Expression::NOr(nor) => nor.fmt(f),
+            Expression::Not(not) => not.fmt(f),
             Expression::Or(or) => or.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),
