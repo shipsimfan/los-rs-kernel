@@ -1,6 +1,6 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, Increment, LAnd, LEqual,
-    LGreater, LLess, LNot, LOr, MethodInvocation, Or, ReferenceTypeOp, ShiftLeft, ShiftRight,
+    LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Or, ReferenceTypeOp, ShiftLeft, ShiftRight,
     Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
@@ -19,6 +19,7 @@ pub(crate) enum Expression<'a> {
     LNot(LNot<'a>),
     LOr(LOr<'a>),
     MethodInvocation(MethodInvocation<'a>),
+    Mod(Mod<'a>),
     Or(Or<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     ShiftLeft(ShiftLeft<'a>),
@@ -40,6 +41,7 @@ const SHIFT_RIGHT_OP: u8 = 0x7A;
 const AND_OP: u8 = 0x7B;
 const OR_OP: u8 = 0x7D;
 const CONCAT_RES_OP: u8 = 0x84;
+const MOD_OP: u8 = 0x85;
 const SIZE_OF_OP: u8 = 0x87;
 const LAND_OP: u8 = 0x90;
 const LOR_OP: u8 = 0x91;
@@ -91,6 +93,7 @@ impl<'a> Expression<'a> {
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
             LNOT_OP => LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot)),
             LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
+            MOD_OP => Mod::parse(stream, context).map(|r#mod| Expression::Mod(r#mod)),
             OR_OP => Or::parse(stream, context).map(|or| Expression::Or(or)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
                 .map(|shift_left| Expression::ShiftLeft(shift_left)),
@@ -133,6 +136,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LNot(lnot) => lnot.fmt(f),
             Expression::LOr(lor) => lor.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
+            Expression::Mod(r#mod) => r#mod.fmt(f),
             Expression::Or(or) => or.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),
