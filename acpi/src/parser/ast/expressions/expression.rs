@@ -1,8 +1,8 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
-    Decrement, Divide, FindSetLeftBit, Increment, LAnd, LEqual, LGreater, LLess, LNot, LOr,
-    MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store,
-    Subtract, ToBuffer, ToHexString, ToString, Xor,
+    Decrement, Divide, FindSetLeftBit, FindSetRightBit, Increment, LAnd, LEqual, LGreater, LLess,
+    LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp, ShiftLeft,
+    ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -17,6 +17,7 @@ pub(crate) enum Expression<'a> {
     Decrement(Decrement<'a>),
     Divide(Divide<'a>),
     FindSetLeftBit(FindSetLeftBit<'a>),
+    FindSetRightBit(FindSetRightBit<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -57,7 +58,8 @@ const NAND_OP: u8 = 0x7C;
 const OR_OP: u8 = 0x7D;
 const NOR_OP: u8 = 0x7E;
 const XOR_OP: u8 = 0x7F;
-const FIND_SET_LEFT_BIT: u8 = 0x81;
+const FIND_SET_LEFT_BIT_OP: u8 = 0x81;
+const FIND_SET_RIGHT_BIT_OP: u8 = 0x82;
 const CONCAT_RES_OP: u8 = 0x84;
 const MOD_OP: u8 = 0x85;
 const SIZE_OF_OP: u8 = 0x87;
@@ -109,7 +111,8 @@ impl<'a> Expression<'a> {
             COPY_OBJECT_OP => CopyObject::parse(stream, context).map(|copy_object| Expression::CopyObject(copy_object)),
             DECREMENT_OP => Decrement::parse(stream, context).map(|decrement| Expression::Decrement(decrement)),
             DIVIDE_OP => Divide::parse(stream, context).map(|divide| Expression::Divide(divide)),
-            FIND_SET_LEFT_BIT => FindSetLeftBit::parse(stream, context).map(|find_set_left_bit| Expression::FindSetLeftBit(find_set_left_bit)),
+            FIND_SET_LEFT_BIT_OP => FindSetLeftBit::parse(stream, context).map(|find_set_left_bit| Expression::FindSetLeftBit(find_set_left_bit)),
+            FIND_SET_RIGHT_BIT_OP => FindSetRightBit::parse(stream, context).map(|find_set_left_bit| Expression::FindSetRightBit(find_set_left_bit)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -164,6 +167,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Decrement(decrement) => decrement.fmt(f),
             Expression::Divide(divide) => divide.fmt(f),
             Expression::FindSetLeftBit(find_set_left_bit) => find_set_left_bit.fmt(f),
+            Expression::FindSetRightBit(find_set_right_bit) => find_set_right_bit.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
