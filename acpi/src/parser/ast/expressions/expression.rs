@@ -3,7 +3,7 @@ use super::{
     FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater, LGreaterEqual, LLess, LLessEqual,
     LNot, LNotEqual, LOr, LoadTable, Match, MethodInvocation, Mid, Mod, Multiply, NAnd, NOr, Not,
     Or, ReferenceTypeOp, ShiftLeft, ShiftRight, SizeOf, Store, Subtract, Timer, ToBCD, ToBuffer,
-    ToDecimalString, ToHexString, ToInteger, ToString, Xor,
+    ToDecimalString, ToHexString, ToInteger, ToString, Wait, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -53,6 +53,7 @@ pub(crate) enum Expression<'a> {
     ToHexString(ToHexString<'a>),
     ToInteger(ToInteger<'a>),
     ToString(ToString<'a>),
+    Wait(Wait<'a>),
     Xor(Xor<'a>),
 }
 
@@ -97,6 +98,7 @@ const EXT_OP_PREFIX: u8 = 0x5B;
 const COND_REF_OF_OP: u8 = 0x12;
 const LOAD_TABLE_OP: u8 = 0x1F;
 const ACQUIRE_OP: u8 = 0x23;
+const WAIT_OP: u8 = 0x25;
 const FROM_BCD: u8 = 0x28;
 const TO_BCD_OP: u8 = 0x29;
 const TIMER_OP: u8 = 0x33;
@@ -168,6 +170,7 @@ impl<'a> Expression<'a> {
             TO_HEX_STRING_OP => ToHexString::parse(stream, context).map(|to_hex_string| Expression::ToHexString(to_hex_string)),
             TO_INTEGER_OP => ToInteger::parse(stream, context).map(|to_integer| Expression::ToInteger(to_integer)),
             TO_STRING_OP => ToString::parse(stream, context).map(|to_string| Expression::ToString(to_string)),
+            WAIT_OP => Wait::parse(stream, context).map(|wait| Expression::Wait(wait)),
             XOR_OP => Xor::parse(stream, context).map(|xor| Expression::Xor(xor)),
             EXT_OP_PREFIX => match_next!(stream, "Extended Expression",
                 ACQUIRE_OP => Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire)),
@@ -233,6 +236,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::ToHexString(to_hex_string) => to_hex_string.fmt(f),
             Expression::ToInteger(to_integer) => to_integer.fmt(f),
             Expression::ToString(to_string) => to_string.fmt(f),
+            Expression::Wait(wait) => wait.fmt(f),
             Expression::Xor(xor) => xor.fmt(f),
         }
     }
