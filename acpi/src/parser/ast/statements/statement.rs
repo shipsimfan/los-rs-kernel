@@ -1,6 +1,6 @@
 use super::{
     Break, BreakPoint, Continue, Fatal, If, NoOp, Notify, Release, Reset, Return, Signal, Sleep,
-    While,
+    Stall, While,
 };
 use crate::{
     display_prefix, impl_core_display_lifetime,
@@ -19,6 +19,7 @@ pub(crate) enum Statement<'a> {
     Notify(Notify<'a>),
     Signal(Signal<'a>),
     Sleep(Sleep<'a>),
+    Stall(Stall<'a>),
     Release(Release<'a>),
     Reset(Reset<'a>),
     Return(Return<'a>),
@@ -36,6 +37,7 @@ const BREAK_POINT_OP: u8 = 0xCC;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
+const STALL_OP: u8 = 0x21;
 const SLEEP_OP: u8 = 0x22;
 const SIGNAL_OP: u8 = 0x24;
 const RESET_OP: u8 = 0x26;
@@ -60,6 +62,7 @@ impl<'a> Statement<'a> {
                 FATAL_OP => Fatal::parse(stream, context).map(|fatal| Statement::Fatal(fatal)),
                 SIGNAL_OP => Signal::parse(stream, context).map(|signal| Statement::Signal(signal)),
                 SLEEP_OP => Sleep::parse(stream, context).map(|sleep| Statement::Sleep(sleep)),
+                STALL_OP => Stall::parse(stream, context).map(|stall| Statement::Stall(stall)),
                 RELEASE_OP => {
                     Release::parse(stream, context).map(|release| Statement::Release(release))
                 }
@@ -108,6 +111,7 @@ impl<'a> Display for Statement<'a> {
             Statement::Notify(notify) => notify.display(f, depth, last, newline),
             Statement::Signal(signal) => signal.display(f, depth, last, newline),
             Statement::Sleep(sleep) => sleep.display(f, depth, last, newline),
+            Statement::Stall(stall) => stall.display(f, depth, last, newline),
             Statement::Release(release) => release.display(f, depth, last, newline),
             Statement::Reset(reset) => reset.display(f, depth, last, newline),
             Statement::Return(r#return) => r#return.display(f, depth, last, newline),
