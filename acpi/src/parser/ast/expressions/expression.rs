@@ -1,7 +1,8 @@
 use super::{
-    acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, Increment, LAnd,
-    LEqual, LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or,
-    ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
+    acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
+    Increment, LAnd, LEqual, LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd,
+    NOr, Or, ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString,
+    ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -12,6 +13,7 @@ pub(crate) enum Expression<'a> {
     Concat(Concat<'a>),
     ConcatRes(ConcatRes<'a>),
     CondRefOf(CondRefOf<'a>),
+    CopyObject(CopyObject<'a>),
     Increment(Increment<'a>),
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
@@ -62,6 +64,7 @@ const LLESS_OP: u8 = 0x95;
 const TO_BUFFER_OP: u8 = 0x96;
 const TO_HEX_STRING_OP: u8 = 0x98;
 const TO_STRING_OP: u8 = 0x9C;
+const COPY_OBJECT_OP: u8 = 0x9D;
 
 const EXT_OP_PREFIX: u8 = 0x5B;
 
@@ -97,6 +100,7 @@ impl<'a> Expression<'a> {
             CONCAT_OP => Concat::parse(stream, context).map(|concat| Expression::Concat(concat)),
             CONCAT_RES_OP => ConcatRes::parse(stream, context).map(|concat_res| Expression::ConcatRes(concat_res)),
             COND_REF_OF_OP => CondRefOf::parse(stream, context).map(|cond_ref_of| Expression::CondRefOf(cond_ref_of)),
+            COPY_OBJECT_OP => CopyObject::parse(stream, context).map(|copy_object| Expression::CopyObject(copy_object)),
             INCREMENT_OP => {
                 Increment::parse(stream, context).map(|increment| Expression::Increment(increment))
             }
@@ -147,6 +151,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::Concat(concat) => concat.fmt(f),
             Expression::ConcatRes(concat_res) => concat_res.fmt(f),
             Expression::CondRefOf(cond_ref_of) => cond_ref_of.fmt(f),
+            Expression::CopyObject(copy_object) => copy_object.fmt(f),
             Expression::Increment(increment) => increment.fmt(f),
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
