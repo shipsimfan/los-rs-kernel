@@ -1,7 +1,7 @@
 use super::{
     Alias, BankField, CreateBitField, CreateByteField, CreateDWordField, CreateField,
-    CreateQWordField, CreateWordField, DataRegion, Device, External, Field, Method, Mutex, Name,
-    OpRegion, PowerRes, Processor, Scope, ThermalZone,
+    CreateQWordField, CreateWordField, DataRegion, Device, External, Field, IndexField, Method,
+    Mutex, Name, OpRegion, PowerRes, Processor, Scope, ThermalZone,
 };
 use crate::{
     impl_core_display_lifetime,
@@ -22,6 +22,7 @@ pub(crate) enum Term<'a> {
     Device(Device<'a>),
     External(External),
     Field(Field),
+    IndexField(IndexField),
     Method(Method<'a>),
     Mutex(Mutex),
     Name(Name<'a>),
@@ -54,6 +55,7 @@ const DEVICE_OP: u8 = 0x82;
 const PROCESSOR_OP: u8 = 0x83;
 const POWER_RES_OP: u8 = 0x84;
 const THERMAL_ZONE_OP: u8 = 0x85;
+const INDEX_FIELD_OP: u8 = 0x86;
 const BANK_FIELD_OP: u8 = 0x87;
 const DATA_REGION_OP: u8 = 0x88;
 
@@ -87,6 +89,9 @@ impl<'a> Term<'a> {
                     .map(|data_region| Term::DataRegion(data_region)),
                 DEVICE_OP => Device::parse(stream, context).map(|device| Term::Device(device)),
                 FIELD_OP => Field::parse(stream).map(|field| Term::Field(field)),
+                INDEX_FIELD_OP => {
+                    IndexField::parse(stream).map(|index_field| Term::IndexField(index_field))
+                }
                 MUTEX_OP => Mutex::parse(stream).map(|mutex| Term::Mutex(mutex)),
                 OP_REGION_OP => {
                     OpRegion::parse(stream, context).map(|op_region| Term::OpRegion(op_region))
@@ -145,6 +150,7 @@ impl<'a> Display for Term<'a> {
             Term::Device(device) => device.display(f, depth, last, newline),
             Term::External(external) => external.display(f, depth, last, newline),
             Term::Field(field) => field.display(f, depth, last, newline),
+            Term::IndexField(index_field) => index_field.display(f, depth, last, newline),
             Term::Method(method) => method.display(f, depth, last, newline),
             Term::Mutex(mutex) => mutex.display(f, depth, last, newline),
             Term::Name(name) => name.display(f, depth, last, newline),
