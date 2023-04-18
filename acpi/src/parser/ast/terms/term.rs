@@ -1,7 +1,7 @@
 use super::{
     Alias, BankField, CreateBitField, CreateByteField, CreateDWordField, CreateField,
-    CreateQWordField, CreateWordField, DataRegion, Device, External, Field, IndexField, Method,
-    Mutex, Name, OpRegion, PowerRes, Processor, Scope, ThermalZone,
+    CreateQWordField, CreateWordField, DataRegion, Device, Event, External, Field, IndexField,
+    Method, Mutex, Name, OpRegion, PowerRes, Processor, Scope, ThermalZone,
 };
 use crate::{
     impl_core_display_lifetime,
@@ -20,6 +20,7 @@ pub(crate) enum Term<'a> {
     CreateWordField(CreateWordField<'a>),
     DataRegion(DataRegion<'a>),
     Device(Device<'a>),
+    Event(Event),
     External(External),
     Field(Field),
     IndexField(IndexField),
@@ -48,6 +49,7 @@ const CREATE_QWORD_FIELD_OP: u8 = 0x8F;
 const EXT_OP_PREFIX: u8 = 0x5B;
 
 const MUTEX_OP: u8 = 0x01;
+const EVENT_OP: u8 = 0x02;
 const CREATE_FIELD_OP: u8 = 0x13;
 const OP_REGION_OP: u8 = 0x80;
 const FIELD_OP: u8 = 0x81;
@@ -88,6 +90,7 @@ impl<'a> Term<'a> {
                 DATA_REGION_OP => DataRegion::parse(stream, context)
                     .map(|data_region| Term::DataRegion(data_region)),
                 DEVICE_OP => Device::parse(stream, context).map(|device| Term::Device(device)),
+                EVENT_OP => Event::parse(stream).map(|event| Term::Event(event)),
                 FIELD_OP => Field::parse(stream).map(|field| Term::Field(field)),
                 INDEX_FIELD_OP => {
                     IndexField::parse(stream).map(|index_field| Term::IndexField(index_field))
@@ -148,6 +151,7 @@ impl<'a> Display for Term<'a> {
             }
             Term::DataRegion(data_region) => data_region.display(f, depth, last, newline),
             Term::Device(device) => device.display(f, depth, last, newline),
+            Term::Event(event) => event.display(f, depth, last, newline),
             Term::External(external) => external.display(f, depth, last, newline),
             Term::Field(field) => field.display(f, depth, last, newline),
             Term::IndexField(index_field) => index_field.display(f, depth, last, newline),
