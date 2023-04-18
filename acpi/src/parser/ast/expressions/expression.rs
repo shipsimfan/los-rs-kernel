@@ -1,9 +1,9 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, CondRefOf, CopyObject,
     Decrement, Divide, FindSetLeftBit, FindSetRightBit, FromBCD, Increment, LAnd, LEqual, LGreater,
-    LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Not, Or, ReferenceTypeOp,
-    ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer, ToDecimalString, ToHexString,
-    ToInteger, ToString, Xor,
+    LGreaterEqual, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Not, Or,
+    ReferenceTypeOp, ShiftLeft, ShiftRight, Store, Subtract, ToBCD, ToBuffer, ToDecimalString,
+    ToHexString, ToInteger, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -24,6 +24,7 @@ pub(crate) enum Expression<'a> {
     LAnd(LAnd<'a>),
     LEqual(LEqual<'a>),
     LGreater(LGreater<'a>),
+    LGreaterEqual(LGreaterEqual<'a>),
     LLess(LLess<'a>),
     LNot(LNot<'a>),
     LOr(LOr<'a>),
@@ -128,7 +129,13 @@ impl<'a> Expression<'a> {
             LEQUAL_OP => LEqual::parse(stream, context).map(|lequal| Expression::LEqual(lequal)),
             LGREATER_OP => LGreater::parse(stream, context).map(|lgreater| Expression::LGreater(lgreater)),
             LLESS_OP => LLess::parse(stream, context).map(|lless| Expression::LLess(lless)),
-            LNOT_OP => LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot)),
+            LNOT_OP => match next!(stream, "LNot") {
+                LLESS_OP => LGreaterEqual::parse(stream, context).map(|lgreater_equal| Expression::LGreaterEqual(lgreater_equal)),
+                _ => {
+                    stream.prev();
+                    LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot))
+                }
+            },
             LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
             MOD_OP => Mod::parse(stream, context).map(|r#mod| Expression::Mod(r#mod)),
             MULTIPLY_OP => Multiply::parse(stream, context).map(|multiply| Expression::Multiply(multiply)),
@@ -181,6 +188,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LAnd(land) => land.fmt(f),
             Expression::LEqual(lequal) => lequal.fmt(f),
             Expression::LGreater(lgreator) => lgreator.fmt(f),
+            Expression::LGreaterEqual(lgreater_equal) => lgreater_equal.fmt(f),
             Expression::LLess(lless) => lless.fmt(f),
             Expression::LNot(lnot) => lnot.fmt(f),
             Expression::LOr(lor) => lor.fmt(f),
