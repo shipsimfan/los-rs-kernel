@@ -3,12 +3,14 @@ mod break_point;
 mod r#continue;
 mod r#else;
 mod r#if;
+mod no_op;
 mod notify;
 mod r#return;
 mod statement;
 mod r#while;
 
 pub(crate) use break_point::BreakPoint;
+pub(crate) use no_op::NoOp;
 pub(crate) use notify::Notify;
 pub(crate) use r#break::Break;
 pub(crate) use r#continue::Continue;

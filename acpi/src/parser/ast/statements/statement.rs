@@ -1,4 +1,4 @@
-use super::{Break, BreakPoint, Continue, If, Notify, Return, While};
+use super::{Break, BreakPoint, Continue, If, NoOp, Notify, Return, While};
 use crate::{
     display_prefix, impl_core_display_lifetime,
     parser::{ast::Expression, next, Context, Result, Stream},
@@ -11,6 +11,7 @@ pub(crate) enum Statement<'a> {
     Continue(Continue),
     Expression(Expression<'a>),
     If(If<'a>),
+    NoOp(NoOp),
     Notify(Notify<'a>),
     Return(Return<'a>),
     While(While<'a>),
@@ -20,6 +21,7 @@ const NOTIFY_OP: u8 = 0x86;
 const CONTINUE_OP: u8 = 0x9F;
 const IF_OP: u8 = 0xA0;
 const WHILE_OP: u8 = 0xA2;
+const NO_OP_OP: u8 = 0xA3;
 const RETURN_OP: u8 = 0xA4;
 const BREAK_OP: u8 = 0xA5;
 const BREAK_POINT_OP: u8 = 0xCC;
@@ -34,6 +36,7 @@ impl<'a> Statement<'a> {
             BREAK_POINT_OP => Ok(Statement::BreakPoint(BreakPoint)),
             CONTINUE_OP => Ok(Statement::Continue(Continue)),
             IF_OP => If::parse(stream, context).map(|r#if| Statement::If(r#if)),
+            NO_OP_OP => Ok(Statement::NoOp(NoOp)),
             NOTIFY_OP => Notify::parse(stream, context).map(|notify| Statement::Notify(notify)),
             RETURN_OP => Return::parse(stream, context).map(|r#return| Statement::Return(r#return)),
             WHILE_OP => While::parse(stream, context).map(|r#while| Statement::While(r#while)),
@@ -69,6 +72,7 @@ impl<'a> Display for Statement<'a> {
                 }
             }
             Statement::If(r#if) => r#if.display(f, depth, last, newline),
+            Statement::NoOp(no_op) => no_op.display(f, depth, last, newline),
             Statement::Notify(notify) => notify.display(f, depth, last, newline),
             Statement::Return(r#return) => r#return.display(f, depth, last, newline),
             Statement::While(r#while) => r#while.display(f, depth, last, newline),
