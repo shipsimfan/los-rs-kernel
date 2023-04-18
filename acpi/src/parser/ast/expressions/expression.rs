@@ -1,7 +1,7 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, Increment, LAnd, LEqual,
-    LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Or, ReferenceTypeOp, ShiftLeft, ShiftRight,
-    Store, Subtract, ToBuffer, ToHexString,
+    LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, Or, ReferenceTypeOp, ShiftLeft,
+    ShiftRight, Store, Subtract, ToBuffer, ToHexString,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -20,6 +20,7 @@ pub(crate) enum Expression<'a> {
     LOr(LOr<'a>),
     MethodInvocation(MethodInvocation<'a>),
     Mod(Mod<'a>),
+    Multiply(Multiply<'a>),
     Or(Or<'a>),
     ReferenceTypeOp(ReferenceTypeOp<'a>),
     ShiftLeft(ShiftLeft<'a>),
@@ -36,6 +37,7 @@ const ADD_OP: u8 = 0x72;
 const CONCAT_OP: u8 = 0x73;
 const SUBTRACT_OP: u8 = 0x74;
 const INCREMENT_OP: u8 = 0x75;
+const MULTIPLY_OP: u8 = 0x77;
 const SHIFT_LEFT_OP: u8 = 0x79;
 const SHIFT_RIGHT_OP: u8 = 0x7A;
 const AND_OP: u8 = 0x7B;
@@ -94,6 +96,7 @@ impl<'a> Expression<'a> {
             LNOT_OP => LNot::parse(stream, context).map(|lnot| Expression::LNot(lnot)),
             LOR_OP => LOr::parse(stream, context).map(|lor| Expression::LOr(lor)),
             MOD_OP => Mod::parse(stream, context).map(|r#mod| Expression::Mod(r#mod)),
+            MULTIPLY_OP => Multiply::parse(stream, context).map(|multiply| Expression::Multiply(multiply)),
             OR_OP => Or::parse(stream, context).map(|or| Expression::Or(or)),
             SHIFT_LEFT_OP => ShiftLeft::parse(stream, context)
                 .map(|shift_left| Expression::ShiftLeft(shift_left)),
@@ -137,6 +140,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::LOr(lor) => lor.fmt(f),
             Expression::MethodInvocation(method_invocation) => method_invocation.fmt(f),
             Expression::Mod(r#mod) => r#mod.fmt(f),
+            Expression::Multiply(multiply) => multiply.fmt(f),
             Expression::Or(or) => or.fmt(f),
             Expression::ReferenceTypeOp(reference_type_op) => reference_type_op.fmt(f),
             Expression::ShiftLeft(shift_left) => shift_left.fmt(f),
