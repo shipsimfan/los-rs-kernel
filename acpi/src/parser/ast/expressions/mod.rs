@@ -29,6 +29,7 @@ mod subtract;
 mod to_buffer;
 mod to_hex_string;
 mod to_string;
+mod xor;
 
 pub(crate) use add::Add;
 pub(crate) use and::And;
@@ -58,3 +59,4 @@ pub(crate) use subtract::Subtract;
 pub(crate) use to_buffer::ToBuffer;
 pub(crate) use to_hex_string::ToHexString;
 pub(crate) use to_string::ToString;
+pub(crate) use xor::Xor;

@@ -1,7 +1,7 @@
 use super::{
     acquire::Acquire, size_of::SizeOf, Add, And, Concat, ConcatRes, Increment, LAnd, LEqual,
     LGreater, LLess, LNot, LOr, MethodInvocation, Mod, Multiply, NAnd, NOr, Or, ReferenceTypeOp,
-    ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString,
+    ShiftLeft, ShiftRight, Store, Subtract, ToBuffer, ToHexString, ToString, Xor,
 };
 use crate::parser::{match_next, next, Context, Error, Result, Stream};
 
@@ -33,6 +33,7 @@ pub(crate) enum Expression<'a> {
     ToBuffer(ToBuffer<'a>),
     ToHexString(ToHexString<'a>),
     ToString(ToString<'a>),
+    Xor(Xor<'a>),
 }
 
 const STORE_OP: u8 = 0x70;
@@ -47,6 +48,7 @@ const AND_OP: u8 = 0x7B;
 const NAND_OP: u8 = 0x7C;
 const OR_OP: u8 = 0x7D;
 const NOR_OP: u8 = 0x7E;
+const XOR_OP: u8 = 0x7F;
 const CONCAT_RES_OP: u8 = 0x84;
 const MOD_OP: u8 = 0x85;
 const SIZE_OF_OP: u8 = 0x87;
@@ -120,6 +122,7 @@ impl<'a> Expression<'a> {
             TO_HEX_STRING_OP => ToHexString::parse(stream, context)
                 .map(|to_hex_string| Expression::ToHexString(to_hex_string)),
             TO_STRING_OP => ToString::parse(stream, context).map(|to_string| Expression::ToString(to_string)),
+            XOR_OP => Xor::parse(stream, context).map(|xor| Expression::Xor(xor)),
             EXT_OP_PREFIX => match_next!(stream, "Extended Expression",
                 ACQUIRE_OP => Acquire::parse(stream, context).map(|acquire| Expression::Acquire(acquire)),
             ),
@@ -162,6 +165,7 @@ impl<'a> core::fmt::Display for Expression<'a> {
             Expression::ToBuffer(to_buffer) => to_buffer.fmt(f),
             Expression::ToHexString(to_hex_string) => to_hex_string.fmt(f),
             Expression::ToString(to_string) => to_string.fmt(f),
+            Expression::Xor(xor) => xor.fmt(f),
         }
     }
 }
