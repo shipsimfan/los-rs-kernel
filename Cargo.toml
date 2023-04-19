@@ -1,10 +1,9 @@
 [workspace]
 default-members = ["init"]
 
-members = ["base", "global_state", "init", "uefi", "acpi"]
+members = ["base", "init", "uefi", "acpi"]
 
 [workspace.dependencies]
 base = { path = "./base" }
-global_state = { path = "./global_state" }
 uefi = { path = "./uefi" }
 acpi = { path = "./acpi" }

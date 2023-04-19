@@ -13,6 +13,5 @@ test = false
 
 [dependencies]
 base = { workspace = true }
-global_state = { workspace = true }
 uefi = { workspace = true }
 acpi = { workspace = true }

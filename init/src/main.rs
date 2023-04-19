@@ -8,7 +8,6 @@ extern crate alloc;
 
 use base::{CriticalLock, LocalState, LogController, GDT, TSS};
 use core::{arch::asm, ffi::c_void, fmt::Write, ptr::NonNull};
-use global_state::GlobalState;
 use uefi::UEFIBootVideo;
 
 mod boot;
@@ -32,15 +31,15 @@ pub extern "C" fn kmain(
     let gdt = GDT::new(&tss);
     gdt.set_active(null_gs_ptr.as_ptr() as usize);
 
-    // Create the global state
-    GlobalState::initialize::<uefi::MemoryMap, _>(memory_map.into(), &BOOT_VIDEO);
-
-    // Initialize ACPI
-    acpi::initialize(rsdp, &BOOT_VIDEO);
+    // Initialize the base state
+    base::initialize::<uefi::MemoryMap, _>(memory_map.into(), &BOOT_VIDEO);
 
     // Create the local state
     let mut local_state_container = LocalState::new(&gdt);
     let local_state = local_state_container.set_active();
+
+    // Initialize ACPI
+    acpi::initialize(rsdp, &BOOT_VIDEO);
 
     loop {}
 }
