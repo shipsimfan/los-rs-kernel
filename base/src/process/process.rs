@@ -1,7 +1,7 @@
 use super::Thread;
 use crate::{
     util::{Map, Mappable, MappableMut},
-    Mutex,
+    AddressSpace, Mutex,
 };
 use alloc::{borrow::Cow, sync::Weak};
 
@@ -9,7 +9,7 @@ pub struct Process {
     id: u64,
     name: Cow<'static, str>,
 
-    //address_space: AddressSpace,
+    address_space: AddressSpace,
 
     // TODO: Upgrade to RWLock
     threads: Mutex<Map<u64, (u64, Weak<Thread>)>>,
@@ -20,6 +20,8 @@ impl Process {
         Process {
             id: 0,
             name: name.into(),
+
+            address_space: AddressSpace::new(),
 
             threads: Mutex::new(Map::new(0)),
         }

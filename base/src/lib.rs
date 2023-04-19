@@ -29,7 +29,9 @@ pub use gdt::{GDT, TSS};
 pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;
 pub use log::{Level, LogController, LogOutput, Logger};
-pub use memory::{MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, SlabAllocator};
+pub use memory::{
+    AddressSpace, MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, SlabAllocator,
+};
 pub use process::{Process, ProcessManager, Thread, ThreadQueue};
 pub use sync::{Mutex, MutexGuard};
 pub use util::Increment;

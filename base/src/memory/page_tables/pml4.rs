@@ -1,3 +1,5 @@
+use core::ops::Index;
+
 use super::{clear_bit, set_bit, PDPT};
 use crate::{
     memory::{IDENTITY_MAP_PAGE_SIZE, PAGE_MASK, TABLE_ENTRIES},
@@ -38,6 +40,14 @@ impl PML4 {
 
     pub(in crate::memory) fn set_entry(&mut self, index: usize, entry: PML4Entry) {
         self.0[index] = entry;
+    }
+}
+
+impl Index<usize> for PML4 {
+    type Output = PML4Entry;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
     }
 }
 

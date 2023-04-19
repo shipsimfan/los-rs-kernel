@@ -12,6 +12,7 @@ use page_tables::*;
 // TODO: Find correct physical address width and check for PML5.
 //  Also increase range from default safe 64 TB to map the whole upper address space
 
+mod address_space;
 mod buddy;
 mod constants;
 mod global_alloc;
@@ -28,6 +29,7 @@ macro_rules! mask {
 
 pub(self) use mask;
 
+pub use address_space::AddressSpace;
 pub use constants::*;
 pub use map::*;
 pub use physical_address::*;
@@ -42,8 +44,9 @@ pub struct MemoryManager {
 
 static MEMORY_MANAGER: MemoryManager = MemoryManager::null();
 
-static mut KERNEL_PML4: PML4 = PML4::null();
-static mut IDENTITY_MAP: [PDPT; IDENTITY_MAP_NUM_PDPTS] = [PDPT::null(); IDENTITY_MAP_NUM_PDPTS];
+static KERNEL_PML4: CriticalLock<PML4> = CriticalLock::new(PML4::null());
+static IDENTITY_MAP: CriticalLock<[PDPT; IDENTITY_MAP_NUM_PDPTS]> =
+    CriticalLock::new([PDPT::null(); IDENTITY_MAP_NUM_PDPTS]);
 
 global_asm!(include_str!("memory.asm"));
 
@@ -73,10 +76,8 @@ impl MemoryManager {
         log_info!(self.logger, "Initializing");
 
         // Setup the PML 4
-        unsafe {
-            KERNEL_PML4.identity_map(&mut IDENTITY_MAP);
-            set_cr3(PhysicalAddress::new(&KERNEL_PML4).into_usize());
-        }
+        KERNEL_PML4.lock().identity_map(&mut *IDENTITY_MAP.lock());
+        unsafe { set_cr3(PhysicalAddress::new(&KERNEL_PML4).into_usize()) };
 
         // Free memory from the memory map
         let kernel_top = PhysicalAddress::new(unsafe { &__KERNEL_TOP });
