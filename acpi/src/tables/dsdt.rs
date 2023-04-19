@@ -29,7 +29,7 @@ impl Table for DSDT {
         )
         .map_err(|error| Error::parser_error(&Self::SIGNATURE, error))?;
 
-        panic!("AST: {}", ast)
+        Ok(())
     }
 
     fn header(&self) -> &TableHeader {
