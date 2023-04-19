@@ -1,4 +1,6 @@
-use crate::{critical::CriticalState, gdt::GDT, memory::KERNEL_VMA};
+use crate::{
+    critical::CriticalState, gdt::GDT, memory::KERNEL_VMA, process::LocalProcessController,
+};
 use core::{arch::global_asm, cell::RefCell};
 
 mod container;
@@ -7,6 +9,7 @@ pub use container::LocalStateContainer;
 
 pub struct LocalState<'local> {
     critical_state: RefCell<CriticalState>,
+    process_controller: RefCell<LocalProcessController>,
 
     gdt: &'local GDT<'local>,
 }
@@ -22,6 +25,7 @@ impl<'local> LocalState<'local> {
     pub fn new(gdt: &'local GDT<'local>) -> LocalStateContainer<'local> {
         LocalStateContainer::new(LocalState {
             critical_state: RefCell::new(CriticalState::new()),
+            process_controller: RefCell::new(LocalProcessController::new()),
 
             gdt,
         })
@@ -46,5 +50,9 @@ impl<'local> LocalState<'local> {
 
     pub fn gdt(&'local self) -> &'local GDT {
         self.gdt
+    }
+
+    pub(crate) fn process_controller(&self) -> &RefCell<LocalProcessController> {
+        &self.process_controller
     }
 }

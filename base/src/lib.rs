@@ -6,6 +6,7 @@
 #![feature(int_roundings)]
 #![feature(pointer_byte_offsets)]
 #![feature(const_trait_impl)]
+#![feature(associated_type_defaults)]
 
 extern crate alloc;
 
@@ -18,7 +19,9 @@ mod interrupts;
 mod local;
 mod log;
 mod memory;
+mod process;
 mod sync;
+mod util;
 
 pub use boot_video::BootVideo;
 pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard};
@@ -27,7 +30,9 @@ pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;
 pub use log::{Level, LogController, LogOutput, Logger};
 pub use memory::{MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, SlabAllocator};
+pub use process::{Process, ProcessManager, Thread, ThreadQueue};
 pub use sync::{Mutex, MutexGuard};
+pub use util::Increment;
 
 static INIITIALIZED: AtomicBool = AtomicBool::new(false);
 
