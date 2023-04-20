@@ -8,7 +8,7 @@ mod container;
 pub use container::LocalStateContainer;
 
 pub struct LocalState<'local> {
-    critical_state: RefCell<CriticalState>,
+    critical_state: CriticalState,
     process_controller: RefCell<LocalProcessController>,
 
     gdt: &'local GDT<'local>,
@@ -22,10 +22,10 @@ extern "C" {
 }
 
 impl<'local> LocalState<'local> {
-    pub fn new(gdt: &'local GDT<'local>) -> LocalStateContainer<'local> {
+    pub fn new(gdt: &'local GDT<'local>, null_stack_top: usize) -> LocalStateContainer<'local> {
         LocalStateContainer::new(LocalState {
-            critical_state: RefCell::new(CriticalState::new()),
-            process_controller: RefCell::new(LocalProcessController::new()),
+            critical_state: CriticalState::new(),
+            process_controller: RefCell::new(LocalProcessController::new(null_stack_top)),
 
             gdt,
         })
@@ -44,7 +44,7 @@ impl<'local> LocalState<'local> {
         LocalState::try_get().unwrap()
     }
 
-    pub fn critical_state(&self) -> &RefCell<CriticalState> {
+    pub fn critical_state(&self) -> &CriticalState {
         &self.critical_state
     }
 

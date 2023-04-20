@@ -8,7 +8,7 @@ struct UnhandledException(u64);
 extern "C" fn exception_handler(info: ExceptionInfo) {
     // Enter critical
     let key = LocalState::try_get()
-        .map(|local_state| unsafe { local_state.critical_state().borrow_mut().enter_assert() });
+        .map(|local_state| unsafe { local_state.critical_state().enter_assert() });
 
     // Get the exception
     let controller = InterruptController::get().lock();
@@ -22,12 +22,7 @@ extern "C" fn exception_handler(info: ExceptionInfo) {
     }
 
     // Leave critical
-    key.map(|key| unsafe {
-        LocalState::get()
-            .critical_state()
-            .borrow_mut()
-            .leave_without_sti(key)
-    });
+    key.map(|key| unsafe { LocalState::get().critical_state().leave_without_sti(key) });
 }
 
 impl core::fmt::Display for UnhandledException {

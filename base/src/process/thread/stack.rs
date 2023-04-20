@@ -1,4 +1,6 @@
-use super::{thread_enter_kernel, thread_enter_user};
+use crate::LocalState;
+
+use super::enter::{thread_enter_kernel, thread_enter_user};
 use alloc::alloc::{alloc_zeroed, dealloc};
 use core::alloc::Layout;
 
@@ -17,7 +19,7 @@ const KERENL_STACK_LAYOUT: Layout = match Layout::from_size_align(KERNEL_STACK_S
 impl Stack {
     pub(super) fn new() -> Self {
         let stack = unsafe { alloc_zeroed(KERENL_STACK_LAYOUT) };
-        let top = stack as usize;
+        let top = stack as usize + KERNEL_STACK_SIZE;
 
         Stack {
             stack,
@@ -26,23 +28,17 @@ impl Stack {
         }
     }
 
+    pub(super) unsafe fn set_interrupt_stack(&self) {
+        LocalState::get().gdt().set_interrupt_stack(self.top as u64);
+    }
+
+    pub(super) unsafe fn pointer_location(&self) -> *mut usize {
+        &self.pointer as *const usize as *mut usize
+    }
+
     pub(super) fn initialize_kernel(&mut self, entry: usize, context: usize) {
         self.push(thread_enter_kernel as usize); // ret address
-        self.push(0); // push rax
-        self.push(0); // push rbx
-        self.push(0); // push rcx
-        self.push(0); // push rdx
-        self.push(context); // push rsi
-        self.push(entry); // push rdi
-        self.push(0); // push rbp
-        self.push(0); // push r8
-        self.push(0); // push r9
-        self.push(0); // push r10
-        self.push(0); // push r11
-        self.push(0); // push r12
-        self.push(0); // push r13
-        self.push(0); // push r14
-        self.push(0); // push r15
+        self.push_registers(entry, context);
     }
 
     pub(super) fn initialize_user(&mut self, entry: usize, context: usize) {
@@ -52,12 +48,16 @@ impl Stack {
         self.push(0x23); //cs
         self.push(entry); // rip
         self.push(thread_enter_user as usize); // ret address
+        self.push_registers(context, 0);
+    }
+
+    fn push_registers(&mut self, rdi: usize, rsi: usize) {
         self.push(0); // push rax
         self.push(0); // push rbx
         self.push(0); // push rcx
         self.push(0); // push rdx
-        self.push(0); // push rsi
-        self.push(context); // push rdi
+        self.push(rsi); // push rsi
+        self.push(rdi); // push rdi
         self.push(0); // push rbp
         self.push(0); // push r8
         self.push(0); // push r9

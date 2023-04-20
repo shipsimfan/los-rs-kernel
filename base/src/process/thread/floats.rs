@@ -1,5 +1,5 @@
 use alloc::alloc::{alloc_zeroed, dealloc};
-use core::alloc::Layout;
+use core::{alloc::Layout, arch::global_asm};
 
 pub(in crate::process) struct FloatingPointStorage(*mut u8);
 
@@ -10,9 +10,24 @@ const FLOATING_POINT_STORAGE_LAYOUT: Layout =
         Err(_) => panic!("Invalid floating point storage layout"),
     };
 
+global_asm!(include_str!("float.asm"));
+
+extern "C" {
+    fn save_float(floating_point_storage: *mut u8);
+    fn load_float(floating_point_storage: *const u8);
+}
+
 impl FloatingPointStorage {
-    pub(super) fn new() -> Self {
+    pub(in crate::process) fn new() -> Self {
         FloatingPointStorage(unsafe { alloc_zeroed(FLOATING_POINT_STORAGE_LAYOUT) })
+    }
+
+    pub(in crate::process) unsafe fn load_float(&self) {
+        load_float(self.0)
+    }
+
+    pub(in crate::process) unsafe fn save_float(&self) {
+        save_float(self.0)
     }
 }
 

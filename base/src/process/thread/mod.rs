@@ -1,23 +1,22 @@
 use super::Process;
-use crate::{
-    memory::KERNEL_VMA,
-    util::{Mappable, MappableMut},
-};
+use crate::{memory::KERNEL_VMA, Mappable, MappableMut};
 use alloc::{borrow::Cow, sync::Arc};
-use core::{ffi::c_void, ops::Deref, sync::atomic::AtomicBool};
-use floats::FloatingPointStorage;
+use core::{ops::Deref, sync::atomic::AtomicBool};
 use stack::Stack;
 
+mod enter;
 mod floats;
 mod stack;
+
+pub(super) use floats::FloatingPointStorage;
 
 pub struct Thread(Arc<ThreadInner>);
 
 pub struct ThreadInner {
     id: u64,
-    name: Cow<'static, str>,
+    name: Option<Cow<'static, str>>,
 
-    parent: Arc<Process>,
+    process: Arc<Process>,
 
     floating_point_storage: FloatingPointStorage,
     stack: Stack,
@@ -25,18 +24,8 @@ pub struct ThreadInner {
     killed: AtomicBool,
 }
 
-extern "C" {
-    fn thread_enter_kernel(entry: *const c_void, context: usize);
-    fn thread_enter_user(entry: *const c_void, context: usize);
-}
-
 impl ThreadInner {
-    pub(super) fn new<S: Into<Cow<'static, str>>>(
-        name: S,
-        process: Arc<Process>,
-        entry: usize,
-        context: usize,
-    ) -> Self {
+    pub(super) fn new(process: Arc<Process>, entry: usize, context: usize) -> Self {
         let mut stack = Stack::new();
         if entry >= KERNEL_VMA {
             stack.initialize_kernel(entry, context);
@@ -46,9 +35,9 @@ impl ThreadInner {
 
         ThreadInner {
             id: 0,
-            name: name.into(),
+            name: None,
 
-            parent: process,
+            process,
 
             floating_point_storage: FloatingPointStorage::new(),
             stack,
@@ -61,8 +50,32 @@ impl ThreadInner {
         self.killed.load(core::sync::atomic::Ordering::Acquire)
     }
 
-    pub fn name(&self) -> &Cow<'static, str> {
-        &self.name
+    pub fn name(&self) -> Option<&Cow<'static, str>> {
+        self.name.as_ref()
+    }
+
+    pub fn process(&self) -> &Process {
+        &self.process
+    }
+
+    pub(in crate::process) fn process_arc(&self) -> &Arc<Process> {
+        &self.process
+    }
+
+    pub(in crate::process) unsafe fn save_float(&self) {
+        self.floating_point_storage.save_float()
+    }
+
+    pub(in crate::process) unsafe fn load_float(&self) {
+        self.floating_point_storage.load_float()
+    }
+
+    pub(in crate::process) unsafe fn set_interrupt_stack(&self) {
+        self.stack.set_interrupt_stack()
+    }
+
+    pub(in crate::process) unsafe fn stack_pointer_location(&self) -> *mut usize {
+        self.stack.pointer_location()
     }
 }
 
@@ -79,8 +92,8 @@ impl MappableMut<u64> for ThreadInner {
 }
 
 impl Thread {
-    pub(super) fn new<S: Into<Cow<'static, str>>>(inner: ThreadInner) -> Self {
-        Thread(Arc::new(inner))
+    pub(super) fn new(inner: Arc<ThreadInner>) -> Self {
+        Thread(inner)
     }
 }
 
@@ -95,5 +108,11 @@ impl Deref for Thread {
 impl Mappable<u64> for Thread {
     fn id(&self) -> &u64 {
         &self.0.id
+    }
+}
+
+impl Drop for ThreadInner {
+    fn drop(&mut self) {
+        self.process.remove_thread(self.id)
     }
 }

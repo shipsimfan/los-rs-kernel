@@ -21,6 +21,10 @@ impl PML4 {
         PML4([PML4Entry::null(); TABLE_ENTRIES])
     }
 
+    pub(in crate::memory) fn as_ptr(&self) -> *const PML4 {
+        self
+    }
+
     pub(in crate::memory) fn identity_map(&mut self, pdpts: &mut [PDPT]) {
         let mut address = unsafe { PhysicalAddress::from_raw(0) };
 

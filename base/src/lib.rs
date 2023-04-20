@@ -19,9 +19,10 @@ mod interrupts;
 mod local;
 mod log;
 mod memory;
-mod process;
 mod sync;
 mod util;
+
+pub mod process;
 
 pub use boot_video::BootVideo;
 pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard};
@@ -31,10 +32,11 @@ pub use local::LocalState;
 pub use log::{Level, LogController, LogOutput, Logger};
 pub use memory::{
     AddressSpace, MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, SlabAllocator,
+    KERNEL_VMA,
 };
 pub use process::{Process, ProcessManager, Thread, ThreadQueue};
 pub use sync::{Mutex, MutexGuard};
-pub use util::Increment;
+pub use util::{Increment, Map, Mappable, MappableMut, Queue};
 
 static INIITIALIZED: AtomicBool = AtomicBool::new(false);
 

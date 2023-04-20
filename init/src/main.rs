@@ -6,13 +6,20 @@
 
 extern crate alloc;
 
-use base::{CriticalLock, LocalState, LogController, GDT, TSS};
+use base::{
+    process, CriticalLock, LocalState, LogController, Mappable, ProcessManager, GDT, KERNEL_VMA,
+    TSS,
+};
 use core::{arch::asm, ffi::c_void, fmt::Write, ptr::NonNull};
 use uefi::UEFIBootVideo;
 
 mod boot;
 
 static BOOT_VIDEO: CriticalLock<UEFIBootVideo> = CriticalLock::new(UEFIBootVideo::null());
+
+extern "C" {
+    static STACK_TOP: c_void;
+}
 
 #[no_mangle]
 #[allow(unused_variables)]
@@ -35,13 +42,55 @@ pub extern "C" fn kmain(
     base::initialize::<uefi::MemoryMap, _>(memory_map.into(), &BOOT_VIDEO);
 
     // Create the local state
-    let mut local_state_container = LocalState::new(&gdt);
+    let mut local_state_container = LocalState::new(
+        &gdt,
+        unsafe { &STACK_TOP } as *const _ as usize + KERNEL_VMA,
+    );
     let local_state = local_state_container.set_active();
 
     // Initialize ACPI
     acpi::initialize(rsdp, &BOOT_VIDEO);
 
-    loop {}
+    // Create the kinit process
+    let kinit = ProcessManager::get().create_process(kinit as usize, 69, "kinit");
+
+    writeln!(
+        BOOT_VIDEO.lock(),
+        "New process name & id: {}, {}",
+        kinit.name(),
+        kinit.id()
+    )
+    .unwrap();
+
+    ProcessManager::get().r#yield(None);
+
+    panic!("Return from yield in null thread!");
+}
+
+fn kinit(test: usize) -> isize {
+    writeln!(BOOT_VIDEO.lock(), "kinit: {}", test).unwrap();
+
+    process::spawn_kernel_thread(thread2, 0);
+
+    for i in 0..10 {
+        writeln!(BOOT_VIDEO.lock(), "Thread 1: {}", i).unwrap();
+        ProcessManager::get().r#yield(None);
+    }
+
+    0
+}
+
+fn thread2(_: usize) -> isize {
+    writeln!(BOOT_VIDEO.lock(), "Second thread").unwrap();
+
+    let mut i = 1;
+    while i <= 2u32.pow(10) {
+        writeln!(BOOT_VIDEO.lock(), "Thread 2: {}", i).unwrap();
+        i *= 2;
+        ProcessManager::get().r#yield(None);
+    }
+
+    0
 }
 
 #[panic_handler]
@@ -63,7 +112,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
         }
     }
 
-    infinite_loop();
+    infinite_loop()
 }
 
 fn infinite_loop() -> ! {
@@ -75,7 +124,5 @@ fn infinite_loop() -> ! {
 #[alloc_error_handler]
 fn alloc_error_handler(_: core::alloc::Layout) -> ! {
     // Cannot print or panic as that requires allocations
-    loop {
-        unsafe { asm!("cli; hlt") };
-    }
+    infinite_loop()
 }

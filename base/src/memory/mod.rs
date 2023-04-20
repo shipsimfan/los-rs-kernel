@@ -44,7 +44,7 @@ pub struct MemoryManager {
 
 static MEMORY_MANAGER: MemoryManager = MemoryManager::null();
 
-static KERNEL_PML4: CriticalLock<PML4> = CriticalLock::new(PML4::null());
+static KERNEL_ADDRESS_SPACE: AddressSpace = AddressSpace::null();
 static IDENTITY_MAP: CriticalLock<[PDPT; IDENTITY_MAP_NUM_PDPTS]> =
     CriticalLock::new([PDPT::null(); IDENTITY_MAP_NUM_PDPTS]);
 
@@ -52,8 +52,6 @@ global_asm!(include_str!("memory.asm"));
 
 extern "C" {
     static __KERNEL_TOP: c_void;
-
-    fn set_cr3(cr3: usize);
 }
 
 impl MemoryManager {
@@ -70,14 +68,18 @@ impl MemoryManager {
         &MEMORY_MANAGER
     }
 
-    pub fn initialize<M: MemoryMap>(&self, memory_map: M, framebuffer_memory: (usize, usize)) {
+    pub(crate) fn initialize<M: MemoryMap>(
+        &self,
+        memory_map: M,
+        framebuffer_memory: (usize, usize),
+    ) {
         assert!(!self.initialized.swap(true, Ordering::AcqRel));
 
         log_info!(self.logger, "Initializing");
 
         // Setup the PML 4
-        KERNEL_PML4.lock().identity_map(&mut *IDENTITY_MAP.lock());
-        unsafe { set_cr3(PhysicalAddress::new(&KERNEL_PML4).into_usize()) };
+        KERNEL_ADDRESS_SPACE.identity_map(&mut *IDENTITY_MAP.lock());
+        unsafe { KERNEL_ADDRESS_SPACE.set_as_active() };
 
         // Free memory from the memory map
         let kernel_top = PhysicalAddress::new(unsafe { &__KERNEL_TOP });
@@ -120,6 +122,10 @@ impl MemoryManager {
                 address = unsafe { address.add(PAGE_SIZE) };
             }
         }
+    }
+
+    pub fn kernel_address_space(&self) -> &AddressSpace {
+        &KERNEL_ADDRESS_SPACE
     }
 
     pub fn allocate_pages(&self, num_pages: usize) -> NonNull<u8> {

@@ -32,7 +32,7 @@ impl<T: Sized + 'static> CriticalLock<T> {
     pub fn lock<'a>(&'a self) -> CriticalLockGuard<'a, T> {
         // Enter local critical
         let key = LocalState::try_get()
-            .map(|local_state| unsafe { local_state.critical_state().borrow_mut().enter() });
+            .map(|local_state| unsafe { local_state.critical_state().enter() });
 
         // Get a ticket number
         let ticket = self.ticket.fetch_add(1, Ordering::AcqRel);
@@ -86,7 +86,7 @@ impl<'a, T: Sized + 'static> Drop for CriticalLockGuard<'a, T> {
             // Leave local critical
             self.key
                 .take()
-                .map(|key| LocalState::get().critical_state().borrow_mut().leave(key));
+                .map(|key| LocalState::get().critical_state().leave(key));
         }
     }
 }

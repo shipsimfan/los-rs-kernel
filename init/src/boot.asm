@@ -1,15 +1,17 @@
 .section .data.low
 
 .align 4096
-pml4: .fill 4096
+PML4: .fill 4096
 
-stackBottom: .fill 524288
-stackTop:
+STACK_BOTTOM: .fill 524288
+
+.global STACK_TOP
+STACK_TOP:
 
 .section .text.low
 
-higherHalfLocation: .8byte higherHalf
-kmainLocation: .8byte kmain
+HIGHER_HALF_LOCATION: .8byte higherHalf
+KMAIN_LOCATION: .8byte kmain
 
 .global _start
 _start:
@@ -20,7 +22,7 @@ _start:
     mov rdx, r8
     
     mov rbx, cr3
-    lea r8, qword ptr [pml4]
+    lea r8, qword ptr [PML4]
     mov rcx, 256
 
     .copyLow:
@@ -40,10 +42,10 @@ _start:
         add r8, 8
         loop .copyHigh
 
-    lea rax, qword ptr [pml4]
+    lea rax, qword ptr [PML4]
     mov cr3, rax
 
-    mov rax, qword ptr [higherHalfLocation]
+    mov rax, qword ptr [HIGHER_HALF_LOCATION]
     jmp rax
 
 .section .text
@@ -58,7 +60,7 @@ adjust_argument_ptrs:
     add rdx, rbx
 
 setup_stack:
-    lea rax, qword ptr [stackTop]
+    lea rax, qword ptr [STACK_TOP]
     add rax, rbx
     mov rsp, rax
     
@@ -89,5 +91,5 @@ setup_null_gs:
     pop rcx
 
 goto_kmain:
-    mov rax, qword ptr [kmainLocation]
+    mov rax, qword ptr [KMAIN_LOCATION]
     call rax

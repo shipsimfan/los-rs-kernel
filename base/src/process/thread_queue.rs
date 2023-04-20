@@ -1,5 +1,5 @@
 use super::Thread;
-use crate::{util::Queue, CriticalLock};
+use crate::{CriticalLock, Queue};
 use alloc::sync::Arc;
 
 pub struct ThreadQueue {
