@@ -42,6 +42,16 @@ impl Process {
         thread.unwrap()
     }
 
+    pub fn get_thread<F, T>(&self, id: u64, f: F) -> Option<T>
+    where
+        F: FnOnce(&Thread) -> T,
+    {
+        match self.threads.lock().get(id) {
+            Some((_, thread)) => thread.upgrade().map(|thread| f(&Thread::new(thread))),
+            None => None,
+        }
+    }
+
     pub fn kill(&self, exit_code: isize) {
         for (_, thread) in &*self.threads.lock() {
             thread.upgrade().map(|thread| thread.kill(exit_code));

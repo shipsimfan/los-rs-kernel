@@ -54,6 +54,13 @@ impl ProcessManager {
         process
     }
 
+    pub fn get_process(&self, id: u64) -> Option<Arc<Process>> {
+        match self.processes.lock().get(id) {
+            Some((_, process)) => process.upgrade(),
+            None => None,
+        }
+    }
+
     pub fn queue_thread(&self, thread: Thread) {
         if thread.is_killed() {
             return;

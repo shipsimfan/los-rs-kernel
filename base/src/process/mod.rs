@@ -7,7 +7,9 @@ mod thread_queue;
 
 pub(crate) use local::LocalProcessController;
 
-pub use function::{exit_process, exit_thread, spawn_kernel_process, spawn_kernel_thread};
+pub use function::{
+    exit_process, exit_thread, get_process, get_thread, spawn_kernel_process, spawn_kernel_thread,
+};
 pub use manager::ProcessManager;
 pub use process::Process;
 pub use thread::Thread;

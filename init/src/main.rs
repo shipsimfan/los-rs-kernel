@@ -63,11 +63,15 @@ fn kinit(context: usize) -> isize {
     let logger = Logger::from("kinit");
     log_info!(logger, "Context: {}", context);
 
-    process::spawn_kernel_thread(thread2, 0);
+    let id = process::spawn_kernel_thread(thread2, 0);
 
-    for i in 0..5 {
+    for i in 0..10 {
         log_info!(logger, "{}", i);
         ProcessManager::get().r#yield(None);
+
+        if i == 5 {
+            process::get_thread(id, |thread| thread.kill(3));
+        }
     }
 
     process::exit_process(1);
