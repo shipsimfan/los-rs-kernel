@@ -1,5 +1,8 @@
 use super::{thread::ThreadInner, Thread};
-use crate::{AddressSpace, CriticalLock, Map, Mappable, MappableMut, ProcessManager, ThreadQueue};
+use crate::{
+    AddressSpace, CriticalLock, Map, Mappable, MappableMut, ProcessManager, StandardError,
+    ThreadQueue,
+};
 use alloc::{
     borrow::Cow,
     sync::{Arc, Weak},
@@ -46,7 +49,7 @@ impl Process {
         thread.unwrap()
     }
 
-    pub fn get_thread<F, T>(&self, id: u64, f: F) -> Option<T>
+    pub fn get_thread<F, T>(&self, id: u64, f: F) -> Result<T, StandardError>
     where
         F: FnOnce(&Thread) -> T,
     {
@@ -54,6 +57,7 @@ impl Process {
             Some((_, thread)) => thread.upgrade().map(|thread| f(&Thread::new(thread))),
             None => None,
         }
+        .ok_or(StandardError::ThreadNotFound)
     }
 
     pub fn kill(&self, exit_code: isize) {

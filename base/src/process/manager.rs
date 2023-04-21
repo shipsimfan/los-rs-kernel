@@ -1,5 +1,7 @@
 use super::{Process, Thread};
-use crate::{CriticalLock, LocalState, Map, MappableMut, MemoryManager, Queue, ThreadQueue};
+use crate::{
+    CriticalLock, LocalState, Map, MappableMut, MemoryManager, Queue, StandardError, ThreadQueue,
+};
 use alloc::{
     borrow::Cow,
     sync::{Arc, Weak},
@@ -54,11 +56,12 @@ impl ProcessManager {
         process
     }
 
-    pub fn get_process(&self, id: u64) -> Option<Arc<Process>> {
+    pub fn get_process(&self, id: u64) -> Result<Arc<Process>, StandardError> {
         match self.processes.lock().get(id) {
             Some((_, process)) => process.upgrade(),
             None => None,
         }
+        .ok_or(StandardError::ProcessNotFound)
     }
 
     pub fn queue_thread(&self, thread: Thread) {

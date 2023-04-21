@@ -1,4 +1,4 @@
-use crate::{LocalState, Process, ProcessManager, Thread};
+use crate::{LocalState, Process, ProcessManager, StandardError, Thread};
 use alloc::{borrow::Cow, sync::Arc};
 
 pub fn get_current_thread<F, T>(f: F) -> T
@@ -47,7 +47,7 @@ pub fn spawn_kernel_process<S: Into<Cow<'static, str>>>(
     ProcessManager::get().create_process(entry as usize, context, name)
 }
 
-pub fn get_thread<F, T>(process: Option<&Process>, id: u64, f: F) -> Option<T>
+pub fn get_thread<F, T>(process: Option<&Process>, id: u64, f: F) -> Result<T, StandardError>
 where
     F: FnOnce(&Thread) -> T,
 {
@@ -58,37 +58,27 @@ where
     get_current_thread(|thread| thread.process().get_thread(id, f))
 }
 
-pub fn get_process(id: u64) -> Option<Arc<Process>> {
+pub fn get_process(id: u64) -> Result<Arc<Process>, StandardError> {
     ProcessManager::get().get_process(id)
 }
 
-pub fn wait_thread(process: Option<&Process>, id: u64) -> Option<isize> {
+pub fn wait_thread(process: Option<&Process>, id: u64) -> Result<isize, StandardError> {
     let local_controller = LocalState::get().process_controller().borrow();
 
-    let queue = match process
+    let queue = process
         .unwrap_or(local_controller.current_thread().process())
-        .get_thread(id, |thread| thread.exit_queue())
-    {
-        Some(queue) => queue,
-        None => return None,
-    };
+        .get_thread(id, |thread| thread.exit_queue())?;
 
     drop(local_controller);
 
     ProcessManager::get().r#yield(Some(queue));
 
-    Some(get_current_thread(|thread| thread.queue_data()))
+    Ok(get_current_thread(|thread| thread.queue_data()))
 }
 
-pub fn wait_process(id: u64) -> Option<isize> {
-    let process = match get_process(id) {
-        Some(process) => process,
-        None => return None,
-    };
-
-    process.wait();
-
-    Some(get_current_thread(|thread| thread.queue_data()))
+pub fn wait_process(id: u64) -> Result<isize, StandardError> {
+    get_process(id)?.wait();
+    Ok(get_current_thread(|thread| thread.queue_data()))
 }
 
 pub fn exit_thread(exit_code: isize) -> ! {

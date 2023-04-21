@@ -14,6 +14,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 mod boot_video;
 mod critical;
+mod error;
 mod gdt;
 mod interrupts;
 mod local;
@@ -26,6 +27,7 @@ pub mod process;
 
 pub use boot_video::BootVideo;
 pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard, CriticalRefCell};
+pub use error::{Error, StandardError};
 pub use gdt::{GDT, TSS};
 pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;
