@@ -25,7 +25,7 @@ mod util;
 pub mod process;
 
 pub use boot_video::BootVideo;
-pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard};
+pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard, CriticalRefCell};
 pub use gdt::{GDT, TSS};
 pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;

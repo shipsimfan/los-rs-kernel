@@ -65,8 +65,9 @@ impl ProcessManager {
     pub fn r#yield(&self, target_queue: Option<ThreadQueue>) {
         unsafe {
             {
+                let key = LocalState::get().critical_state().enter_assert();
                 let mut local_controller = LocalState::get().process_controller().borrow_mut();
-                local_controller.set_key(LocalState::get().critical_state().enter_assert());
+                local_controller.set_key(key);
                 local_controller.set_target_queue(target_queue);
             }
 
@@ -134,8 +135,9 @@ impl ProcessManager {
 
                     asm!("hlt");
 
+                    let key = local_state.critical_state().enter_assert();
                     local_controller = local_state.process_controller().borrow_mut();
-                    local_controller.set_key(local_state.critical_state().enter());
+                    local_controller.set_key(key);
 
                     return None;
                 } else {
