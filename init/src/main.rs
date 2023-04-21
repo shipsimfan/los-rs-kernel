@@ -7,8 +7,9 @@
 extern crate alloc;
 
 use base::{
-    log_info, process, CriticalLock, LocalState, LogController, Logger, ProcessManager, GDT,
-    KERNEL_VMA, TSS,
+    log_info,
+    process::{self, wait_thread},
+    CriticalLock, LocalState, LogController, Logger, ProcessManager, GDT, KERNEL_VMA, TSS,
 };
 use core::{arch::asm, ffi::c_void, fmt::Write, ptr::NonNull};
 use uefi::UEFIBootVideo;
@@ -63,14 +64,15 @@ fn kinit(context: usize) -> isize {
     let logger = Logger::from("kinit");
     log_info!(logger, "Context: {}", context);
 
-    let id = process::spawn_kernel_thread(thread2, 0);
+    let id = process::spawn_kernel_thread(None, thread2, 0);
 
     for i in 0..10 {
         log_info!(logger, "{}", i);
         ProcessManager::get().r#yield(None);
 
         if i == 5 {
-            process::get_thread(id, |thread| thread.kill(3));
+            let exit_code = wait_thread(None, id).unwrap();
+            log_info!(logger, "Thread 2 Exit Code: {}", exit_code)
         }
     }
 
@@ -88,7 +90,7 @@ fn thread2(context: usize) -> isize {
         ProcessManager::get().r#yield(None);
     }
 
-    0
+    13
 }
 
 #[panic_handler]

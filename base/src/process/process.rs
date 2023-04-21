@@ -1,5 +1,5 @@
 use super::{thread::ThreadInner, Thread};
-use crate::{AddressSpace, CriticalLock, Map, Mappable, MappableMut, ProcessManager};
+use crate::{AddressSpace, CriticalLock, Map, Mappable, MappableMut, ProcessManager, ThreadQueue};
 use alloc::{
     borrow::Cow,
     sync::{Arc, Weak},
@@ -12,6 +12,8 @@ pub struct Process {
     address_space: AddressSpace,
 
     threads: CriticalLock<Map<u64, (u64, Weak<ThreadInner>)>>,
+
+    exit_queue: ThreadQueue,
 }
 
 impl Process {
@@ -23,6 +25,8 @@ impl Process {
             address_space: AddressSpace::new(),
 
             threads: CriticalLock::new(Map::new(0)),
+
+            exit_queue: ThreadQueue::new(),
         }
     }
 
@@ -56,14 +60,35 @@ impl Process {
         for (_, thread) in &*self.threads.lock() {
             thread.upgrade().map(|thread| thread.kill(exit_code));
         }
+
+        self.wake_exit_queue(exit_code);
+    }
+
+    pub fn wait(&self) {
+        ProcessManager::get().r#yield(Some(self.exit_queue.clone()));
     }
 
     pub(super) fn address_space(&self) -> &AddressSpace {
         &self.address_space
     }
 
-    pub(super) fn remove_thread(&self, id: u64) {
-        self.threads.lock().remove(&id);
+    pub(super) fn remove_thread(&self, id: u64, exit_code: isize) {
+        let mut threads = self.threads.lock();
+        threads.remove(&id);
+        let count = threads.len();
+        drop(threads);
+
+        if count == 0 {
+            self.wake_exit_queue(exit_code);
+        }
+    }
+
+    fn wake_exit_queue(&self, exit_code: isize) {
+        let process_manager = ProcessManager::get();
+        self.exit_queue.pop_all(|thread| {
+            thread.set_queue_data(exit_code);
+            process_manager.queue_thread(thread);
+        });
     }
 }
 

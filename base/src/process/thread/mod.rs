@@ -77,11 +77,24 @@ impl ThreadInner {
         }
 
         let process_manager = ProcessManager::get();
-
         self.exit_queue.pop_all(|thread| {
-            thread.queue_data.store(exit_code, Ordering::Release);
+            thread.set_queue_data(exit_code);
             process_manager.queue_thread(thread);
-        })
+        });
+
+        self.set_queue_data(exit_code);
+    }
+
+    pub fn exit_queue(&self) -> ThreadQueue {
+        self.exit_queue.clone()
+    }
+
+    pub fn queue_data(&self) -> isize {
+        self.queue_data.load(Ordering::Acquire)
+    }
+
+    pub(super) fn set_queue_data(&self, queue_data: isize) {
+        self.queue_data.store(queue_data, Ordering::Release);
     }
 
     pub(in crate::process) fn process_arc(&self) -> &Arc<Process> {
@@ -139,6 +152,6 @@ impl Mappable<u64> for Thread {
 
 impl Drop for ThreadInner {
     fn drop(&mut self) {
-        self.process.remove_thread(self.id)
+        self.process.remove_thread(self.id, self.queue_data())
     }
 }

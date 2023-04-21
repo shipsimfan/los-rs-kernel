@@ -1,4 +1,7 @@
-use crate::{ExceptionInfo, ExceptionType, InterruptController, LocalState, ProcessManager};
+use crate::{
+    process::get_current_thread_opt, ExceptionInfo, ExceptionType, InterruptController, LocalState,
+    ProcessManager,
+};
 use core::panic;
 
 struct UnhandledException(u64);
@@ -25,12 +28,7 @@ extern "C" fn exception_handler(info: ExceptionInfo) {
     key.map(|key| unsafe { LocalState::get().critical_state().leave_without_sti(key) });
 
     // Check to see if the current thread is killed
-    if LocalState::get()
-        .process_controller()
-        .borrow()
-        .current_thread()
-        .is_killed()
-    {
+    if get_current_thread_opt(|thread| thread.is_killed()).unwrap_or(false) {
         ProcessManager::get().r#yield(None);
     }
 }

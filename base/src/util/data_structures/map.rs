@@ -43,6 +43,10 @@ impl<ID: Increment + Eq, T: Mappable<ID>> Map<ID, T> {
         self.inner.iter()
     }
 
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     pub fn get_mut(&mut self, id: &ID) -> Option<&mut T> {
         for value in &mut self.inner {
             if value.id() == id {

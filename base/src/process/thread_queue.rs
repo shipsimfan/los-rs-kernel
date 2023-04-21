@@ -2,6 +2,7 @@ use super::Thread;
 use crate::{CriticalLock, Queue};
 use alloc::sync::Arc;
 
+#[derive(Clone)]
 pub struct ThreadQueue {
     inner: Arc<CriticalLock<Queue<Thread>>>,
 }
