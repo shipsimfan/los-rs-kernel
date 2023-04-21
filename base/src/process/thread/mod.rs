@@ -1,7 +1,5 @@
 use super::Process;
-use crate::{
-    log_info, memory::KERNEL_VMA, Logger, Mappable, MappableMut, ProcessManager, ThreadQueue,
-};
+use crate::{memory::KERNEL_VMA, Mappable, MappableMut, ProcessManager, ThreadQueue};
 use alloc::{borrow::Cow, sync::Arc};
 use core::{
     ops::Deref,

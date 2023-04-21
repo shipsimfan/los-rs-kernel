@@ -42,6 +42,12 @@ impl Process {
         thread.unwrap()
     }
 
+    pub fn kill(&self, exit_code: isize) {
+        for (_, thread) in &*self.threads.lock() {
+            thread.upgrade().map(|thread| thread.kill(exit_code));
+        }
+    }
+
     pub(super) fn address_space(&self) -> &AddressSpace {
         &self.address_space
     }

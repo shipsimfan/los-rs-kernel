@@ -72,12 +72,12 @@ fn kinit(test: usize) -> isize {
 
     process::spawn_kernel_thread(thread2, 0);
 
-    for i in 0..10 {
+    for i in 0..5 {
         writeln!(BOOT_VIDEO.lock(), "Thread 1: {}", i).unwrap();
         ProcessManager::get().r#yield(None);
     }
 
-    0
+    process::exit_process(1);
 }
 
 fn thread2(_: usize) -> isize {
