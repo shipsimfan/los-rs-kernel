@@ -1,7 +1,10 @@
 use super::Process;
-use crate::{memory::KERNEL_VMA, Mappable, MappableMut};
+use crate::{memory::KERNEL_VMA, Mappable, MappableMut, ProcessManager, ThreadQueue};
 use alloc::{borrow::Cow, sync::Arc};
-use core::{ops::Deref, sync::atomic::AtomicBool};
+use core::{
+    ops::Deref,
+    sync::atomic::{AtomicBool, AtomicIsize, Ordering},
+};
 use stack::Stack;
 
 mod enter;
@@ -21,7 +24,10 @@ pub struct ThreadInner {
     floating_point_storage: FloatingPointStorage,
     stack: Stack,
 
+    queue_data: AtomicIsize,
+
     killed: AtomicBool,
+    exit_queue: ThreadQueue,
 }
 
 impl ThreadInner {
@@ -42,12 +48,28 @@ impl ThreadInner {
             floating_point_storage: FloatingPointStorage::new(),
             stack,
 
+            queue_data: AtomicIsize::new(0),
+
             killed: AtomicBool::new(false),
+            exit_queue: ThreadQueue::new(),
         }
     }
 
     pub fn is_killed(&self) -> bool {
-        self.killed.load(core::sync::atomic::Ordering::Acquire)
+        self.killed.load(Ordering::Acquire)
+    }
+
+    pub fn kill(&self, exit_code: isize) {
+        if self.killed.swap(true, Ordering::Acquire) {
+            return;
+        }
+
+        let process_manager = ProcessManager::get();
+
+        self.exit_queue.pop_all(|thread| {
+            thread.queue_data.store(exit_code, Ordering::Release);
+            process_manager.queue_thread(thread);
+        })
     }
 
     pub fn name(&self) -> Option<&Cow<'static, str>> {

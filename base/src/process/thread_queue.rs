@@ -22,14 +22,25 @@ impl ThreadQueue {
     }
 
     pub fn pop(&self) -> Option<Thread> {
-        loop {
-            match self.inner.lock().pop() {
-                Some(thread) => match thread.is_killed() {
-                    true => continue,
-                    false => return Some(thread),
-                },
-                None => return None,
+        let mut queue = self.inner.lock();
+
+        while let Some(thread) = queue.pop() {
+            if !thread.is_killed() {
+                return Some(thread);
             }
+        }
+
+        None
+    }
+
+    pub fn pop_all<F>(&self, f: F)
+    where
+        F: Fn(Thread),
+    {
+        let mut queue = self.inner.lock();
+
+        while let Some(thread) = queue.pop() {
+            f(thread);
         }
     }
 }

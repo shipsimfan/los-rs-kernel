@@ -1,4 +1,4 @@
-use crate::LocalState;
+use crate::{process::exit_thread, LocalState};
 use core::ffi::c_void;
 
 pub(super) extern "C" fn thread_enter_kernel(entry: *const c_void, context: usize) -> ! {
@@ -6,9 +6,9 @@ pub(super) extern "C" fn thread_enter_kernel(entry: *const c_void, context: usiz
 
     let function: fn(context: usize) -> isize = unsafe { core::mem::transmute(entry) };
 
-    let result = function(context);
+    let exit_code = function(context);
 
-    todo!("Implement exit (Result code: {})", result);
+    exit_thread(exit_code)
 }
 
 pub(super) extern "C" fn thread_enter_user(entry: *const c_void, context: usize) -> ! {

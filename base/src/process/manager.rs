@@ -55,6 +55,10 @@ impl ProcessManager {
     }
 
     pub fn queue_thread(&self, thread: Thread) {
+        if thread.is_killed() {
+            return;
+        }
+
         self.waiting_queue.lock().push(thread)
     }
 
@@ -100,7 +104,15 @@ impl ProcessManager {
     }
 
     fn get_next_thread(&self) -> Option<Thread> {
-        self.waiting_queue.lock().pop()
+        let mut waiting_queue = self.waiting_queue.lock();
+
+        while let Some(thread) = waiting_queue.pop() {
+            if !thread.is_killed() {
+                return Some(thread);
+            }
+        }
+
+        None
     }
 
     unsafe fn before_stack_switch(&self) -> Option<(*mut usize, *const usize)> {
