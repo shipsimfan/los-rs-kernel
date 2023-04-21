@@ -55,6 +55,18 @@ impl ThreadInner {
         }
     }
 
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    pub fn name(&self) -> Option<&Cow<'static, str>> {
+        self.name.as_ref()
+    }
+
+    pub fn process(&self) -> &Process {
+        &self.process
+    }
+
     pub fn is_killed(&self) -> bool {
         self.killed.load(Ordering::Acquire)
     }
@@ -70,14 +82,6 @@ impl ThreadInner {
             thread.queue_data.store(exit_code, Ordering::Release);
             process_manager.queue_thread(thread);
         })
-    }
-
-    pub fn name(&self) -> Option<&Cow<'static, str>> {
-        self.name.as_ref()
-    }
-
-    pub fn process(&self) -> &Process {
-        &self.process
     }
 
     pub(in crate::process) fn process_arc(&self) -> &Arc<Process> {

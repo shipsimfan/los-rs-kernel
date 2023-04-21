@@ -7,8 +7,8 @@
 extern crate alloc;
 
 use base::{
-    process, CriticalLock, LocalState, LogController, Mappable, ProcessManager, GDT, KERNEL_VMA,
-    TSS,
+    log_info, process, CriticalLock, LocalState, LogController, Logger, ProcessManager, GDT,
+    KERNEL_VMA, TSS,
 };
 use core::{arch::asm, ffi::c_void, fmt::Write, ptr::NonNull};
 use uefi::UEFIBootVideo;
@@ -52,40 +52,34 @@ pub extern "C" fn kmain(
     acpi::initialize(rsdp, &BOOT_VIDEO);
 
     // Create the kinit process
-    let kinit = ProcessManager::get().create_process(kinit as usize, 69, "kinit");
-
-    writeln!(
-        BOOT_VIDEO.lock(),
-        "New process name & id: {}, {}",
-        kinit.name(),
-        kinit.id()
-    )
-    .unwrap();
+    let kinit = process::spawn_kernel_process(kinit, 69, "kinit");
 
     ProcessManager::get().r#yield(None);
 
     panic!("Return from yield in null thread!");
 }
 
-fn kinit(test: usize) -> isize {
-    writeln!(BOOT_VIDEO.lock(), "kinit: {}", test).unwrap();
+fn kinit(context: usize) -> isize {
+    let logger = Logger::from("kinit");
+    log_info!(logger, "Context: {}", context);
 
     process::spawn_kernel_thread(thread2, 0);
 
     for i in 0..5 {
-        writeln!(BOOT_VIDEO.lock(), "Thread 1: {}", i).unwrap();
+        log_info!(logger, "{}", i);
         ProcessManager::get().r#yield(None);
     }
 
     process::exit_process(1);
 }
 
-fn thread2(_: usize) -> isize {
-    writeln!(BOOT_VIDEO.lock(), "Second thread").unwrap();
+fn thread2(context: usize) -> isize {
+    let logger = Logger::from("Thread 2");
+    log_info!(logger, "Context: {}", context);
 
     let mut i = 1;
     while i <= 2u32.pow(10) {
-        writeln!(BOOT_VIDEO.lock(), "Thread 2: {}", i).unwrap();
+        log_info!(logger, "{}", i);
         i *= 2;
         ProcessManager::get().r#yield(None);
     }

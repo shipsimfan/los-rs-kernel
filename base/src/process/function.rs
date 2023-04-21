@@ -1,13 +1,24 @@
-use crate::{LocalState, ProcessManager};
+use crate::{LocalState, Process, ProcessManager};
+use alloc::{borrow::Cow, sync::Arc};
 
-pub fn spawn_kernel_thread(entry: fn(usize) -> isize, context: usize) {
+pub fn spawn_kernel_thread(entry: fn(usize) -> isize, context: usize) -> u64 {
     let new_thread = LocalState::get()
         .process_controller()
         .borrow()
         .current_thread()
         .process_arc()
         .create_thread(entry as usize, context);
+    let id = new_thread.id();
     ProcessManager::get().queue_thread(new_thread);
+    id
+}
+
+pub fn spawn_kernel_process<S: Into<Cow<'static, str>>>(
+    entry: fn(usize) -> isize,
+    context: usize,
+    name: S,
+) -> Arc<Process> {
+    ProcessManager::get().create_process(entry as usize, context, name)
 }
 
 pub fn exit_thread(exit_code: isize) -> ! {
