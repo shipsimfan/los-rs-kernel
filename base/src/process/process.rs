@@ -69,7 +69,7 @@ impl Process {
     }
 
     pub fn wait(&self) {
-        ProcessManager::get().r#yield(Some(self.exit_queue.clone()));
+        ProcessManager::get().r#yield(Some(self.exit_queue.clone().lock()));
     }
 
     pub(super) fn address_space(&self) -> &AddressSpace {

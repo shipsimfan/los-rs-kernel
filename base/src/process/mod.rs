@@ -14,4 +14,4 @@ pub use function::{
 pub use manager::ProcessManager;
 pub use process::Process;
 pub use thread::Thread;
-pub use thread_queue::ThreadQueue;
+pub use thread_queue::{ThreadQueue, ThreadQueueGuard};

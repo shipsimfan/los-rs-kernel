@@ -1,4 +1,4 @@
-use super::{thread::FloatingPointStorage, Thread, ThreadQueue};
+use super::{thread::FloatingPointStorage, Thread, ThreadQueueGuard};
 use crate::{CriticalKey, LocalState, ProcessManager};
 
 pub(crate) struct LocalProcessController {
@@ -7,7 +7,7 @@ pub(crate) struct LocalProcessController {
     // Switch information
     key: Option<CriticalKey>,
     next_thread: Option<Thread>,
-    target_queue: Option<ThreadQueue>,
+    target_queue: Option<ThreadQueueGuard>,
 
     // Null thread info
     null_floating_point_storage: FloatingPointStorage,
@@ -57,7 +57,7 @@ impl LocalProcessController {
         &self.null_stack_pointer as *const usize as *mut usize
     }
 
-    pub(super) unsafe fn set_target_queue(&mut self, target_queue: Option<ThreadQueue>) {
+    pub(super) unsafe fn set_target_queue(&mut self, target_queue: Option<ThreadQueueGuard>) {
         self.target_queue = target_queue;
     }
 
@@ -80,7 +80,13 @@ impl LocalProcessController {
 
         match self.target_queue.take() {
             Some(queue) => match old_thread {
-                Some(thread) => queue.push(thread),
+                Some(thread) => match thread.is_killed() {
+                    true => {
+                        drop(queue);
+                        drop(thread);
+                    }
+                    false => queue.push(thread),
+                },
                 None => panic!("Cannot push a null thread into a queue"),
             },
             None => match old_thread {

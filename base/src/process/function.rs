@@ -71,7 +71,7 @@ pub fn wait_thread(process: Option<&Process>, id: u64) -> Result<isize, Standard
 
     drop(local_controller);
 
-    ProcessManager::get().r#yield(Some(queue));
+    ProcessManager::get().r#yield(Some(queue.lock()));
 
     Ok(get_current_thread(|thread| thread.queue_data()))
 }

@@ -36,7 +36,7 @@ pub use memory::{
     AddressSpace, MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, SlabAllocator,
     KERNEL_VMA,
 };
-pub use process::{Process, ProcessManager, Thread, ThreadQueue};
+pub use process::{Process, ProcessManager, Thread, ThreadQueue, ThreadQueueGuard};
 pub use sync::{Mutex, MutexGuard};
 pub use util::{Increment, Map, Mappable, MappableMut, Queue};
 

@@ -1,7 +1,5 @@
-use super::{Process, Thread};
-use crate::{
-    CriticalLock, LocalState, Map, MappableMut, MemoryManager, Queue, StandardError, ThreadQueue,
-};
+use super::{Process, Thread, ThreadQueueGuard};
+use crate::{CriticalLock, LocalState, Map, MappableMut, MemoryManager, Queue, StandardError};
 use alloc::{
     borrow::Cow,
     sync::{Arc, Weak},
@@ -72,10 +70,18 @@ impl ProcessManager {
         self.waiting_queue.lock().push(thread)
     }
 
-    pub fn r#yield(&self, target_queue: Option<ThreadQueue>) {
+    pub fn r#yield(&self, target_queue: Option<ThreadQueueGuard>) {
         unsafe {
             {
-                let key = LocalState::get().critical_state().enter_assert();
+                let local_state = LocalState::get();
+                let critical_state = local_state.critical_state();
+
+                let key = if target_queue.is_some() {
+                    critical_state.enter()
+                } else {
+                    critical_state.enter_assert()
+                };
+
                 let mut local_controller = LocalState::get().process_controller().borrow_mut();
                 local_controller.set_key(key);
                 local_controller.set_target_queue(target_queue);

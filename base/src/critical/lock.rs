@@ -13,7 +13,7 @@ pub struct CriticalLock<T: Sized + 'static> {
 }
 
 pub struct CriticalLockGuard<'a, T: Sized + 'static> {
-    now_serving: &'a AtomicUsize,
+    queue: &'a CriticalLock<T>,
     data: &'a mut T,
     key: Option<CriticalKey>,
 }
@@ -30,9 +30,28 @@ impl<T: Sized + 'static> CriticalLock<T> {
 
     #[inline(always)]
     pub fn lock<'a>(&'a self) -> CriticalLockGuard<'a, T> {
+        let (data, key) = unsafe { self.lock_no_guard(false) };
+
+        CriticalLockGuard {
+            queue: self,
+            data,
+            key,
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn lock_no_guard<'a, 'b>(
+        &'a self,
+        assert: bool,
+    ) -> (&'b mut T, Option<CriticalKey>) {
         // Enter local critical
-        let key = LocalState::try_get()
-            .map(|local_state| unsafe { local_state.critical_state().enter() });
+        let key = LocalState::try_get().map(|local_state| unsafe {
+            if assert {
+                local_state.critical_state().enter_assert()
+            } else {
+                local_state.critical_state().enter()
+            }
+        });
 
         // Get a ticket number
         let ticket = self.ticket.fetch_add(1, Ordering::AcqRel);
@@ -42,11 +61,16 @@ impl<T: Sized + 'static> CriticalLock<T> {
             core::hint::spin_loop();
         }
 
-        CriticalLockGuard {
-            now_serving: &self.now_serving,
-            data: unsafe { &mut *self.data.get() },
-            key,
-        }
+        (&mut *self.data.get(), key)
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn unlock(&self, key: Option<CriticalKey>) {
+        // Unlock globally
+        self.now_serving.fetch_add(1, Ordering::Release);
+
+        // Leave local critical
+        key.map(|key| LocalState::get().critical_state().leave(key));
     }
 }
 
@@ -80,13 +104,7 @@ impl<'a, T: Sized + 'static> DerefMut for CriticalLockGuard<'a, T> {
 impl<'a, T: Sized + 'static> Drop for CriticalLockGuard<'a, T> {
     fn drop(&mut self) {
         unsafe {
-            // Unlock globally
-            self.now_serving.fetch_add(1, Ordering::Release);
-
-            // Leave local critical
-            self.key
-                .take()
-                .map(|key| LocalState::get().critical_state().leave(key));
+            self.queue.unlock(self.key.take());
         }
     }
 }
