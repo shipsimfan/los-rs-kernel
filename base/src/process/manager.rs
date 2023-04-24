@@ -82,7 +82,7 @@ impl ProcessManager {
                     critical_state.enter_assert()
                 };
 
-                let mut local_controller = LocalState::get().process_controller().borrow_mut();
+                let mut local_controller = local_state.process_controller().borrow_mut();
                 local_controller.set_key(key);
                 local_controller.set_target_queue(target_queue);
             }

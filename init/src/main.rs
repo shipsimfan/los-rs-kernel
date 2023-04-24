@@ -64,6 +64,22 @@ fn kinit(context: usize) -> isize {
     let logger = Logger::from("kinit");
     log_info!(logger, "Context: {}", context);
 
+    let id = process::spawn_kernel_process(thread1, 69, "Test").id();
+    /*let result = process::wait_process(id).unwrap();
+
+    log_info!(logger, "Result: {}", result);*/
+
+    for _ in 0..50 {
+        ProcessManager::get().r#yield(None);
+    }
+
+    process::exit_process(1);
+}
+
+fn thread1(context: usize) -> isize {
+    let logger = Logger::from("Thread 1");
+    log_info!(logger, "Context: {}", context);
+
     let id = process::spawn_kernel_thread(None, thread2, 0);
 
     for i in 0..10 {
@@ -76,7 +92,7 @@ fn kinit(context: usize) -> isize {
         }
     }
 
-    process::exit_process(1);
+    420
 }
 
 fn thread2(context: usize) -> isize {

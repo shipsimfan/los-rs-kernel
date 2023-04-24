@@ -33,6 +33,10 @@ impl Process {
         }
     }
 
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
     pub fn name(&self) -> &Cow<'static, str> {
         &self.name
     }
