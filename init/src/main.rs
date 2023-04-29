@@ -9,7 +9,7 @@ extern crate alloc;
 use base::{
     log_info,
     process::{self, wait_thread},
-    CriticalLock, LocalState, LogController, Logger, ProcessManager, GDT, KERNEL_VMA, TSS,
+    CriticalLock, LocalState, LogController, Logger, ProcessManager, KERNEL_VMA,
 };
 use core::{arch::asm, ffi::c_void, fmt::Write, ptr::NonNull};
 use uefi::UEFIBootVideo;
@@ -34,20 +34,14 @@ pub extern "C" fn kmain(
     BOOT_VIDEO.lock().initialize(graphics_mode);
     LogController::get().set_static_output(&BOOT_VIDEO);
 
-    // Create the GDT
-    let tss = TSS::new();
-    let gdt = GDT::new(&tss);
-    gdt.set_active(null_gs_ptr.as_ptr() as usize);
-
     // Initialize the base state
     base::initialize::<uefi::MemoryMap, _>(memory_map.into(), &BOOT_VIDEO);
 
     // Create the local state
-    let mut local_state_container = LocalState::new(
-        &gdt,
+    LocalState::new(
         unsafe { &STACK_TOP } as *const _ as usize + KERNEL_VMA,
+        null_gs_ptr,
     );
-    let local_state = local_state_container.set_active();
 
     // Initialize ACPI
     acpi::initialize(rsdp, &BOOT_VIDEO);

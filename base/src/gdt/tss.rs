@@ -1,4 +1,5 @@
-use core::cell::RefCell;
+use alloc::boxed::Box;
+use core::{cell::RefCell, pin::Pin};
 
 #[repr(packed, C)]
 #[derive(Clone, Copy)]
@@ -10,7 +11,7 @@ struct Reversedu64 {
 
 #[repr(packed, C)]
 #[allow(unused)]
-pub struct TSS {
+pub(super) struct TSS {
     reserved: u32,
     rsp: [Reversedu64; 3],
     reserved2: u64,
@@ -21,8 +22,8 @@ pub struct TSS {
 }
 
 impl TSS {
-    pub fn new() -> RefCell<Self> {
-        RefCell::new(TSS {
+    pub(super) fn new() -> Pin<Box<RefCell<Self>>> {
+        Box::pin(RefCell::new(TSS {
             reserved: 0,
             rsp: [Reversedu64::default(); 3],
             reserved2: 0,
@@ -30,7 +31,7 @@ impl TSS {
             reserved3: 0,
             reserved4: 0,
             io_map_base: core::mem::size_of::<TSS>() as u16,
-        })
+        }))
     }
 
     pub(super) fn set_interrupt_stack(&mut self, stack: u64) {

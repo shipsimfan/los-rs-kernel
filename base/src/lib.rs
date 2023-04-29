@@ -28,7 +28,6 @@ pub mod process;
 pub use boot_video::BootVideo;
 pub use critical::{CriticalKey, CriticalLock, CriticalLockGuard, CriticalRefCell};
 pub use error::{Error, StandardError};
-pub use gdt::{GDT, TSS};
 pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;
 pub use log::{Level, LogController, LogOutput, Logger};

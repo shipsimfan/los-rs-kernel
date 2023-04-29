@@ -2,17 +2,14 @@ use crate::{
     critical::CriticalState, gdt::GDT, memory::KERNEL_VMA, process::LocalProcessController,
     CriticalRefCell,
 };
-use core::arch::global_asm;
+use alloc::boxed::Box;
+use core::{arch::global_asm, ffi::c_void, pin::Pin, ptr::NonNull};
 
-mod container;
-
-pub use container::LocalStateContainer;
-
-pub struct LocalState<'local> {
+pub struct LocalState {
     critical_state: CriticalState,
     process_controller: CriticalRefCell<LocalProcessController>,
 
-    gdt: &'local GDT<'local>,
+    gdt: Pin<Box<GDT>>,
 }
 
 global_asm!(include_str!("./gs.asm"));
@@ -22,17 +19,20 @@ extern "C" {
     pub(crate) fn set_gs(local_state: usize);
 }
 
-impl<'local> LocalState<'local> {
-    pub fn new(gdt: &'local GDT<'local>, null_stack_top: usize) -> LocalStateContainer<'local> {
-        LocalStateContainer::new(LocalState {
+impl LocalState {
+    pub fn new(null_stack_top: usize, null_gs_ptr: NonNull<*mut c_void>) -> LocalState {
+        let gdt = GDT::new();
+        gdt.set_active(null_gs_ptr.as_ptr() as usize);
+
+        LocalState {
             critical_state: CriticalState::new(),
             process_controller: CriticalRefCell::new(LocalProcessController::new(null_stack_top)),
 
             gdt,
-        })
+        }
     }
 
-    pub fn try_get() -> Option<&'local LocalState<'local>> {
+    pub fn try_get<'a>() -> Option<&'a LocalState> {
         let gs = unsafe { get_gs() };
         if gs <= KERNEL_VMA {
             None
@@ -41,7 +41,7 @@ impl<'local> LocalState<'local> {
         }
     }
 
-    pub fn get() -> &'local LocalState<'local> {
+    pub fn get<'a>() -> &'a LocalState {
         LocalState::try_get().unwrap()
     }
 
@@ -49,8 +49,8 @@ impl<'local> LocalState<'local> {
         &self.critical_state
     }
 
-    pub fn gdt(&'local self) -> &'local GDT {
-        self.gdt
+    pub(crate) fn gdt(&self) -> &GDT {
+        &self.gdt
     }
 
     pub(crate) fn process_controller(&self) -> &CriticalRefCell<LocalProcessController> {

@@ -1,6 +1,3 @@
-.section .text.low
-reload_cs_location: .8byte .reload_cs
-
 .section .text
 .global set_active_gdt
 set_active_gdt:
@@ -8,16 +5,14 @@ set_active_gdt:
     
     .reload_segments:
         push rsi
-
-        mov rax, qword ptr [reload_cs_location]
-        push rax
-        
+        push rcx
         retfq
 
-    .reload_cs:
-        mov ds, dx
-        mov es, dx
-        mov fs, dx
-        mov gs, dx
-        mov ss, dx
-        ret
+.global reload_cs
+reload_cs:
+    mov ds, dx
+    mov es, dx
+    mov fs, dx
+    mov gs, dx
+    mov ss, dx
+    ret
