@@ -65,9 +65,9 @@ fn kinit(context: usize) -> isize {
     log_info!(logger, "Context: {}", context);
 
     let id = process::spawn_kernel_process(thread1, 69, "Test").id();
-    /*let result = process::wait_process(id).unwrap();
+    let result = process::wait_process(id).unwrap();
 
-    log_info!(logger, "Result: {}", result);*/
+    log_info!(logger, "Result: {}", result);
 
     for _ in 0..50 {
         ProcessManager::get().r#yield(None);

@@ -1,5 +1,5 @@
 use super::Thread;
-use crate::{CriticalKey, CriticalLock, Queue};
+use crate::{log_info, CriticalKey, CriticalLock, Logger, Queue};
 use alloc::sync::Arc;
 
 #[derive(Clone)]
@@ -70,6 +70,7 @@ impl ThreadQueueGuard {
 
 impl Drop for ThreadQueueGuard {
     fn drop(&mut self) {
+        log_info!(Logger::from("Ahhh"), "Test");
         unsafe { self.queue.unlock(self.key.take()) };
     }
 }

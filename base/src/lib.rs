@@ -33,8 +33,7 @@ pub use interrupts::{ExceptionInfo, ExceptionType, InterruptController};
 pub use local::LocalState;
 pub use log::{Level, LogController, LogOutput, Logger};
 pub use memory::{
-    AddressSpace, MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, SlabAllocator,
-    KERNEL_VMA,
+    AddressSpace, MemoryDescriptor, MemoryManager, MemoryMap, PhysicalAddress, KERNEL_VMA,
 };
 pub use process::{Process, ProcessManager, Thread, ThreadQueue, ThreadQueueGuard};
 pub use sync::{Mutex, MutexGuard};

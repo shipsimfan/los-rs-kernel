@@ -1,5 +1,5 @@
 use crate::{log_info, CriticalLock, Logger};
-use buddy::BuddyAllocator;
+use buddy::{num_pages_to_order, BuddyAllocator};
 use core::{
     arch::global_asm,
     ffi::c_void,
@@ -19,7 +19,6 @@ mod global_alloc;
 mod map;
 mod page_tables;
 mod physical_address;
-mod slab;
 
 macro_rules! mask {
     ($size: expr) => {
@@ -33,12 +32,12 @@ pub use address_space::AddressSpace;
 pub use constants::*;
 pub use map::*;
 pub use physical_address::*;
-pub use slab::SlabAllocator;
+
+//pub use slab::SlabAllocator;
 
 pub struct MemoryManager {
     initialized: AtomicBool,
     logger: Logger,
-
     buddy_allocator: CriticalLock<BuddyAllocator>,
 }
 
@@ -59,7 +58,6 @@ impl MemoryManager {
         MemoryManager {
             initialized: AtomicBool::new(false),
             logger: Logger::from("Memory Manager"),
-
             buddy_allocator: CriticalLock::new(BuddyAllocator::new()),
         }
     }
@@ -88,40 +86,14 @@ impl MemoryManager {
         let (memory_map_bottom, memory_map_top) = memory_map.bottom_and_top();
         let memory_map_bottom = memory_map_bottom & PAGE_MASK;
 
-        let mut buddy_allocator = self.buddy_allocator.lock();
-        unsafe { buddy_allocator.initialize_orders() };
-        for descriptor in memory_map {
-            if !descriptor.is_usable() {
-                continue;
-            }
-
-            let mut address = descriptor.address();
-            if unsafe { address.add(descriptor.num_pages() * PAGE_SIZE) } <= kernel_top {
-                continue;
-            }
-
-            let mut virt_bottom = address.into_virtual::<u32>() as usize;
-            let virt_top = virt_bottom + (descriptor.num_pages() * PAGE_SIZE);
-            if (virt_bottom >= framebuffer_bottom && virt_top <= framebuffer_top)
-                || (virt_bottom >= memory_map_bottom && virt_top <= memory_map_top)
-            {
-                continue;
-            }
-
-            for _ in 0..descriptor.num_pages() {
-                if address >= kernel_top
-                    && (virt_bottom <= framebuffer_bottom - PAGE_SIZE
-                        || virt_bottom >= framebuffer_top)
-                    && (virt_bottom <= memory_map_bottom - PAGE_SIZE
-                        || virt_bottom >= memory_map_top)
-                {
-                    unsafe { buddy_allocator.free_at(address.into_virtual::<()>() as usize, 1) };
-                }
-
-                virt_bottom += PAGE_SIZE;
-                address = unsafe { address.add(PAGE_SIZE) };
-            }
-        }
+        buddy::initialize(
+            memory_map,
+            &[
+                (0, kernel_top.into_virtual::<u8>() as usize),
+                (framebuffer_bottom, framebuffer_top),
+                (memory_map_bottom, memory_map_top),
+            ],
+        )
     }
 
     pub fn kernel_address_space(&self) -> &AddressSpace {
@@ -129,12 +101,14 @@ impl MemoryManager {
     }
 
     pub fn allocate_pages(&self, num_pages: usize) -> NonNull<u8> {
-        unsafe { NonNull::new_unchecked(self.buddy_allocator.lock().allocate(num_pages) as *mut _) }
+        self.buddy_allocator
+            .lock()
+            .allocate(num_pages_to_order(num_pages))
     }
 
     pub fn free_pages(&self, ptr: NonNull<u8>, num_pages: usize) {
         self.buddy_allocator
             .lock()
-            .free(ptr.as_ptr() as usize, num_pages);
+            .free(ptr, num_pages_to_order(num_pages));
     }
 }
