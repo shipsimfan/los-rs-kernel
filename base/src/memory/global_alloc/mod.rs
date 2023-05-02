@@ -1,30 +1,31 @@
+use super::slab::CacheInner;
 use crate::{memory::PAGE_SIZE, MemoryManager};
 use core::{alloc::GlobalAlloc, ptr::NonNull};
 
 pub struct GlobalAllocator {
-    //slabs: [SlabAllocator; SLAB_SIZES.len()],
+    size_caches: [CacheInner; CACHE_SIZES.len()],
 }
 
 #[global_allocator]
 static GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator::new();
 
-const SLAB_SIZES: &[usize] = &[8, 16, 32, 64, 128, 256, 512, 1024, LARGEST_SLAB_SIZE];
+const CACHE_SIZES: &[usize] = &[8, 16, 32, 64, 128, 256, 512, 1024, LARGEST_SLAB_SIZE];
 const LARGEST_SLAB_SIZE: usize = 2048;
 
 impl GlobalAllocator {
     pub const fn new() -> Self {
         GlobalAllocator {
-            /*slabs: [
-                SlabAllocator::new(SLAB_SIZES[0], SLAB_SIZES[0]),
-                SlabAllocator::new(SLAB_SIZES[1], SLAB_SIZES[1]),
-                SlabAllocator::new(SLAB_SIZES[2], SLAB_SIZES[2]),
-                SlabAllocator::new(SLAB_SIZES[3], SLAB_SIZES[3]),
-                SlabAllocator::new(SLAB_SIZES[4], SLAB_SIZES[4]),
-                SlabAllocator::new(SLAB_SIZES[5], SLAB_SIZES[5]),
-                SlabAllocator::new(SLAB_SIZES[6], SLAB_SIZES[6]),
-                SlabAllocator::new(SLAB_SIZES[7], SLAB_SIZES[7]),
-                SlabAllocator::new(SLAB_SIZES[8], SLAB_SIZES[8]),
-            ],*/
+            size_caches: [
+                CacheInner::new(CACHE_SIZES[0], CACHE_SIZES[0]),
+                CacheInner::new(CACHE_SIZES[1], CACHE_SIZES[1]),
+                CacheInner::new(CACHE_SIZES[2], CACHE_SIZES[2]),
+                CacheInner::new(CACHE_SIZES[3], CACHE_SIZES[3]),
+                CacheInner::new(CACHE_SIZES[4], CACHE_SIZES[4]),
+                CacheInner::new(CACHE_SIZES[5], CACHE_SIZES[5]),
+                CacheInner::new(CACHE_SIZES[6], CACHE_SIZES[6]),
+                CacheInner::new(CACHE_SIZES[7], CACHE_SIZES[7]),
+                CacheInner::new(CACHE_SIZES[8], CACHE_SIZES[8]),
+            ],
         }
     }
 }

@@ -19,6 +19,7 @@ mod global_alloc;
 mod map;
 mod page_tables;
 mod physical_address;
+mod slab;
 
 macro_rules! mask {
     ($size: expr) => {

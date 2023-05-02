@@ -59,6 +59,7 @@ impl FreeList {
 
             if current_node.as_ptr() as usize == address {
                 unsafe { prev.as_mut() }.set_next(unsafe { current_node.as_ref() }.next());
+                self.count -= 1;
                 return Some(current_node);
             }
 

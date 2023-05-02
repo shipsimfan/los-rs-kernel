@@ -12,7 +12,7 @@ pub(super) use allocator::BuddyAllocator;
 
 const MAX_ORDER: u8 = 16;
 
-const fn order_to_size(order: u8) -> usize {
+pub const fn order_to_size(order: u8) -> usize {
     if order >= MAX_ORDER {
         panic!("Max order");
     }
