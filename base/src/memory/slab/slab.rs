@@ -1,80 +1,132 @@
-use crate::memory::buddy::order_to_size;
+use super::{Object, SlabDescriptor, SlabInfo};
+use crate::{memory::buddy::order_to_size, MemoryManager};
 use core::ptr::NonNull;
 
-pub(super) struct SlabDescriptor {
-    poison: u64,
-    next: Option<NonNull<SlabDescriptor>>,
-    prev: Option<NonNull<SlabDescriptor>>,
-    free_list: Option<u16>,
-    active_objects: u16,
+pub(super) struct Slab;
+
+const PRE_DESCRIPTOR_POISON: u8 = 0xC9;
+
+fn calculate_descriptor_ptr(ptr: usize, order: u8) -> usize {
+    ptr + order_to_size(order) - core::mem::size_of::<SlabDescriptor>()
 }
 
-const DESCRIPTOR_POISON: u64 = 0xAEDCD308A20AAE04;
-const OBJECT_POISON: u8 = 0xF1;
-const PADDING_POISON: u8 = 0x4A;
-
-fn slab_to_descriptor(address: NonNull<u8>, order: u8) -> NonNull<SlabDescriptor> {
-    NonNull::new(
-        (address.as_ptr() as usize + order_to_size(order) - core::mem::size_of::<SlabDescriptor>())
-            as *mut SlabDescriptor,
-    )
-    .unwrap()
+fn calculate_descriptor_poison_ptr(ptr: usize, order: u8, posion_size: usize) -> usize {
+    calculate_descriptor_ptr(ptr, order) - posion_size
 }
 
-fn set_and_increment(address: &mut NonNull<u8>, value: u8) {
-    *unsafe { address.as_mut() } = value;
-    *address = unsafe { NonNull::new_unchecked(address.as_ptr().add(1)) };
+fn calculate_index(ptr: usize, index: u16, total_object_size: usize) -> usize {
+    ptr + index as usize * total_object_size
 }
 
-pub(super) fn initialize_slab(
-    mut address: NonNull<u8>,
-    order: u8,
-    object_size: usize,
-    padding_size: usize,
-    num_objects: usize,
-    next: Option<NonNull<SlabDescriptor>>,
-    prev: Option<NonNull<SlabDescriptor>>,
-) -> NonNull<SlabDescriptor> {
-    assert_eq!(address.as_ptr() as usize % order_to_size(order), 0);
-    assert!(num_objects > 0);
-    assert!(object_size >= 2);
-    assert!(
-        order_to_size(order)
-            >= core::mem::size_of::<SlabDescriptor>()
-                + object_size * num_objects
-                + padding_size * (num_objects - 1)
-    );
+impl Slab {
+    pub(super) fn new(info: &SlabInfo) -> NonNull<Self> {
+        let mut ptr = MemoryManager::get()
+            .buddy_allocator
+            .lock()
+            .allocate(info.order())
+            .cast::<Self>();
 
-    // Initialize the descriptor
-    let mut descriptor = slab_to_descriptor(address, order);
-    *unsafe { descriptor.as_mut() } = SlabDescriptor {
-        poison: DESCRIPTOR_POISON,
-        next,
-        prev,
-        free_list: Some(0),
-        active_objects: 0,
-    };
+        unsafe { ptr.as_mut() }.initialize(info);
 
-    // Initialize each object and padding
-    for i in 0..num_objects {
-        for _ in 0..object_size {
-            set_and_increment(&mut address, OBJECT_POISON);
+        ptr
+    }
+
+    pub(super) fn next(&self) -> Option<NonNull<Slab>> {
+        todo!("Slab next")
+    }
+
+    pub(super) fn pop_free(&mut self, info: &SlabInfo) -> Option<(NonNull<u8>, usize)> {
+        let mut descriptor = self.descriptor(info, true);
+        let object_index = match unsafe { descriptor.as_mut() }.take_first_free() {
+            Some(index) => index,
+            None => return None,
+        };
+
+        let object = self.get(object_index, info.total_object_size());
+
+        let next = unsafe { object.as_ref() }.next(info);
+
+        unsafe { descriptor.as_mut() }.set_first_free(next);
+
+        Some((
+            object.cast(),
+            unsafe { descriptor.as_ref() }.active_objects(),
+        ))
+    }
+
+    pub(super) fn set_next(&mut self, info: &SlabInfo, next: Option<NonNull<Slab>>) {
+        unsafe { self.descriptor(info, true).as_mut() }.set_next(next);
+    }
+
+    pub(super) fn set_prev(&mut self, info: &SlabInfo, prev: Option<NonNull<Slab>>) {
+        todo!("Slab set prev");
+    }
+
+    fn get(&self, index: u16, total_object_size: usize) -> NonNull<Object> {
+        NonNull::new(
+            calculate_index(self as *const _ as usize, index, total_object_size) as *mut Object,
+        )
+        .unwrap()
+    }
+
+    fn descriptor(&self, info: &SlabInfo, verify_poison: bool) -> NonNull<SlabDescriptor> {
+        if verify_poison {
+            self.verify_descriptor_poison(info);
         }
 
-        if i == num_objects - 1 {
-            continue;
-        }
+        NonNull::new(calculate_descriptor_ptr(self as *const _ as usize, info.order()) as *mut _)
+            .unwrap()
+    }
 
-        for _ in 0..padding_size {
-            set_and_increment(&mut address, PADDING_POISON);
+    fn verify_descriptor_poison(&self, info: &SlabInfo) {
+        let ptr: &u8 = self.map_ptr(|ptr| {
+            calculate_descriptor_poison_ptr(ptr, info.order(), info.pre_descriptor_poison_size())
+        });
+
+        let slice = unsafe { core::slice::from_raw_parts(ptr, info.pre_descriptor_poison_size()) };
+
+        for byte in slice {
+            assert_eq!(*byte, PRE_DESCRIPTOR_POISON);
         }
     }
 
-    while (address.as_ptr() as usize)
-        < order_to_size(order) - core::mem::size_of::<SlabDescriptor>()
+    fn map_ptr<F, T>(&self, f: F) -> &T
+    where
+        F: Fn(usize) -> usize,
     {
-        set_and_increment(&mut address, PADDING_POISON);
+        unsafe { &*(f(self as *const _ as usize) as *const T) }
     }
 
-    descriptor
+    fn map_ptr_mut<F, T>(&mut self, f: F) -> &mut T
+    where
+        F: Fn(usize) -> usize,
+    {
+        unsafe { &mut *(f(self as *mut _ as usize) as *mut T) }
+    }
+
+    fn initialize(&mut self, info: &SlabInfo) {
+        assert_eq!(self as *const _ as usize % order_to_size(info.order()), 0);
+
+        unsafe { self.descriptor(info, false).as_mut() }.initialize();
+
+        for i in 0..info.num_objects() {
+            unsafe { self.get(i as u16, info.total_object_size()).as_mut() }.initialize(
+                info,
+                if i < info.num_objects() - 1 {
+                    Some((i + 1) as u16)
+                } else {
+                    None
+                },
+            );
+        }
+
+        let ptr: &mut u8 = self.map_ptr_mut(|ptr| {
+            calculate_descriptor_poison_ptr(ptr, info.order(), info.pre_descriptor_poison_size())
+        });
+        let slice =
+            unsafe { core::slice::from_raw_parts_mut(ptr, info.pre_descriptor_poison_size()) };
+        for byte in slice {
+            *byte = PRE_DESCRIPTOR_POISON;
+        }
+    }
 }

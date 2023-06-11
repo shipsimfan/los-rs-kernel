@@ -13,10 +13,7 @@ pub(super) use allocator::BuddyAllocator;
 const MAX_ORDER: u8 = 16;
 
 pub const fn order_to_size(order: u8) -> usize {
-    if order >= MAX_ORDER {
-        panic!("Max order");
-    }
-
+    assert!(order < MAX_ORDER);
     PAGE_SIZE << order as usize
 }
 
